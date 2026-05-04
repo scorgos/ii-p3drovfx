@@ -54,6 +54,9 @@ FORCE_INSTALL=false
 BACKUP=true
 FULL_INSTALL=false
 NO_CONFIRM=false
+USE_UPSTREAM=false
+UPSTREAM_REPO="https://github.com/vaguesyntax/ii-vynx"
+UPSTREAM_DIR="$HOME/.local/share/ii-vynx-upstream"
 
 for arg in "$@"; do
     case $arg in
@@ -76,6 +79,9 @@ for arg in "$@"; do
             NO_CONFIRM=true
             FORCE_INSTALL=true
             ;;
+        --upstream)
+            USE_UPSTREAM=true
+            ;;
         *)
             echo -e "${RED}Unknown flag: $arg${NC}"
             echo "Usage: $0 [OPTIONS]"
@@ -86,6 +92,7 @@ for arg in "$@"; do
             echo "  --force-install    Skip illogical-impulse check"
             echo "  --full-install     Install original dots first, then ii-vynx"
             echo "  --no-confirm       Skip all confirmations and checks"
+            echo "  --upstream         Use official vaguesyntax/ii-vynx quickshell instead of fork"
             echo "  -v, --verbose      Enable verbose output"
             exit 1
             ;;
@@ -96,6 +103,40 @@ log_verbose() {
     if [ "$VERBOSE" = true ]; then
         echo -e "${BLUE}[VERBOSE] $1${NC}"
     fi
+}
+
+fetch_upstream_source() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}  Using upstream quickshell config${NC}"
+    echo -e "${CYAN}  $UPSTREAM_REPO${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    if [ -d "$UPSTREAM_DIR/.git" ]; then
+        echo -e "${NC}• Updating upstream repo...${NC}"
+        git -C "$UPSTREAM_DIR" pull --ff-only
+        if [ $? -ne 0 ]; then
+            echo -e "${YELLOW}⚠ git pull failed for upstream, using cached version.${NC}"
+        else
+            echo -e "${GREEN}✓ Upstream repo updated${NC}"
+        fi
+    else
+        echo -e "${NC}• Cloning upstream repo (first time)...${NC}"
+        git clone --depth=1 "$UPSTREAM_REPO" "$UPSTREAM_DIR"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}✗ Failed to clone upstream repo: $UPSTREAM_REPO${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ Upstream repo cloned${NC}"
+    fi
+
+    local UPSTREAM_SOURCE="$UPSTREAM_DIR/dots/.config/quickshell/ii"
+    if [ ! -d "$UPSTREAM_SOURCE" ]; then
+        echo -e "${RED}✗ Upstream quickshell config not found at: $UPSTREAM_SOURCE${NC}"
+        exit 1
+    fi
+
+    echo "$UPSTREAM_SOURCE"
 }
 
 setup_hyprland_rules() {
@@ -347,11 +388,29 @@ CHECK_DIR="$CONFIG_DIR/illogical-impulse"
 TARGET_DIR="$CONFIG_DIR/quickshell/ii"
 SOURCE_DIR="$SCRIPT_DIR/dots/.config/quickshell/ii"
 
+# --upstream: use official vaguesyntax/ii-vynx quickshell instead of fork
+if [ "$USE_UPSTREAM" = true ]; then
+    if [ "$DO_PULL" = false ]; then
+        # No pull: use cached upstream if available, skip clone
+        if [ -d "$UPSTREAM_DIR/dots/.config/quickshell/ii" ]; then
+            SOURCE_DIR="$UPSTREAM_DIR/dots/.config/quickshell/ii"
+            echo -e "${YELLOW}--no-pull: using cached upstream quickshell at $SOURCE_DIR${NC}"
+        else
+            echo -e "${RED}✗ --upstream + --no-pull: upstream not cached yet. Run without --no-pull first.${NC}"
+            exit 1
+        fi
+    else
+        SOURCE_DIR="$(fetch_upstream_source)"
+        DO_PULL=false  # Already pulled upstream, skip fork pull below
+    fi
+fi
+
 log_verbose "CONFIG_DIR=$CONFIG_DIR"
 log_verbose "CHECK_DIR=$CHECK_DIR"
 log_verbose "TARGET_DIR=$TARGET_DIR"
 log_verbose "SCRIPT_DIR=$SCRIPT_DIR"
 log_verbose "SOURCE_DIR=$SOURCE_DIR"
+log_verbose "USE_UPSTREAM=$USE_UPSTREAM"
 
 if [ "$DO_PULL" = true ]; then
     echo -e "${NC}• Checking for updates...${NC}"
