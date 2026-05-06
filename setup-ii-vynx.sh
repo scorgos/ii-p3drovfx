@@ -370,10 +370,20 @@ else
     fi
     SOURCE_DIR="$FORK_DIR/dots/.config/quickshell/ii"
     if [ "$DO_PULL" = true ]; then
-        echo -e "${NC}• Pulling fork updates...${NC}"
-        cd "$FORK_DIR" && git pull
-        [ $? -ne 0 ] && echo -e "${RED}✗ git pull failed${NC}" && exit 1
-        echo -e "${GREEN}✓ Fork updated${NC}"
+        echo -e "${NC}• Updating your fork...${NC}"
+        git -C "$FORK_DIR" pull --ff-only
+        git -C "$FORK_DIR" submodule update --init --recursive
+        if [ $? -ne 0 ]; then
+            echo -e "${YELLOW}⚠ git update failed for fork, using local version.${NC}"
+        else
+            echo -e "${GREEN}✓ Fork updated and submodules synced${NC}"
+        fi
+    else
+        # Even if not pulling, ensure submodules are initialized if they exist in the repo
+        if [ -d "$FORK_DIR/.git" ]; then
+            echo -e "${NC}• Ensuring fork submodules are initialized...${NC}"
+            git -C "$FORK_DIR" submodule update --init --recursive >/dev/null 2>&1
+        fi
     fi
 fi
 

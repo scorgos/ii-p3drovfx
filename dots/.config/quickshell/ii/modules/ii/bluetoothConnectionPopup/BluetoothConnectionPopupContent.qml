@@ -44,20 +44,18 @@ Item {
     // Expose contentBackground for mask in parent PanelWindow
     property alias contentBackground: contentBackground
 
-    // Known device image mapping by MAC address
-    readonly property var deviceImageMap: ({
-        "E8:EE:CC:96:31:3A": Qt.resolvedUrl("../../../assets/images/devices/anker_q30_.png"),
-        "40:35:E6:31:8B:AC": Qt.resolvedUrl("../../../assets/images/devices/galaxy_buds_3.png"),
-        "64:1B:2F:9B:95:CE": Qt.resolvedUrl("../../../assets/images/devices/samsung_s23.png")
-    })
+    function getDeviceImageSource(device) {
+        if (!device) return "";
+        let custom = Config.options.apps.bluetoothDeviceImages.find(d => d.mac === device.address);
+        if (custom) {
+            return Qt.resolvedUrl("../../../assets/images/devices/" + custom.image);
+        }
+        return "";
+    }
 
     readonly property string deviceName: device?.name ?? Translation.tr("Unknown Device")
     readonly property string deviceIcon: device ? Icons.getBluetoothDeviceMaterialSymbol(device.icon || "") : "headphones"
-    readonly property string deviceImageSource: {
-        if (!device) return "";
-        const img = deviceImageMap[device.address];
-        return img || "";
-    }
+    readonly property string deviceImageSource: getDeviceImageSource(device)
     readonly property bool hasCustomImage: deviceImageSource !== ""
 
     // Sizing
