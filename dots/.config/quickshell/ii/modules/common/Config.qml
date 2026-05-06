@@ -707,6 +707,12 @@ Singleton {
             }
 
             property JsonObject sidebar: JsonObject {
+                property JsonObject dashboardHeader: JsonObject {
+                    property string profileImageType: "custom" // "custom", "distro", "none"
+                    property string profileImagePath: "file://" + Directories.home + "/.config/quickshell/ii/assets/profile.png"
+                    property string textMode: "username" // "username", "uptime", "none", "custom"
+                    property string customText: ""
+                }
                 property string position: "default"
                 property bool keepRightSidebarLoaded: true
                 property JsonObject translator: JsonObject {

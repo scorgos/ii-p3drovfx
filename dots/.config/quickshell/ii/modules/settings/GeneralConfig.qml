@@ -19,6 +19,94 @@ ContentPage {
         command: [Directories.aiTranslationScriptPath, translationProc.locale]  
     }  
   
+    Process {
+        id: pickImageProc
+        command: ["bash", "-c", "FILE=$(kdialog --getopenfilename \"$HOME\" \"*.png *.jpg *.jpeg\" 2>/dev/null || zenity --file-selection --file-filter=\"Images | *.png *.jpg *.jpeg\" 2>/dev/null); if [ -n \"$FILE\" ] && [ -f \"$FILE\" ]; then cp \"$FILE\" ~/.config/quickshell/ii/assets/profile.png; echo 'success'; fi"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (data.trim() === "success") {
+                    Config.options.sidebar.dashboardHeader.profileImagePath = "file://" + Quickshell.env("HOME") + "/.config/quickshell/ii/assets/profile.png?rand=" + Math.random();
+                }
+            }
+        }
+    }
+
+    ContentSection {
+        icon: "dashboard"
+        title: Translation.tr("Dashboard Header")
+
+        ConfigRow {
+            uniform: false
+            ContentSubsection {
+                title: Translation.tr("Profile Image")
+                StyledComboBox {
+                    buttonIcon: "image"
+                    textRole: "displayName"
+                    model: [
+                        { displayName: Translation.tr("Custom Image"), value: "custom" },
+                        { displayName: Translation.tr("Distro Icon"), value: "distro" },
+                        { displayName: Translation.tr("None"), value: "none" }
+                    ]
+                    currentIndex: {
+                        const index = model.findIndex(item => item.value === Config.options.sidebar.dashboardHeader.profileImageType);
+                        return index !== -1 ? index : 0;
+                    }
+                    onActivated: index => {
+                        Config.options.sidebar.dashboardHeader.profileImageType = model[index].value;
+                    }
+                }
+            }
+
+            RippleButtonWithIcon {
+                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignBottom
+                visible: Config.options.sidebar.dashboardHeader.profileImageType === "custom"
+                nerdIcon: ""
+                mainText: Translation.tr("Select Image")
+                onClicked: {
+                    pickImageProc.running = false;
+                    pickImageProc.running = true;
+                }
+            }
+        }
+
+        ConfigRow {
+            uniform: false
+            ContentSubsection {
+                title: Translation.tr("Header Text")
+                StyledComboBox {
+                    buttonIcon: "text_fields"
+                    textRole: "displayName"
+                    model: [
+                        { displayName: Translation.tr("Username"), value: "username" },
+                        { displayName: Translation.tr("Uptime"), value: "uptime" },
+                        { displayName: Translation.tr("Custom Text"), value: "custom" },
+                        { displayName: Translation.tr("None"), value: "none" }
+                    ]
+                    currentIndex: {
+                        const index = model.findIndex(item => item.value === Config.options.sidebar.dashboardHeader.textMode);
+                        return index !== -1 ? index : 0;
+                    }
+                    onActivated: index => {
+                        Config.options.sidebar.dashboardHeader.textMode = model[index].value;
+                    }
+                }
+            }
+
+            MaterialTextArea {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignBottom
+                visible: Config.options.sidebar.dashboardHeader.textMode === "custom"
+                placeholderText: Translation.tr("Enter custom text")
+                text: Config.options.sidebar.dashboardHeader.customText
+                onTextChanged: {
+                    Config.options.sidebar.dashboardHeader.customText = text;
+                }
+            }
+        }
+    }
+
     ContentSection {  
         icon: "volume_up"  
         title: Translation.tr("Audio")  

@@ -13,8 +13,7 @@ ContentPage {
     forceWidth: true
 
     // ── Script path — uses Directories.home so it works for any user ────────
-    readonly property string setupScript: FileUtils.trimFileProtocol(
-        `${Directories.home}/.local/share/ii-vynx/setup-ii-vynx.sh`)
+    readonly property string setupScript: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-vynx/setup-ii-vynx.sh`)
 
     // ── Single process for all actions ──────────────────────────────────────
     Process {
@@ -22,16 +21,20 @@ ContentPage {
         property string mode: ""
         property string logOutput: ""
         stdout: SplitParser {
-            onRead: data => { actionProc.logOutput += data + "\n" }
+            onRead: data => {
+                actionProc.logOutput += data + "\n";
+            }
         }
         stderr: SplitParser {
-            onRead: data => { actionProc.logOutput += data + "\n" }
+            onRead: data => {
+                actionProc.logOutput += data + "\n";
+            }
         }
         onExited: code => {
             if (code === 0)
-                actionProc.logOutput += "✓ Done\n"
+                actionProc.logOutput += "✓ Done\n";
             else
-                actionProc.logOutput += "✗ Exited with code " + code + "\n"
+                actionProc.logOutput += "✗ Exited with code " + code + "\n";
         }
     }
 
@@ -212,32 +215,32 @@ ContentPage {
 
                 RippleButtonWithIcon {
                     materialIcon: actionProc.running && actionProc.mode === "update-fork" ? "sync" : "system_update_alt"
-                    mainText: actionProc.running && actionProc.mode === "update-fork"
-                        ? Translation.tr("Updating fork...")
-                        : Translation.tr("Update Fork")
+                    mainText: actionProc.running && actionProc.mode === "update-fork" ? Translation.tr("Updating fork...") : Translation.tr("Update Fork")
                     enabled: !actionProc.running
                     onClicked: {
-                        actionProc.logOutput = ""
-                        actionProc.mode = "update-fork"
-                        actionProc.command = ["bash", page.setupScript, "--update-only", "--no-confirm"]
-                        actionProc.running = true
+                        actionProc.logOutput = "";
+                        actionProc.mode = "update-fork";
+                        actionProc.command = ["bash", page.setupScript, "--update-only", "--no-confirm"];
+                        actionProc.running = true;
                     }
-                    StyledToolTip { text: Translation.tr("Pull latest changes from your fork on GitHub") }
+                    StyledToolTip {
+                        text: Translation.tr("Pull latest changes from your fork on GitHub")
+                    }
                 }
 
                 RippleButtonWithIcon {
                     materialIcon: actionProc.running && actionProc.mode === "update-upstream" ? "sync" : "cloud_download"
-                    mainText: actionProc.running && actionProc.mode === "update-upstream"
-                        ? Translation.tr("Updating...")
-                        : Translation.tr("Update ii-vynx")
+                    mainText: actionProc.running && actionProc.mode === "update-upstream" ? Translation.tr("Updating...") : Translation.tr("Update ii-vynx")
                     enabled: !actionProc.running
                     onClicked: {
-                        actionProc.logOutput = ""
-                        actionProc.mode = "update-upstream"
-                        actionProc.command = ["bash", page.setupScript, "--update-only", "--ii-vynx", "--no-confirm"]
-                        actionProc.running = true
+                        actionProc.logOutput = "";
+                        actionProc.mode = "update-upstream";
+                        actionProc.command = ["bash", page.setupScript, "--update-only", "--ii-vynx", "--no-confirm"];
+                        actionProc.running = true;
                     }
-                    StyledToolTip { text: Translation.tr("Pull latest official ii-vynx from GitHub") }
+                    StyledToolTip {
+                        text: Translation.tr("Pull latest official ii-vynx from GitHub")
+                    }
                 }
             }
 
@@ -280,34 +283,32 @@ ContentPage {
 
                 RippleButtonWithIcon {
                     materialIcon: actionProc.running && actionProc.mode === "fork" ? "sync" : "fork_right"
-                    mainText: actionProc.running && actionProc.mode === "fork"
-                        ? Translation.tr("Switching...")
-                        : Translation.tr("P3DROVFX Fork")
+                    mainText: actionProc.running && actionProc.mode === "fork" ? Translation.tr("Switching...") : Translation.tr("P3DROVFX Fork")
                     enabled: !actionProc.running
                     onClicked: {
-                        actionProc.logOutput = ""
-                        actionProc.mode = "fork"
-                        actionProc.command = ["bash", page.setupScript,
-                            "--force-install", "--no-pull", "--no-confirm"]
-                        actionProc.running = true
+                        actionProc.logOutput = "";
+                        actionProc.mode = "fork";
+                        actionProc.command = ["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm"];
+                        actionProc.running = true;
                     }
-                    StyledToolTip { text: Translation.tr("Switch to your fork (local, no network)") }
+                    StyledToolTip {
+                        text: Translation.tr("Switch to your fork (local, no network)")
+                    }
                 }
 
                 RippleButtonWithIcon {
                     materialIcon: actionProc.running && actionProc.mode === "upstream" ? "sync" : "deployed_code"
-                    mainText: actionProc.running && actionProc.mode === "upstream"
-                        ? Translation.tr("Switching...")
-                        : Translation.tr("ii-vynx Official")
+                    mainText: actionProc.running && actionProc.mode === "upstream" ? Translation.tr("Switching...") : Translation.tr("ii-vynx Official")
                     enabled: !actionProc.running
                     onClicked: {
-                        actionProc.logOutput = ""
-                        actionProc.mode = "upstream"
-                        actionProc.command = ["bash", page.setupScript,
-                            "--force-install", "--no-pull", "--no-confirm", "--ii-vynx"]
-                        actionProc.running = true
+                        actionProc.logOutput = "";
+                        actionProc.mode = "upstream";
+                        actionProc.command = ["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm", "--ii-vynx"];
+                        actionProc.running = true;
                     }
-                    StyledToolTip { text: Translation.tr("Switch to official ii-vynx (local, no network)") }
+                    StyledToolTip {
+                        text: Translation.tr("Switch to official ii-vynx (local, no network)")
+                    }
                 }
             }
         }

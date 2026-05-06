@@ -61,6 +61,7 @@ FULL_INSTALL=false
 NO_CONFIRM=false
 USE_II_VYNX=false
 UPDATE_ONLY=false
+RESET_CONFIG=false
 
 UPSTREAM_REPO="https://github.com/vaguesyntax/ii-vynx"
 UPSTREAM_DIR="$HOME/.local/share/ii-vynx-upstream"
@@ -98,9 +99,11 @@ for arg in "$@"; do
             echo "  --no-confirm       Skip all confirmations"
             echo "  --ii-vynx          Switch to official vaguesyntax/ii-vynx quickshell"
             echo "  --update-only      Pull latest changes for current source, no switch"
+            echo "  --reset-config     Reset config.json to defaults (prevents crashes on switch)"
             echo "  -v, --verbose      Enable verbose output"
             exit 1
             ;;
+        --reset-config)   RESET_CONFIG=true ;;
     esac
 done
 
@@ -452,6 +455,29 @@ fi
 restore_protected_files "$TARGET_DIR"
 
 echo -e "${GREEN}✓ Quickshell source switched successfully${NC}"
+
+# ── Config Reset ─────────────────────────────────────────────────────────────
+CONFIG_FILE="$HOME/.config/illogical-impulse/config.json"
+if [ "$RESET_CONFIG" = true ]; then
+    if [ -f "$CONFIG_FILE" ]; then
+        BACKUP_CFG="${CONFIG_FILE}_backup_$(date +%Y%m%d_%H%M%S)"
+        echo -e "${YELLOW}• Resetting config.json (backup: $(basename "$BACKUP_CFG"))...${NC}"
+        mv "$CONFIG_FILE" "$BACKUP_CFG"
+        echo -e "${GREEN}✓ Config reset. Quickshell will regenerate defaults on next run.${NC}"
+    fi
+elif [ "$UPDATE_ONLY" = false ]; then
+    # When switching sources, suggest a reset if not explicitly requested
+    if [ "$NO_CONFIRM" = false ] && [ -f "$CONFIG_FILE" ]; then
+        echo -e "${YELLOW}⚠ Warning: Switching between official and fork versions can cause crashes if config.json is incompatible.${NC}"
+        echo -ne "${CYAN}Do you want to reset your config.json now? (Backups will be created) (y/n): ${NC}"
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            BACKUP_CFG="${CONFIG_FILE}_backup_$(date +%Y%m%d_%H%M%S)"
+            mv "$CONFIG_FILE" "$BACKUP_CFG"
+            echo -e "${GREEN}✓ Config reset.${NC}"
+        fi
+    fi
+fi
 
 # ── Hyprland config ──────────────────────────────────────────────────────────
 sleep 0.5

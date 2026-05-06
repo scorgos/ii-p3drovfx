@@ -221,30 +221,49 @@ Item {
             color: Appearance.colors.colLayer1
             readonly property int fullRadius: Config.options.appearance.sharpMode ? Appearance.rounding.full : height / 2
             radius: fullRadius
-            implicitWidth: uptimeRow.implicitWidth + 28
-            implicitHeight: uptimeRow.implicitHeight + 4
+
+            visible: Config.options.sidebar.dashboardHeader.profileImageType !== "none" || Config.options.sidebar.dashboardHeader.textMode !== "none"
+
+            property int rowLeftMargin: Config.options.sidebar.dashboardHeader.profileImageType === "custom" ? 6 : 14
+
+            implicitWidth: uptimeRow.implicitWidth + rowLeftMargin + 14
+            implicitHeight: Math.max(32, uptimeRow.implicitHeight + (Config.options.sidebar.dashboardHeader.profileImageType === "custom" ? 4 : 12))
             
             Row {
                 id: uptimeRow
                 anchors {
                     left: parent.left
                     verticalCenter: parent.verticalCenter
-                    leftMargin: 6
-                    }
-                spacing: 4
+                    leftMargin: uptimeContainer.rowLeftMargin
+                }
+                spacing: 8
 
                 // PROFILE PICTURE
                 Item {
                     id: profilePicContainer
                     
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 40
-                    height: 40
+                    width: Config.options.sidebar.dashboardHeader.profileImageType === "distro" ? 24 : 40
+                    height: Config.options.sidebar.dashboardHeader.profileImageType === "distro" ? 24 : 40
+                    visible: Config.options.sidebar.dashboardHeader.profileImageType !== "none"
+
+                    Loader {
+                        anchors.fill: parent
+                        active: Config.options.sidebar.dashboardHeader.profileImageType === "distro"
+                        sourceComponent: CustomIcon {
+                            anchors.centerIn: parent
+                            width: 24
+                            height: 24
+                            source: SystemInfo.distroIcon
+                            colorize: true
+                            color: Appearance.colors.colOnLayer1
+                        }
+                    }
 
                     Image {
                         id: profilePicSource
                         anchors.fill: parent
-                        source: "file://" + Quickshell.env("HOME") + "/.config/quickshell/ii/assets/profile.png" // PROFILE PICTURE PATH
+                        source: Config.options.sidebar.dashboardHeader.profileImageType === "custom" ? Config.options.sidebar.dashboardHeader.profileImagePath : ""
                         sourceSize.width: parent.width
                         sourceSize.height: parent.height
                         fillMode: Image.PreserveAspectCrop
@@ -262,6 +281,7 @@ Item {
                         anchors.fill: parent
                         source: profilePicSource
                         maskSource: profilePicMask
+                        visible: Config.options.sidebar.dashboardHeader.profileImageType === "custom"
                     }
                 }
 
@@ -269,8 +289,15 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: Appearance.colors.colOnLayer0
-                    text: "Olá, P3DROVFX"
+                    text: {
+                        const mode = Config.options.sidebar.dashboardHeader.textMode;
+                        if (mode === "username") return "Hello, " + SystemInfo.username;
+                        if (mode === "uptime") return Translation.tr("Uptime") + ": " + DateTime.uptime;
+                        if (mode === "custom") return Config.options.sidebar.dashboardHeader.customText;
+                        return "";
+                    }
                     font.bold: true
+                    visible: Config.options.sidebar.dashboardHeader.textMode !== "none"
                 }
                 
             }
