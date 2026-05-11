@@ -54,7 +54,15 @@ MouseArea {
         }
     }
 
-    ResourcesPopup {
-        hoverTarget: root
+    Loader {
+        active: Config.options.bar.resources.expressivePopup
+        source: "ExpressiveResourcesPopup.qml"
+        onLoaded: item.hoverTarget = root
+    }
+
+    Loader {
+        active: !Config.options.bar.resources.expressivePopup
+        source: "ResourcesPopup.qml"
+        onLoaded: item.hoverTarget = root
     }
 }

@@ -385,6 +385,7 @@ Singleton {
                     property int memoryWarningThreshold: 95
                     property int swapWarningThreshold: 85
                     property int cpuWarningThreshold: 90
+                    property bool expressivePopup: true
                 }
 
                 property JsonObject sports: JsonObject {
