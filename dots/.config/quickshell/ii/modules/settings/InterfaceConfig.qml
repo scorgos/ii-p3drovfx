@@ -221,6 +221,18 @@ ContentPage {
                 Config.options.appearance.blurSize = Math.round(value);
             }
         }
+
+        ConfigSlider {
+            buttonIcon: "gradient"
+            text: Translation.tr("Ignore Alpha")
+            value: Config.options.appearance.ignoreAlpha ?? 0.2
+            from: 0.0
+            to: 1.0
+            stepSize: 0.05
+            onValueChanged: {
+                Config.options.appearance.ignoreAlpha = value;
+            }
+        }
     }
 
     ContentSection {

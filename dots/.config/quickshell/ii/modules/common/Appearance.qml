@@ -266,6 +266,13 @@ Singleton {
         }
     }
 
+    property real ignoreAlpha: Config.options.appearance.ignoreAlpha ?? 0.2
+    onIgnoreAlphaChanged: {
+        if (Config.ready) {
+            Quickshell.execDetached(["hyprctl", "keyword", "layerrule", "match:namespace quickshell:.*, ignore_alpha " + ignoreAlpha]);
+        }
+    }
+
     Timer {
         id: startupRoundingTimer
         interval: 1500
@@ -276,6 +283,7 @@ Singleton {
                 Quickshell.execDetached(["hyprctl", "keyword", "decoration:rounding", root.rounding.windowRounding.toString()]);
             }
             Quickshell.execDetached(["hyprctl", "keyword", "decoration:blur:size", root.blurSize.toString()]);
+            Quickshell.execDetached(["hyprctl", "keyword", "layerrule", "match:namespace quickshell:.*, ignore_alpha " + root.ignoreAlpha]);
             
             let colorStr = activeBorderColor.toString();
             let rgb = "";

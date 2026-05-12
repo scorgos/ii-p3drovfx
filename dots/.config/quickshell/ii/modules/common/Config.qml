@@ -146,6 +146,7 @@ Singleton {
                     property real contentTransparency: 0.57
                 }
                 property int blurSize: 10
+                property real ignoreAlpha: 0.2
                 property JsonObject wallpaperTheming: JsonObject {
                     property bool enableAppsAndShell: true
                     property bool enableQtApps: true
