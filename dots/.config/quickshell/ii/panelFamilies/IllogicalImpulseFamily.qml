@@ -26,6 +26,7 @@ import qs.modules.ii.wallpaperSelector
 import qs.modules.ii.wrappedFrame
 import qs.modules.ii.colorPickerPopup
 import qs.modules.ii.videoEditor
+import qs.modules.ii.localSendPopup
 
 Scope {
     property bool barExtraCondition: true
@@ -68,6 +69,9 @@ Scope {
     }
     PanelLoader {
         component: BluetoothConnectionPopup {}
+    }
+    PanelLoader {
+        component: LocalSendPopup {}
     }
     PanelLoader {
         component: NotificationPopup {}

@@ -41,7 +41,22 @@ apply_kitty() {
     sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$STATE_DIR"/user/generated/terminal/kitty-theme.conf
   done
 
+  # Ensure current-theme.conf is a symlink to our generated kitty-theme.conf
+  local kitty_theme_dir="$XDG_CONFIG_HOME/kitty"
+  local kitty_theme_file="$kitty_theme_dir/current-theme.conf"
+  local gen_kitty_theme="$STATE_DIR/user/generated/terminal/kitty-theme.conf"
+  if [ -d "$kitty_theme_dir" ]; then
+    if [ ! -L "$kitty_theme_file" ] || [ "$(readlink -f "$kitty_theme_file")" != "$gen_kitty_theme" ]; then
+      echo "Restoring Kitty current-theme.conf symlink to dynamic theme..."
+      rm -f "$kitty_theme_file"
+      ln -sf "$gen_kitty_theme" "$kitty_theme_file"
+    fi
+  fi
+
   # Reload
+  if ! pgrep -f kitty >/dev/null; then
+    return
+  fi
   kill -SIGUSR1 $(pidof kitty)
 }
 
@@ -71,13 +86,8 @@ apply_anyterm() {
 }
 
 apply_term() {
-  apply_kitty
-  apply_anyterm
-}
-
-apply_qt() {
-  sh "$CONFIG_DIR/scripts/kvantum/materialQT.sh"          # generate kvantum theme
-  python "$CONFIG_DIR/scripts/kvantum/changeAdwColors.py" # apply config colors
+  apply_anyterm &
+  apply_kitty &
 }
 
 # Check if terminal theming is enabled in config

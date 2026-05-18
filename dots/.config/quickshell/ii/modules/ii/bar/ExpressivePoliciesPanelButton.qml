@@ -44,21 +44,35 @@ Item {
 
     Component {
         id: fabStyle
-        Fab {
-            baseSize: Appearance.sizes.barHeight - 8
-            buttonRadius: Appearance.rounding.full
-            colBackground: GlobalStates.sidebarLeftOpen ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colPrimaryContainer
-            onClicked: {
+        RippleButton {
+            property real buttonPadding: 5
+            implicitWidth: distroIcon.width + buttonPadding * 2 + 10
+            implicitHeight: distroIcon.height + buttonPadding * 2 + 4
+
+            topLeftRadius: Appearance.rounding.full
+            bottomLeftRadius: Appearance.rounding.full
+            topRightRadius: Appearance.rounding.full
+            bottomRightRadius: Appearance.rounding.full
+
+            colBackgroundHover: Appearance.colors.colLayer1Hover
+            colRipple: Appearance.colors.colLayer1Active
+            colBackgroundToggled: Appearance.colors.colSecondaryContainer
+            colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
+            colRippleToggled: Appearance.colors.colSecondaryContainerActive
+            toggled: GlobalStates.sidebarLeftOpen
+
+            onPressed: {
                 GlobalStates.sidebarLeftOpen = !GlobalStates.sidebarLeftOpen;
             }
 
             CustomIcon {
+                id: distroIcon
                 anchors.centerIn: parent
-                width: parent.baseSize - 12
-                height: parent.baseSize - 12
+                width: 19.5
+                height: 19.5
                 source: Config.options.bar.topLeftIcon == 'distro' ? SystemInfo.distroIcon : `${Config.options.bar.topLeftIcon}-symbolic`
                 colorize: true
-                color: Appearance.colors.colOnPrimaryContainer
+                color: Appearance.colors.colOnLayer0
 
                 Rectangle {
                     opacity: root.showPing ? 1 : 0
@@ -81,3 +95,4 @@ Item {
         }
     }
 }
+

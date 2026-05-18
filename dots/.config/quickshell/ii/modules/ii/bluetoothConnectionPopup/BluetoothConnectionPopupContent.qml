@@ -66,24 +66,15 @@ Item {
     implicitWidth: popupWidth + 2 * Appearance.sizes.elevationMargin
     implicitHeight: contentLayout.implicitHeight + verticalPadding * 2 + 2 * Appearance.sizes.elevationMargin
 
-    // === ANIMATIONS ===
-    NumberAnimation on opacity {
-        from: 0; to: 1
-        duration: 350
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
-        running: true
+    // Expose a static, unscaled item for the window input mask to prevent coordinate bugs during scale
+    property alias staticMaskTarget: staticMaskTarget
+    Item {
+        id: staticMaskTarget
+        anchors {
+            fill: parent
+            margins: Appearance.sizes.elevationMargin
+        }
     }
-
-    NumberAnimation on scale {
-        from: 0.85; to: 1
-        duration: 400
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
-        running: true
-    }
-
-    transformOrigin: Item.TopRight
 
     // Shadow
     StyledRectangularShadow {
@@ -100,6 +91,44 @@ Item {
         color: Appearance.m3colors.m3surfaceContainer
         border.width: 1
         border.color: Appearance.colors.colLayer0Border
+
+        // Animations applied on the card itself to keep root window input mapping clean
+        opacity: 0
+        scale: 0.85
+        transformOrigin: Item.TopRight
+
+        Component.onCompleted: {
+            entranceAnim.start()
+        }
+
+        ParallelAnimation {
+            id: entranceAnim
+            NumberAnimation {
+                target: contentBackground
+                property: "opacity"
+                from: 0; to: 1
+                duration: 350
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
+            }
+            NumberAnimation {
+                target: contentBackground
+                property: "scale"
+                from: 0.85; to: 1
+                duration: 400
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
+            }
+        }
+
+        // Prevent click-throughs to backgroundMa and dismissals when clicking inside the card
+        MouseArea {
+            anchors.fill: parent
+            onWheel: wheel => wheel.accepted = true
+            onClicked: mouse => mouse.accepted = true
+            onPressed: mouse => mouse.accepted = true
+            onReleased: mouse => mouse.accepted = true
+        }
 
         ColumnLayout {
             id: contentLayout
@@ -140,6 +169,7 @@ Item {
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 160
+                implicitHeight: 160
                 Layout.topMargin: 4
 
                 // Cookie shape background (centered)
@@ -279,6 +309,8 @@ Item {
                     id: disconnectBtnRect
                     Layout.preferredWidth: 80
                     Layout.preferredHeight: 40
+                    implicitWidth: 80
+                    implicitHeight: 40
                     radius: Appearance.rounding.full
                     color: disconnectMa.containsMouse
                         ? Appearance.colors.colErrorContainerHover
@@ -315,6 +347,7 @@ Item {
                     id: settingsBtnRect
                     Layout.fillWidth: true
                     Layout.preferredHeight: 40
+                    implicitHeight: 40
                     radius: Appearance.rounding.full
                     color: settingsMa.containsMouse
                         ? Appearance.colors.colSurfaceContainerHighestHover

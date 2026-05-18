@@ -15,6 +15,36 @@ Singleton {
     property bool blockWrites: false
     property bool _ignoreFileChanges: false
 
+    function setNestedValue(nestedKey, value) {
+        let keys = nestedKey.split(".");
+        let obj = root.options;
+        let parents = [obj];
+
+        // Traverse and collect parent objects
+        for (let i = 0; i < keys.length - 1; ++i) {
+            if (!obj[keys[i]] || typeof obj[keys[i]] !== "object") {
+                obj[keys[i]] = {};
+            }
+            obj = obj[keys[i]];
+            parents.push(obj);
+        }
+
+        // Convert value to correct type using JSON.parse when safe
+        let convertedValue = value;
+        if (typeof value === "string") {
+            let trimmed = value.trim();
+            if (trimmed === "true" || trimmed === "false" || !isNaN(Number(trimmed))) {
+                try {
+                    convertedValue = JSON.parse(trimmed);
+                } catch (e) {
+                    convertedValue = value;
+                }
+            }
+        }
+
+        obj[keys[keys.length - 1]] = convertedValue;
+    }
+
     Timer {
         id: fileReloadTimer
         interval: 500
@@ -72,6 +102,12 @@ Singleton {
                 property int weeb: 0 // 0: No | 1: Open | 2: Closet
                 property int wallpapers: 1 // 0: No | 1: Yes
                 property int translator: 0 // 0: No | 1: Default (illogical-impulse) | 2: Expressive (reworked)
+            }
+
+            property JsonObject localsend: JsonObject {
+                property bool autoStart: true
+                property string downloadPath: Directories.localSendDownloadPath.replace("file://", "")
+                property bool showNotifications: true
             }
 
             property JsonObject ai: JsonObject {
@@ -280,9 +316,9 @@ Singleton {
                 property JsonObject parallax: JsonObject {
                     property bool vertical: true
                     property bool autoVertical: false
-                    property bool enableWorkspace: true
-                    property real workspaceZoom: 1.0 // Relative to wallpaper size
-                    property bool enableSidebar: true
+                    property bool enableWorkspace: false
+                    property real workspaceZoom: 1.07 // Relative to wallpaper size
+                    property bool enableSidebar: false
                     property real widgetsFactor: 1.2
                 }
                 property JsonObject mediaMode: JsonObject {
@@ -427,6 +463,7 @@ Singleton {
                     property int activeIndicatorOpacity: 100 // 0-100
                     property bool dynamicWorkspaces: false
                     property bool useMaterialShapeForActiveIndicator: false
+                    property bool useRandomShapeForActiveIndicator: false
                     property string activeIndicatorShape: "Circle"
                 }
                 property JsonObject weather: JsonObject {
@@ -627,6 +664,10 @@ Singleton {
 
             property JsonObject notifications: JsonObject {
                 property int timeout: 7000
+                property JsonObject monitor: JsonObject {
+                    property bool enable: false
+                    property string name: "" // Name of the monitor to show notifications on, like "eDP-1". Find out with 'hyprctl monitors' command
+                }
             }
 
             property JsonObject osd: JsonObject {

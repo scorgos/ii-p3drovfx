@@ -145,7 +145,7 @@ MouseArea {
 
                 anchors.leftMargin: 3
 
-                height: parent.height - 6 
+                height: parent.height - 6
                 width: (parent.width * (24 / 28)) - 6
 
                 radius: 1.5

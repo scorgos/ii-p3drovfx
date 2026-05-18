@@ -3,13 +3,14 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import qs.modules.ii.bar as Bar
 
 MouseArea {
     id: root
     property bool borderless: Config.options.bar.borderless
+    visible: Battery.available
 
-    // ── Propriedades reativas ──
     readonly property var chargeState: Battery.chargeState
     readonly property bool isCharging: Battery.isCharging
     readonly property bool isPluggedIn: Battery.isPluggedIn
@@ -19,7 +20,6 @@ MouseArea {
     readonly property bool isCritical: percentage <= Config.options.battery.critical / 100
     property color textColor: Appearance.colors.colOnSurface
 
-    // Cor do preenchimento
     readonly property color fillColor: {
         if (root.isCritical && !root.isCharging)
             return "#E53935";
@@ -28,7 +28,6 @@ MouseArea {
         return "#43A047";
     }
 
-    // Cor da moldura
     readonly property color frameColor: {
         if (root.isCritical && !root.isCharging)
             return Appearance.m3colors.m3error;
@@ -42,24 +41,70 @@ MouseArea {
 
     hoverEnabled: !Config.options.bar.tooltips.clickToShow
 
+    anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
+
     ColumnLayout {
         id: mainLayout
         anchors.centerIn: parent
         spacing: 2
 
-        // Android 16 Style
+        // 1. OneUI Style
+        ClippedProgressBar {
+            id: oneuiBattery
+            visible: Config.options.battery.style === "oneui"
+            Layout.alignment: Qt.AlignHCenter
+            vertical: true
+            valueBarWidth: 21
+            valueBarHeight: 40
+            value: root.percentage
+            highlightColor: (root.isLow && !root.isCharging) ? Appearance.m3colors.m3error : Appearance.colors.colOnSecondaryContainer
+
+            font {
+                pixelSize: text.length > 2 ? 11 : 13
+                weight: text.length > 2 ? Font.Medium : Font.DemiBold
+            }
+
+            textMask: Item {
+                anchors.centerIn: parent
+                width: oneuiBattery.valueBarWidth
+                height: oneuiBattery.valueBarHeight
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 0
+
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignHCenter
+                        fill: 1
+                        renderType: Text.QtRendering
+                        text: root.isCharging ? "bolt" : Icons.getBatteryIcon(Battery.percentage * 100)
+                        iconSize: Appearance.font.pixelSize.normal
+                        animateChange: true
+                    }
+                    StyledText {
+                        Layout.alignment: Qt.AlignHCenter
+                        renderType: Text.QtRendering
+                        font: oneuiBattery.font
+                        text: oneuiBattery.text
+                    }
+                }
+            }
+        }
+
+        // 2. Android 16 Style
         Item {
             id: android16Battery
             visible: Config.options.battery.style === "android16"
             Layout.alignment: Qt.AlignHCenter
             width: 16
-            height: 31
+            height: 32
 
             Item {
                 anchors.centerIn: parent
-                width: 31
+                width: 32
                 height: 16
                 rotation: -90
+                antialiasing: true
 
                 Row {
                     anchors.centerIn: parent
@@ -71,6 +116,7 @@ MouseArea {
                         height: 16
                         radius: 4.5
                         value: root.percentage
+                        antialiasing: true
 
                         highlightColor: {
                             if (root.isLow && !root.isCharging)
@@ -87,6 +133,7 @@ MouseArea {
                             StyledText {
                                 anchors.centerIn: parent
                                 anchors.verticalCenterOffset: 1
+                                renderType: Text.QtRendering
                                 text: Math.round(root.percentage * 100)
                                 font.pixelSize: 10
                                 font.weight: Font.Black
@@ -95,22 +142,22 @@ MouseArea {
                         }
                     }
 
-                    // Battery Tip
                     Rectangle {
                         width: 2
                         height: 6
                         anchors.verticalCenter: parent.verticalCenter
                         radius: 1
+                        antialiasing: true
                         color: (root.percentage >= 0.98) ? batteryProgress.highlightColor : batteryProgress.trackColor
                     }
                 }
 
-                // Bolt Overlay
                 MaterialSymbol {
                     visible: root.isCharging || root.isPluggedIn
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.horizontalCenter: parent.right
                     anchors.horizontalCenterOffset: -1
+                    renderType: Text.QtRendering
                     text: "bolt"
                     iconSize: 14
                     fill: 1
@@ -119,10 +166,10 @@ MouseArea {
             }
         }
 
-        // Classic / Default Style
+        // 3. Classic / Default Style
         Item {
             id: batteryContainer
-            visible: Config.options.battery.style !== "android16"
+            visible: Config.options.battery.style !== "android16" && Config.options.battery.style !== "oneui"
             Layout.alignment: Qt.AlignHCenter
             height: 24
             width: 12
@@ -132,8 +179,8 @@ MouseArea {
                 width: 24
                 height: 12
                 rotation: -90
+                antialiasing: true
 
-                // ── Camada 1: Fill ──
                 Item {
                     id: fillClipping
                     clip: true
@@ -159,6 +206,7 @@ MouseArea {
                         StyledText {
                             anchors.centerIn: parent
                             anchors.horizontalCenterOffset: 1
+                            renderType: Text.QtRendering
                             text: Math.round(root.percentage * 100)
                             font.pixelSize: 8
                             font.weight: Font.Black
@@ -167,20 +215,27 @@ MouseArea {
                     }
                 }
 
-                // ── Camada 2: Moldura SVG ──
-                CustomIcon {
+                Image {
+                    id: batteryFrame
                     anchors.fill: parent
-                    source: "Battery.svg"
-                    colorize: true
+                    source: Qt.resolvedUrl("../../assets/icons/Battery.svg")
+                    sourceSize: Qt.size(24, 12)
+                    antialiasing: true
+                    visible: false
+                }
+
+                ColorOverlay {
+                    anchors.fill: batteryFrame
+                    source: batteryFrame
                     color: root.frameColor
                     z: 1
                 }
 
-                // ── Camada 3: Bolt ──
                 MaterialSymbol {
                     visible: root.isCharging || root.isPluggedIn
                     anchors.centerIn: parent
                     anchors.horizontalCenterOffset: -2
+                    renderType: Text.QtRendering
                     text: "bolt"
                     iconSize: 14
                     fill: 1
@@ -192,6 +247,7 @@ MouseArea {
                     visible: root.isCharging || root.isPluggedIn
                     anchors.centerIn: parent
                     anchors.horizontalCenterOffset: -2
+                    renderType: Text.QtRendering
                     text: "bolt"
                     iconSize: 12
                     fill: 1

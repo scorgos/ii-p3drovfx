@@ -41,6 +41,10 @@ Singleton {
     property bool bluetoothConnectionPopupOpen: false
     property var bluetoothConnectionPopupDevice: null
 
+    // LocalSend transfer popup
+    property bool localSendPopupOpen: false
+    property var localSendPopupTransfer: null
+
     // Color Picker Popup
     property bool colorPickerPopupOpen: false
     property string colorPickerPopupColor: ""

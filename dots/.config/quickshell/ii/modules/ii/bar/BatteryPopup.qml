@@ -8,6 +8,7 @@ import Qt5Compat.GraphicalEffects
 
 StyledPopup {
     id: root
+    stickyHover: true
     function formatTime(seconds) {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);

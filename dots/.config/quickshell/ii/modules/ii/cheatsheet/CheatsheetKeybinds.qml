@@ -75,22 +75,32 @@ Item {
         })
 
     property var keyBlacklist: ["Super_L"]
-    property var keySubstitutions: Object.assign({
-        "Super": "",
-        "mouse_up": "Scroll ↓"    // ikr, weird
-        ,
-        "mouse_down": "Scroll ↑"  // trust me bro
-        ,
-        "mouse:272": "LMB",
-        "mouse:273": "RMB",
-        "mouse:275": "MouseBack",
-        "Slash": "/",
-        "Hash": "#",
-        "Return": "Enter"
-    // "Shift": "",
-    }, !!Config.options.cheatsheet.superKey ? {
-        "Super": Config.options.cheatsheet.superKey
-    } : {}, Config.options.cheatsheet.useMacSymbol ? macSymbolMap : {}, Config.options.cheatsheet.useFnSymbol ? functionSymbolMap : {}, Config.options.cheatsheet.useMouseSymbol ? mouseSymbolMap : {})
+    property var keySubstitutions: {
+        const _super = Config.options.cheatsheet.superKey;
+        const _mac = Config.options.cheatsheet.useMacSymbol;
+        const _fn = Config.options.cheatsheet.useFnSymbol;
+        const _mouse = Config.options.cheatsheet.useMouseSymbol;
+        return Object.assign({
+            "SUPER": "",
+            "Super": "",
+            "mouse_up": "Scroll ↓",
+            "mouse_down": "Scroll ↑",
+            "mouse:272": "LMB",
+            "mouse:273": "RMB",
+            "mouse:275": "MouseBack",
+            "Slash": "/",
+            "Hash": "#",
+            "Return": "Enter",
+        }, 
+        !!_super ? {
+            "SUPER": _super,
+            "Super": _super
+        } : {}, 
+        _mac ? macSymbolMap : {}, 
+        _fn ? functionSymbolMap : {}, 
+        _mouse ? mouseSymbolMap : {}
+        );
+    }
 
     function parseKeymaps(cheatsheet, unbinds) {
         const hasFilter = root.filter !== '';
@@ -263,12 +273,12 @@ Item {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
             onWheel: wheelEvent => {
-                const delta = -wheelEvent.angleDelta.y;
+                const delta = -wheelEvent.angleDelta.y
                 if (delta !== 0) {
-                    flickable.cancelFlick();
-                    flickable.flick(delta * 15, 0);
+                    flickable.cancelFlick()
+                    flickable.flick(delta * 15, 0)
                 }
-                wheelEvent.accepted = true;
+                wheelEvent.accepted = true
             }
         }
 
@@ -282,11 +292,11 @@ Item {
             Repeater {
                 model: keybinds.children
                 visible: !!keybinds.children.length
-
+    
                 delegate: Column { // Keybind sections
                     spacing: root.spacing
                     required property var modelData
-
+    
                     Repeater {
                         model: modelData.children
                         visible: !!modelData.children.length
@@ -295,13 +305,13 @@ Item {
                             required property var modelData
                             implicitWidth: sectionColumn.implicitWidth
                             implicitHeight: sectionColumn.implicitHeight
-
+    
                             Column {
                                 id: sectionColumn
                                 anchors.centerIn: parent
                                 spacing: root.titleSpacing
                                 visible: !!keybindSection.modelData.keybinds.length
-
+    
                                 StyledText {
                                     id: sectionTitle
                                     font {
@@ -312,7 +322,7 @@ Item {
                                     color: Appearance.colors.colOnLayer0
                                     text: keybindSection.modelData.name
                                 }
-
+    
                                 Column {
                                     spacing: 4
                                     Repeater {
@@ -355,6 +365,7 @@ Item {
                 }
             }
         }
+
     }
 
     PagePlaceholder {
@@ -366,3 +377,4 @@ Item {
         anchors.centerIn: parent
     }
 }
+

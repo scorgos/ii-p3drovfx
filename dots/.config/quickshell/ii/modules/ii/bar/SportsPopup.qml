@@ -6,6 +6,7 @@ import qs.services
 
 StyledPopup {
     id: root
+    stickyHover: true
 
     // Design Tokens
     readonly property color colBg: Appearance.colors.colLayer1

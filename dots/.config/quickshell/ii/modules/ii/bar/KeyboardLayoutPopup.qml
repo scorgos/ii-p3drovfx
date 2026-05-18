@@ -8,6 +8,7 @@ import Quickshell.Wayland
 
 StyledPopup {
     id: root
+    stickyHover: true
 
     ColumnLayout {
         anchors.centerIn: parent

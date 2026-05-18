@@ -3,66 +3,36 @@ pragma Singleton
 import qs.modules.common
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs
 
 Singleton {
     id: root
 
-    readonly property string hyprlandConfigPath: Directories.home.replace("file://", "") + "/.local/share/ii-vynx/hyprland.conf"
-
-    Process {
-        id: configWriter
-        property string pendingCommand: ""
-
-        command: ["bash", "-c", pendingCommand]
-
-        onExited: function (exitCode) {
-            if (exitCode !== 0) {
-                console.error("[HyprlandSettings] changeKey failed, exitCode:", exitCode);
-            }
+    function changeKey(key, value) {
+        if (/['"\\`$|&;]/.test(String(value)) || /['"\\`$|&;]/.test(String(key))) {
+            console.error("[HyprlandSettings] Unsafe characters rejected:", key, value)
+            return
         }
+        if (!key.includes(":")) return
+        Quickshell.execDetached([Directories.cliPath, "hyprset", "key", key, String(value)])
     }
 
-    function changeKey(key, value) {
-        if (configWriter.running) {
-            console.warn("[HyprlandConfig] Writer busy, skipping");
-            return;
+    function changeAnimation(animName, style) {
+        if (/['"\\`$|&;]/.test(String(animName)) || /['"\\`$|&;]/.test(String(style))) {
+            console.error("[HyprlandSettings] Unsafe characters rejected:", animName, style)
+            return
         }
-
-        if (/['"\\`$|&;]/.test(String(value)) || /['"\\`$|&;]/.test(String(key))) {
-            console.error("[HyprlandConfig] Unsafe characters rejected:", key, value);
-            return;
-        }
-
-        const tmpPath = "/tmp/hypr_config_write.tmp";
-        const path = root.hyprlandConfigPath;
-        let sedCmd = "";
-
-        if (key.includes(":")) {
-            const parts = key.split(":");
-            const section = parts[0].trim();
-            const field = parts[1].trim();
-
-            sedCmd = `sed -E '/^${section}[[:space:]]*[{]/,/^[}]/ s|^([[:space:]]*${field}[[:space:]]*=[[:space:]]*).*|\\1${value}|' '${path}' > '${tmpPath}' && mv '${tmpPath}' '${path}'`;
-        } else {
-            sedCmd = `sed -E 's|^([[:space:]]*${key}[[:space:]]*=[[:space:]]*).*|\\1${value}|' '${path}' > '${tmpPath}' && mv '${tmpPath}' '${path}'`;
-        }
-
-        //console.log("[HyprlandSettings] Running command:", sedCmd)
-        configWriter.pendingCommand = sedCmd;
-        configWriter.startDetached();
+        Quickshell.execDetached([Directories.cliPath, "hyprset", "anim", animName, String(style)])
     }
 
     function setLayout(layout) {
-        if (layout !== "default" && layout !== "scrolling" && layout !== "dwindle" && layout !== "monocle" && layout !== "master")
-            return;
+        if (layout !== "default" && layout !== "scrolling" && layout !== "dwindle" && layout !== "monocle" && layout !== "master") return
         // console.log("[HyprlandSettings] Setting layout to", layout)
-        changeKey("general:layout", layout);
-        Persistent.states.hyprland.layout = layout;
+        changeKey("general:layout", layout)
+        Persistent.states.hyprland.layout = layout
     }
 
     function setRounding(rounding) {
-        changeKey("decoration:rounding", rounding);
+        changeKey("decoration:rounding", rounding)
     }
 }

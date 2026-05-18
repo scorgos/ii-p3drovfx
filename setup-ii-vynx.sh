@@ -138,6 +138,12 @@ backup_protected_files() {
     for rel in "${PROTECTED_FILES[@]}"; do
         local src="$target/$rel"
         if [ -f "$src" ]; then
+            if [ "$rel" = "modules/settings/About.qml" ]; then
+                if ! grep -q "update-fork" "$src" 2>/dev/null; then
+                    echo -e "${YELLOW}• About.qml lacks update buttons. Replacing with repository version.${NC}"
+                    continue
+                fi
+            fi
             local dest_dir="$tmpdir/$(dirname "$rel")"
             mkdir -p "$dest_dir"
             cp "$src" "$tmpdir/$rel"

@@ -82,8 +82,6 @@ ContentPage {
                 StyledImage {
                     id: wallpaperPreview
                     anchors.fill: parent
-                    sourceSize.width: parent.implicitWidth
-                    sourceSize.height: parent.implicitHeight
                     fillMode: Image.PreserveAspectCrop
                     source: Config.options.background.wallpaperPath !== "" ? Config.options.background.wallpaperPath : `${Directories.assetsPath}/images/default_wallpaper.png`
                     cache: false

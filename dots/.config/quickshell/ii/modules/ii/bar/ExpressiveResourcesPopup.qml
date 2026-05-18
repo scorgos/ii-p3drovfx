@@ -9,6 +9,7 @@ import "./cards"
 StyledPopup {
     id: root
     popupRadius: Appearance.rounding.large
+    stickyHover: true
     
     // String cleanup functions
     function cleanDistro(name) {

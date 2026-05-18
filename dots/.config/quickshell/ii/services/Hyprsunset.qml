@@ -25,6 +25,7 @@ Singleton {
     property bool shouldBeOn
     property bool firstEvaluation: true
     property bool temperatureActive: false
+    property int defaultColorTemperature: 6000
 
     property int fromHour: Number(from.split(":")[0])
     property int fromMinute: Number(from.split(":")[1])
@@ -112,7 +113,7 @@ Singleton {
     function disableTemperature() {
         root.temperatureActive = false;
         // console.log("[Hyprsunset] Disabling");
-        Quickshell.execDetached(["hyprctl", "hyprsunset", "identity"]);
+        Quickshell.execDetached(["bash", "-c", `hyprctl hyprsunset temperature ${root.defaultColorTemperature}`]);
     }
 
     function setGamma(gamma) {
@@ -139,7 +140,7 @@ Singleton {
                 if (output.length == 0 || output.startsWith("Couldn't"))
                     root.temperatureActive = false;
                 else
-                    root.temperatureActive = (output != "6500"); // 6500 is the default when off
+                    root.temperatureActive = (output != root.defaultColorTemperature); // 6000 is the default when off
                 // console.log("[Hyprsunset] Fetched state:", output, "->", root.temperatureActive);
             }
         }

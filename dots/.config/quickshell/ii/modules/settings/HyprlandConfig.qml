@@ -144,7 +144,7 @@ ContentPage {
             from: 0
             to: 60
             stepSize: 1
-            value: Config.options.appearance.gapsIn
+            value: Config.options.appearance.gapsIn ?? 4
             onValueChanged: {
                 Config.options.appearance.gapsIn = Math.round(value);
             }
@@ -157,7 +157,7 @@ ContentPage {
             from: 0
             to: 60
             stepSize: 1
-            value: Config.options.appearance.gapsOut
+            value: Config.options.appearance.gapsOut ?? 5
             onValueChanged: {
                 Config.options.appearance.gapsOut = Math.round(value);
             }

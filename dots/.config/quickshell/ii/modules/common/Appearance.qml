@@ -223,7 +223,7 @@ Singleton {
 
         onWindowRoundingChanged: {
             if (Config.options.appearance.toggleWindowRounding && Config.ready) {
-                Quickshell.execDetached(["hyprctl", "keyword", "decoration:rounding", windowRounding.toString()]);
+                Quickshell.execDetached(["hyprctl", "eval", "hl.config({ decoration = { rounding = " + windowRounding + " } })"]);
             }
         }
     }
@@ -249,27 +249,24 @@ Singleton {
                     rgb = hex; // RRGGBB -> RRGGBB
                 }
             }
-            
+
             if (rgb !== "") {
-                let hyprColor = "0xAA" + rgb;
-                Quickshell.execDetached(["hyprctl", "keyword", "general:col.active_border", hyprColor]);
-                Quickshell.execDetached(["hyprctl", "keyword", "group:col.border_active", hyprColor]);
-                Quickshell.execDetached(["hyprctl", "keyword", "group:groupbar:col.active", hyprColor]);
+                let hyprColor = "rgba(" + rgb + "AA)";
+                Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { ['col.active_border'] = '" + hyprColor + "' }, group = { ['col.border_active'] = '" + hyprColor + "', groupbar = { ['col.active'] = '" + hyprColor + "' } } })"]);
             }
         }
     }
-
     property int blurSize: Config.options.appearance.blurSize ?? 8
     onBlurSizeChanged: {
         if (Config.ready) {
-            Quickshell.execDetached(["hyprctl", "keyword", "decoration:blur:size", blurSize.toString()]);
+            Quickshell.execDetached(["hyprctl", "eval", "hl.config({ decoration = { blur = { size = " + blurSize + " } } })"]);
         }
     }
 
     property real ignoreAlpha: Config.options.appearance.ignoreAlpha ?? 0.2
     onIgnoreAlphaChanged: {
         if (Config.ready) {
-            Quickshell.execDetached(["hyprctl", "keyword", "layerrule", "match:namespace quickshell:.*, ignore_alpha " + ignoreAlpha]);
+            Quickshell.execDetached(["hyprctl", "eval", "hl.layer_rule({ match = { namespace = 'quickshell:.*' }, ignore_alpha = " + ignoreAlpha + " })"]);
         }
     }
 
@@ -280,10 +277,10 @@ Singleton {
         repeat: false
         onTriggered: {
             if (Config.options.appearance.toggleWindowRounding) {
-                Quickshell.execDetached(["hyprctl", "keyword", "decoration:rounding", root.rounding.windowRounding.toString()]);
+                Quickshell.execDetached(["hyprctl", "eval", "hl.config({ decoration = { rounding = " + root.rounding.windowRounding + " } })"]);
             }
-            Quickshell.execDetached(["hyprctl", "keyword", "decoration:blur:size", root.blurSize.toString()]);
-            Quickshell.execDetached(["hyprctl", "keyword", "layerrule", "match:namespace quickshell:.*, ignore_alpha " + root.ignoreAlpha]);
+            Quickshell.execDetached(["hyprctl", "eval", "hl.config({ decoration = { blur = { size = " + root.blurSize + " } } })"]);
+            Quickshell.execDetached(["hyprctl", "eval", "hl.layer_rule({ match = { namespace = 'quickshell:.*' }, ignore_alpha = " + root.ignoreAlpha + " })"]);
             
             let colorStr = activeBorderColor.toString();
             let rgb = "";
@@ -297,11 +294,30 @@ Singleton {
             }
             
             if (rgb !== "") {
-                let hyprColor = "0xAA" + rgb;
-                Quickshell.execDetached(["hyprctl", "keyword", "general:col.active_border", hyprColor]);
-                Quickshell.execDetached(["hyprctl", "keyword", "group:col.border_active", hyprColor]);
-                Quickshell.execDetached(["hyprctl", "keyword", "group:groupbar:col.active", hyprColor]);
+                let hyprColor = "rgba(" + rgb + "AA)";
+                Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { ['col.active_border'] = '" + hyprColor + "' }, group = { ['col.border_active'] = '" + hyprColor + "', groupbar = { ['col.active'] = '" + hyprColor + "' } } })"]);
             }
+            
+            if (Config.options.appearance.gapsIn !== undefined) {
+                Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { gaps_in = " + Config.options.appearance.gapsIn + " } })"]);
+            }
+            if (Config.options.appearance.gapsOut !== undefined) {
+                Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { gaps_out = " + Config.options.appearance.gapsOut + " } })"]);
+            }
+        }
+    }
+
+    property int gapsIn: Config.options.appearance.gapsIn ?? 4
+    onGapsInChanged: {
+        if (Config.ready) {
+            Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { gaps_in = " + gapsIn + " } })"]);
+        }
+    }
+
+    property int gapsOut: Config.options.appearance.gapsOut ?? 5
+    onGapsOutChanged: {
+        if (Config.ready) {
+            Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { gaps_out = " + gapsOut + " } })"]);
         }
     }
 

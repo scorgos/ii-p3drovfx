@@ -16,12 +16,12 @@ import QtQuick
  */
 Singleton {
     id: root
-    signal brightnessChanged()
+    signal brightnessChanged
 
     property var ddcMonitors: []
     readonly property list<BrightnessMonitor> monitors: Quickshell.screens.map(screen => monitorComp.createObject(root, {
-        screen
-    }))
+            screen
+        }))
 
     function getMonitorForScreen(screen: ShellScreen): var {
         return monitors.find(m => m.screen === screen);
@@ -43,10 +43,11 @@ Singleton {
     function decreaseBrightness(): void {
         const focusedName = Hyprland.focusedMonitor.name;
         const monitor = monitors.find(m => focusedName === m.screen.name);
-        if (monitor && monitor.brightness > 0) 
+        if (monitor && monitor.brightness > 0)
             monitor.setBrightness(monitor.brightness - 0.05);
+        else
         // if brightness is 0, then decrease gamma
-        else {
+        {
             Hyprsunset.setGamma(Hyprsunset.gamma - 5);
         }
     }
@@ -105,7 +106,8 @@ Singleton {
         property bool animateChanges: !monitor.isDdc
 
         onBrightnessChanged: {
-            if (!monitor.ready) return;
+            if (!monitor.ready)
+                return;
             root.brightnessChanged();
         }
 
@@ -118,8 +120,10 @@ Singleton {
             }
         }
         onMultipliedBrightnessChanged: {
-            if (monitor.animationEnabled) syncBrightness();
-            else setTimer.restart();
+            if (monitor.animationEnabled)
+                syncBrightness();
+            else
+                setTimer.restart();
         }
 
         function initialize() {
@@ -162,8 +166,9 @@ Singleton {
             } else {
                 const valuePercentNumber = Math.floor(brightnessValue * 100);
                 let valuePercent = `${valuePercentNumber}%`;
-                if (valuePercentNumber == 0) valuePercent = "1"; // Prevent fully black
-                setProc.exec(["brightnessctl", "--class", "backlight", "s", valuePercent, "--quiet"])
+                if (valuePercentNumber == 0)
+                    valuePercent = "1"; // Prevent fully black
+                setProc.exec(["brightnessctl", "--class", "backlight", "s", valuePercent, "--quiet"]);
             }
         }
 
@@ -225,18 +230,14 @@ Singleton {
 
             Process {
                 id: screenshotProc
-                command: ["bash", "-c",
-                    `mkdir -p '${StringUtils.shellSingleQuoteEscape(root.screenshotDir)}'`
-                    + ` && grim -o '${StringUtils.shellSingleQuoteEscape(screenScope.screenName)}' -`
-                    + ` | magick png:- -colorspace Gray -format "%[fx:mean*100]" info:`
-                ]
+                command: ["bash", "-c", `mkdir -p '${StringUtils.shellSingleQuoteEscape(root.screenshotDir)}'` + ` && grim -o '${StringUtils.shellSingleQuoteEscape(screenScope.screenName)}' -` + ` | magick png:- -colorspace Gray -format "%[fx:mean*100]" info:`]
                 stdout: StdioCollector {
                     id: lightnessCollector
                     onStreamFinished: {
                         Quickshell.execDetached(["rm", screenScope.screenshotPath]); // Cleanup
-                        const lightness = lightnessCollector.text
-                        const newMultiplier = root.brightnessMultiplierForLightness(parseFloat(lightness))
-                        Brightness.getMonitorForScreen(screenScope.modelData).setBrightnessMultiplier(newMultiplier)
+                        const lightness = lightnessCollector.text;
+                        const newMultiplier = root.brightnessMultiplierForLightness(parseFloat(lightness));
+                        Brightness.getMonitorForScreen(screenScope.modelData).setBrightnessMultiplier(newMultiplier);
                     }
                 }
             }
@@ -249,11 +250,11 @@ Singleton {
         target: "brightness"
 
         function increment() {
-            onPressed: root.increaseBrightness()
+            onPressed: root.increaseBrightness();
         }
 
         function decrement() {
-            onPressed: root.decreaseBrightness()
+            onPressed: root.decreaseBrightness();
         }
     }
 

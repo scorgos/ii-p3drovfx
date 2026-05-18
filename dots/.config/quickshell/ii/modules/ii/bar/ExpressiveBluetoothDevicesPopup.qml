@@ -9,6 +9,7 @@ import Quickshell
 
 StyledPopup {
     id: root
+    stickyHover: true
 
     readonly property bool hasDevices: BluetoothStatus.connectedDevices.length > 0
     

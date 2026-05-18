@@ -174,6 +174,7 @@ Item {
         anchors.fill: parent
         hoverEnabled: !Config.options.bar.tooltips.clickToShow
         ClockWidgetPopup {
+            compact: Config.options.bar.tooltips.compactPopups
             hoverTarget: mouseArea
         }
     }

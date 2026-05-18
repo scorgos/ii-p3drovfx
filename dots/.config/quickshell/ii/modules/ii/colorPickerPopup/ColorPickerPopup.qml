@@ -83,15 +83,37 @@ Scope {
                 right: (!Config.options.bar.vertical) || (Config.options.bar.vertical && Config.options.bar.bottom)
             }
 
+            readonly property int frameThickness: Config.options.appearance.fakeScreenRounding === 3 ? Config.options.appearance.wrappedFrameThickness : 0
+            readonly property int topFrameThickness: (Config.options.bar.vertical || Config.options.bar.bottom) ? frameThickness : 0
+            readonly property int bottomFrameThickness: (Config.options.bar.vertical || !Config.options.bar.bottom) ? frameThickness : 0
+            readonly property int leftFrameThickness: (!Config.options.bar.vertical || Config.options.bar.bottom) ? frameThickness : 0
+            readonly property int rightFrameThickness: (!Config.options.bar.vertical || !Config.options.bar.bottom) ? frameThickness : 0
+            readonly property int barGaps: (Config.options.bar.cornerStyle !== 0) ? Appearance.sizes.hyprlandGapsOut : 0
+
             margins {
-                top: Config.options.bar.vertical ? 0 : Appearance.sizes.barHeight
-                bottom: Config.options.bar.vertical ? 0 : Appearance.sizes.barHeight
-                left: Config.options.bar.vertical ? Appearance.sizes.verticalBarWidth : 0
+                top: {
+                    if (Config.options.bar.vertical) {
+                        return topFrameThickness;
+                    }
+                    return Config.options.bar.bottom ? 0 : Appearance.sizes.barHeight + topFrameThickness;
+                }
+                bottom: {
+                    if (Config.options.bar.vertical) {
+                        return bottomFrameThickness;
+                    }
+                    return Config.options.bar.bottom ? Appearance.sizes.barHeight + bottomFrameThickness : 0;
+                }
+                left: {
+                    if (Config.options.bar.vertical) {
+                        return Config.options.bar.bottom ? leftFrameThickness : Appearance.sizes.verticalBarWidth + leftFrameThickness;
+                    }
+                    return leftFrameThickness;
+                }
                 right: {
                     if (Config.options.bar.vertical) {
-                        return Appearance.sizes.verticalBarWidth;
+                        return Config.options.bar.bottom ? Appearance.sizes.verticalBarWidth + rightFrameThickness : rightFrameThickness;
                     }
-                    return Appearance.sizes.hyprlandGapsOut + 4;
+                    return barGaps + 4 + rightFrameThickness;
                 }
             }
 
@@ -99,7 +121,7 @@ Scope {
             implicitHeight: popupContent.implicitHeight
 
             mask: Region {
-                item: popupContent.contentBackground
+                item: popupContent.staticMaskTarget
             }
 
             ColorPickerPopupContent {

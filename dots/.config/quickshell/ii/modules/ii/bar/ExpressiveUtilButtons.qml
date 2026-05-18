@@ -55,6 +55,7 @@ Item {
             Component {
                 id: screenSnipM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: "screenshot_region"
                     onClicked: () => Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "region", "screenshot"])
                 }
@@ -80,6 +81,7 @@ Item {
             Component {
                 id: colorPickerM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: "colorize"
                     onClicked: GlobalStates.launchColorPicker()
                 }
@@ -179,6 +181,7 @@ Item {
             Component {
                 id: screenRecordM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: Persistent.states.screenRecord.active ? "stop" : "screen_record"
                     forceHovered: Persistent.states.screenRecord.active
                     onClicked: Quickshell.execDetached([Directories.recordScriptPath])
@@ -188,6 +191,7 @@ Item {
             Component {
                 id: pauseM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: Persistent.states.screenRecord.paused ? "play_arrow" : "pause"
                     onClicked: Quickshell.execDetached([Directories.recordScriptPath, "--pause"])
                 }
@@ -214,6 +218,7 @@ Item {
             Component {
                 id: keyboardM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: "keyboard"
                     onClicked: GlobalStates.oskOpen = !GlobalStates.oskOpen
                 }
@@ -239,6 +244,7 @@ Item {
             Component {
                 id: wallpaperM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: "imagesmode"
                     onClicked: GlobalStates.wallpaperSelectorOpen = !GlobalStates.wallpaperSelectorOpen
                 }
@@ -264,6 +270,7 @@ Item {
             Component {
                 id: micM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: Pipewire.defaultAudioSource?.audio?.muted ? "mic_off" : "mic"
                     onClicked: Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle"])
                 }
@@ -290,6 +297,7 @@ Item {
             Component {
                 id: darkModeM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: Appearance.m3colors.darkmode ? "light_mode" : "dark_mode"
                     onClicked: (e) => {
                         if (Appearance.m3colors.darkmode)
@@ -326,6 +334,7 @@ Item {
             Component {
                 id: perfM3
                 UtilButton {
+                    vertical: root.vertical
                     iconText: switch(PowerProfiles.profile) {
                         case PowerProfile.PowerSaver: return "energy_savings_leaf"
                         case PowerProfile.Balanced: return "airwave"

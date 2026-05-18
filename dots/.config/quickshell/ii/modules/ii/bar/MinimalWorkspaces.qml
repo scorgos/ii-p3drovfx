@@ -15,6 +15,41 @@ Item {
     readonly property int workspacesShown: Config.options.bar.workspaces.shown
     readonly property int activeWsId: monitor?.activeWorkspace?.id ?? 1
     readonly property bool dynamicWorkspaces: Config.options.bar.workspaces.dynamicWorkspaces
+
+    property var shapesList: [
+        "Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle",
+        "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided",
+        "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst",
+        "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart"
+    ]
+    property string currentRandomShape: "Circle"
+    property real randomRotation: 0
+
+    readonly property real stableActivePosition: (tabHighlight ? tabHighlight.getPosForIndex(root.getWsIndex(activeWsId)) : 0) + (root.vertical ? mainLayout.y : mainLayout.x)
+    property real animatedStablePosition: stableActivePosition
+    Behavior on animatedStablePosition {
+        NumberAnimation {
+            duration: 350
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    function updateRandomShape() {
+        if (!Config.options.bar.workspaces.useRandomShapeForActiveIndicator) return;
+        let nextShape = currentRandomShape;
+        let attempts = 0;
+        while (nextShape === currentRandomShape && attempts < 10) {
+            let randIdx = Math.floor(Math.random() * shapesList.length);
+            nextShape = shapesList[randIdx];
+            attempts++;
+        }
+        currentRandomShape = nextShape;
+        randomRotation = randomRotation + 90;
+    }
+
+    onActiveWsIdChanged: {
+        updateRandomShape();
+    }
     
     // Pagination logic
     readonly property int startWsId: Math.floor((activeWsId - 1) / workspacesShown) * workspacesShown + 1
@@ -83,13 +118,13 @@ Item {
         readonly property real animX1: getPosForIndex(idxPair.idx1)
         readonly property real animX2: getPosForIndex(idxPair.idx2)
         
-        x: root.vertical ? (parent.width - width) / 2 : Math.min(animX1, animX2) + (root.vertical ? 0 : mainLayout.x)
-        y: root.vertical ? Math.min(animX1, animX2) + mainLayout.y : (parent.height - height) / 2
+        x: root.vertical ? (parent.width - width) / 2 : (Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? root.animatedStablePosition : Math.min(animX1, animX2) + (root.vertical ? 0 : mainLayout.x))
+        y: root.vertical ? (Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? root.animatedStablePosition : Math.min(animX1, animX2) + mainLayout.y) : (parent.height - height) / 2
         
-        width: root.vertical ? dotSize : Math.abs(animX2 - animX1) + dotSize
-        height: root.vertical ? Math.abs(animX2 - animX1) + dotSize : dotSize
+        width: root.vertical ? dotSize : (Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? dotSize : Math.abs(animX2 - animX1) + dotSize)
+        height: root.vertical ? (Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? dotSize : Math.abs(animX2 - animX1) + dotSize) : dotSize
 
-        sourceComponent: Config.options.bar.workspaces.useMaterialShapeForActiveIndicator ? materialShapeComponent : rectangleComponent
+        sourceComponent: (Config.options.bar.workspaces.useMaterialShapeForActiveIndicator || Config.options.bar.workspaces.useRandomShapeForActiveIndicator) ? materialShapeComponent : rectangleComponent
 
         Component {
             id: rectangleComponent
@@ -103,9 +138,19 @@ Item {
         Component {
             id: materialShapeComponent
             MaterialShape {
-                shapeString: Config.options.bar.workspaces.activeIndicatorShape
+                anchors.fill: parent
+                transformOrigin: Item.Center
+                shapeString: Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? root.currentRandomShape : Config.options.bar.workspaces.activeIndicatorShape
                 color: Appearance.colors.colPrimary
                 opacity: Config.options.bar.workspaces.activeIndicatorOpacity / 100
+                rotation: Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? root.randomRotation : 0
+                Behavior on rotation {
+                    RotationAnimation {
+                        duration: 350
+                        direction: RotationAnimation.Clockwise
+                        easing.type: Easing.OutBack
+                    }
+                }
             }
         }
     }
@@ -170,7 +215,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Hyprland.dispatch(`workspace ${dot.wsId}`)
+                    onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = '" + dot.wsId + "' })")
                 }
             }
         }
@@ -179,16 +224,17 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.NoButton
         onWheel: (wheel) => {
             if (dynamicWorkspaces) {
                 // In dynamic mode, scroll through existing workspaces (skipping empty)
-                if (wheel.angleDelta.y > 0) Hyprland.dispatch("workspace r-1");
-                else Hyprland.dispatch("workspace r+1");
+                if (wheel.angleDelta.y > 0) Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
+                else Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
             } else {
                 // In pagination mode, scroll through all IDs (1, 2, 3...)
                 let nextId = activeWsId + (wheel.angleDelta.y > 0 ? -1 : 1);
                 if (nextId < 1) return;
-                Hyprland.dispatch(`workspace ${nextId}`);
+                Hyprland.dispatch("hl.dsp.focus({ workspace = '" + nextId + "' })");
             }
         }
     }

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
@@ -20,6 +21,8 @@ ContentPage {
         id: actionProc
         property string mode: ""
         property string logOutput: ""
+        property int exitCode: -1
+        property bool finished: false
         stdout: SplitParser {
             onRead: data => {
                 actionProc.logOutput += data + "\n";
@@ -31,6 +34,8 @@ ContentPage {
             }
         }
         onExited: code => {
+            actionProc.exitCode = code;
+            actionProc.finished = true;
             if (code === 0)
                 actionProc.logOutput += "✓ Done\n";
             else
@@ -219,6 +224,8 @@ ContentPage {
                     enabled: !actionProc.running
                     onClicked: {
                         actionProc.logOutput = "";
+                        actionProc.finished = false;
+                        actionProc.exitCode = -1;
                         actionProc.mode = "update-fork";
                         actionProc.command = ["bash", page.setupScript, "--update-only", "--no-confirm"];
                         actionProc.running = true;
@@ -234,6 +241,8 @@ ContentPage {
                     enabled: !actionProc.running
                     onClicked: {
                         actionProc.logOutput = "";
+                        actionProc.finished = false;
+                        actionProc.exitCode = -1;
                         actionProc.mode = "update-upstream";
                         actionProc.command = ["bash", page.setupScript, "--update-only", "--ii-vynx", "--no-confirm"];
                         actionProc.running = true;
@@ -244,30 +253,64 @@ ContentPage {
                 }
             }
 
+            // Beautiful Status Banner when finished
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                height: 40
+                visible: actionProc.finished
+                radius: Appearance.rounding.small
+                color: ColorUtils.transparentize(actionProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError, 0.85)
+                border.color: actionProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError
+                border.width: 1
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
+
+                    MaterialSymbol {
+                        text: actionProc.exitCode === 0 ? "check_circle" : "error"
+                        iconSize: 20
+                        color: actionProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: actionProc.exitCode === 0 ? Translation.tr("Update completed successfully! Reload the shell to apply.") : Translation.tr("Update failed! Please check the log below.")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnLayer0
+                    }
+                }
+            }
+
             // Log output area
             Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                height: logText.implicitHeight + 16
+                height: Math.min(250, logText.implicitHeight + 16)
                 visible: actionProc.logOutput !== ""
                 radius: Appearance.rounding.small
                 color: Appearance.colors.colLayer0
-                border.color: Appearance.colors.colOutline
+                border.color: !actionProc.finished ? Appearance.colors.colOutline :
+                              (actionProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError)
                 border.width: 1
 
-                Text {
-                    id: logText
-                    anchors {
-                        left: parent.left
-                        right: parent.right
-                        top: parent.top
-                        margins: 8
+                ScrollView {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    clip: true
+
+                    Text {
+                        id: logText
+                        width: parent.width
+                        text: actionProc.logOutput
+                        font.family: "monospace"
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnLayer1
+                        wrapMode: Text.WrapAnywhere
                     }
-                    text: actionProc.logOutput
-                    font.family: "monospace"
-                    font.pixelSize: Appearance.font.pixelSize.small
-                    color: Appearance.colors.colOnLayer1
-                    wrapMode: Text.WrapAnywhere
                 }
             }
         }
@@ -287,6 +330,8 @@ ContentPage {
                     enabled: !actionProc.running
                     onClicked: {
                         actionProc.logOutput = "";
+                        actionProc.finished = false;
+                        actionProc.exitCode = -1;
                         actionProc.mode = "fork";
                         actionProc.command = ["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm"];
                         actionProc.running = true;
@@ -302,6 +347,8 @@ ContentPage {
                     enabled: !actionProc.running
                     onClicked: {
                         actionProc.logOutput = "";
+                        actionProc.finished = false;
+                        actionProc.exitCode = -1;
                         actionProc.mode = "upstream";
                         actionProc.command = ["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm", "--ii-vynx"];
                         actionProc.running = true;

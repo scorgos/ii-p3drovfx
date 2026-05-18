@@ -92,7 +92,7 @@ MouseArea {
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: 1
             font.pixelSize: Appearance.font.pixelSize.small
-            color: Appearance.colors.colOnPrimary
+            color: Appearance.colors.colOnPrimaryContainer
             text: Weather.data?.temp ?? "--°"
             verticalAlignment: Text.AlignVCenter
         }
@@ -160,21 +160,8 @@ MouseArea {
         }
     }
 
-    // Popup logic
-    property bool compactMode: Config.options.bar.tooltips.compactPopups
-
-    Loader {
-        active: true
-        sourceComponent: root.compactMode ? weatherPopupCompact : weatherPopup
-    }
-
-    Component {
-        id: weatherPopupCompact
-        WeatherPopupCompact { hoverTarget: root }
-    }
-
-    Component {
-        id: weatherPopup
-        WeatherPopup { hoverTarget: root }
+    WeatherPopup {
+        compact: Config.options.bar.tooltips.compactPopups
+        hoverTarget: root
     }
 }

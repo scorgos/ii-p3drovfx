@@ -5,12 +5,28 @@ import QtQuick
 import QtQuick.Layouts
 import qs.modules.ii.bar as Bar
 
-MouseArea {
+Item {
     id: root
     implicitHeight: clockColumn.implicitHeight + 10
     implicitWidth: Appearance.sizes.verticalBarWidth
 
-    hoverEnabled: !Config.options.bar.tooltips.clickToShow
+    Connections {
+        target: LocalSend
+        onCurrentTransferChanged: {
+            if (LocalSend.currentTransfer) {
+                rootItem.toggleHighlight(true)
+            } else {
+                rootItem.toggleHighlight(false)
+            }
+        }
+        onDroppedFilesChanged: {
+            if (LocalSend.droppedFiles.length > 0) {
+                rootItem.toggleHighlight(true)
+            } else {
+                rootItem.toggleHighlight(false)
+            }
+        }
+    }
 
     ColumnLayout {
         id: clockColumn
@@ -22,30 +38,35 @@ MouseArea {
             delegate: StyledText {
                 required property string modelData
                 Layout.alignment: Qt.AlignHCenter
-                font.pixelSize: modelData.match(/am|pm/i) ? Appearance.font.pixelSize.smaller // Smaller "am"/"pm" text
-                : Appearance.font.pixelSize.large
-                color: Appearance.colors.colOnLayer1
+                font.pixelSize: modelData.match(/am|pm/i) ? 
+                    Appearance.font.pixelSize.smaller // Smaller "am"/"pm" text
+                    : Appearance.font.pixelSize.large
+                color: dropArea.containsDrag ? Appearance.colors.colPrimary : rootItem.highlighted ? Appearance.colors.colOnPrimary : Appearance.colors.colOnSurface
                 text: modelData.padStart(2, "0")
             }
         }
     }
 
-    property bool compactMode: Config.options.bar.tooltips.compactPopups
-
-    Loader {
-        active: true
-        sourceComponent: root.compactMode ? clockPopupCompact : clockPopup
-    }
-    Component {
-        id: clockPopup
-        Bar.ClockWidgetPopup {
-            hoverTarget: root
+    DropArea {
+        id: dropArea
+        anchors.fill: parent
+        keys: ["text/uri-list"]
+        onDropped: (drop) => {
+            if (!drop.hasUrls) return
+            for (let i = 0; i < drop.urls.length; i++)
+                LocalSend.addDroppedFile(drop.urls[i])
+            drop.accept(Qt.CopyAction)
         }
     }
-    Component {
-        id: clockPopupCompact
-        Bar.ClockWidgetPopupCompact {
-            hoverTarget: root
+
+    MouseArea {
+        id: mouseArea
+        anchors.fill: parent
+        hoverEnabled: !Config.options.bar.tooltips.clickToShow
+
+        Bar.ClockWidgetPopup {
+            compact: Config.options.bar.tooltips.compactPopups
+            hoverTarget: mouseArea
         }
     }
 }

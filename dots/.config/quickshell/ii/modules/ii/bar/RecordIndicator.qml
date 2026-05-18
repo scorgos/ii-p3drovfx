@@ -20,7 +20,10 @@ MouseArea {
     implicitWidth: vertical ? 20 : 80 // we have to enter a fixed size to make it dull
     implicitHeight: vertical ? 75 : 20
 
-    Component.onCompleted: updateVisibility()
+    Component.onCompleted: {
+        rootItem.toggleHighlight(true)
+        updateVisibility()
+    }
     onActivelyRecordingChanged: updateVisibility()
     onIsLoadingChanged: updateVisibility()
 
@@ -59,7 +62,6 @@ MouseArea {
         active: !indicator.vertical
         anchors.centerIn: parent
         sourceComponent: RowLayout {
-            id: contentLayout
             anchors.centerIn: parent
             spacing: 4
 
@@ -93,7 +95,6 @@ MouseArea {
         active: indicator.vertical
         anchors.centerIn: parent
         sourceComponent: ColumnLayout {
-            id: contentLayout
             anchors.centerIn: parent
             spacing: 4
 

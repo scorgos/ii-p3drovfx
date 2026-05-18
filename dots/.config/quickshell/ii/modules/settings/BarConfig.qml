@@ -1094,6 +1094,7 @@ ContentPage {
                 }
 
                 RippleButtonWithShape {
+                    enabled: Config.options.bar.workspaces.useMaterialShapeForActiveIndicator
                     Layout.fillWidth: false
                     shapeString: Config.options.bar.workspaces.activeIndicatorShape
                     implicitWidth: 60
@@ -1108,10 +1109,20 @@ ContentPage {
                 }
             }
 
+            ConfigSwitch {
+                enabled: !Config.options.bar.workspaces.useMaterialShapeForActiveIndicator
+                buttonIcon: "shuffle"
+                text: Translation.tr("Use random shape for active indicator")
+                checked: Config.options.bar.workspaces.useRandomShapeForActiveIndicator
+                onCheckedChanged: {
+                    Config.options.bar.workspaces.useRandomShapeForActiveIndicator = checked;
+                }
+            }
+
             Loader {
                 id: activeIndicatorShapeLoader
                 active: false
-                visible: active
+                visible: active && Config.options.bar.workspaces.useMaterialShapeForActiveIndicator
                 Layout.fillWidth: true
                 sourceComponent: ContentSubsection {
                     title: Translation.tr("Indicator shape")
@@ -1172,6 +1183,9 @@ ContentPage {
             checked: Config.options.bar.tooltips.clickToShow
             onCheckedChanged: {
                 Config.options.bar.tooltips.clickToShow = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("You will not be able to use the buttons on some popups if you enable this option.")
             }
         }
         ConfigSwitch {

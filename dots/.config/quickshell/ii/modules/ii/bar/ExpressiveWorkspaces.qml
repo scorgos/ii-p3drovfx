@@ -50,12 +50,14 @@ Item {
     implicitWidth: vertical ? Appearance.sizes.verticalBarWidth : (contentLayout.implicitWidth)
     implicitHeight: vertical ? (contentLayout.implicitHeight) : Appearance.sizes.barHeight
 
-    WheelHandler {
-        onWheel: event => {
-            if (event.angleDelta.y < 0)
-                Hyprland.dispatch(`workspace r+1`);
-            else if (event.angleDelta.y > 0)
-                Hyprland.dispatch(`workspace r-1`);
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        onWheel: (wheel) => {
+            if (wheel.angleDelta.y < 0)
+                Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
+            else if (wheel.angleDelta.y > 0)
+                Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
         }
     }
 
@@ -164,7 +166,7 @@ Item {
                     }
                 }
 
-                onPressed: Hyprland.dispatch(`workspace ${workspaceValue}`)
+                onPressed: Hyprland.dispatch("hl.dsp.focus({ workspace = '" + workspaceValue + "' })")
             }
         }
     }

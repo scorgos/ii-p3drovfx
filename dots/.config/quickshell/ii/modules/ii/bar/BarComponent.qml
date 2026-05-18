@@ -17,6 +17,7 @@ Item {
     required property int index
     property var originalIndex: index
     property bool vertical: false
+    property bool highlighted: false
 
     implicitWidth: wrapper.implicitWidth
     implicitHeight: wrapper.implicitHeight
@@ -29,6 +30,10 @@ Item {
             Config.options.bar.layouts.center[originalIndex].visible = visibility;
         else if (barSection == 2)
             Config.options.bar.layouts.right[originalIndex].visible = visibility;
+    }
+
+    function toggleHighlight(highlight) {
+        rootItem.highlighted = highlight
     }
 
     property var compMap: ({ // [horizontal, vertical, expressiveHorizontal, expressiveVertical]
@@ -169,7 +174,7 @@ Item {
         bottomPadding: rootItem.isExpressive ? 0 : padding
         startRadius: rootItem.startRadius
         endRadius: rootItem.endRadius
-        colBackground: (barGroupStyle === 1 && isExpressive) ? "transparent" : ((itemLoader.item?.activated || primaryBackgroundComps.includes(modelData.id)) ? rootItem.colBackgroundHighlight : rootItem.colBackground)
+        colBackground: (barGroupStyle === 1 && isExpressive) ? "transparent" : ((itemLoader.item?.activated || rootItem.highlighted) ? rootItem.colBackgroundHighlight : rootItem.colBackground)
 
         Loader {
             id: itemLoader

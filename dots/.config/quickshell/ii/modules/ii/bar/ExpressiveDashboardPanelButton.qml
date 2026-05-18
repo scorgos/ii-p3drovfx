@@ -89,7 +89,12 @@ Item {
             visible: active
             width: active ? item?.implicitWidth ?? 0 : 0
             height: active ? item?.implicitHeight ?? 0 : 0
-            source: "NotificationUnreadCount.qml"
+            source: "ExpressiveNotificationUnreadCount.qml"
+            Binding {
+                target: notifLoader.item
+                property: "color"
+                value: root.isMaterial ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
+            }
         }
     }
 }

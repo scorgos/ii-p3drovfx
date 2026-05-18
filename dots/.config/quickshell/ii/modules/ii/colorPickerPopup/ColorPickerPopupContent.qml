@@ -68,7 +68,13 @@ Item {
         return l < 15 || l > 240 || s < 0.05;
     }
 
-    readonly property color onColor: Appearance.colors.colSurfaceContainer
+    function getContrastColor(bgCol) {
+        let c = Qt.color(bgCol);
+        let luminance = 0.2126 * (c.r * 255) + 0.7152 * (c.g * 255) + 0.0722 * (c.b * 255);
+        return luminance < 128 ? "#FFFFFF" : "#111111";
+    }
+
+    readonly property color onColor: getContrastColor(root.colorHex)
 
     property var palette: null
     property var surfacePalette: null
@@ -252,13 +258,14 @@ Item {
         }
     }
 
-    // Entrance animation — opacity (Main container)
-    NumberAnimation on opacity {
-        from: 0
-        to: 1
-        duration: Appearance.animation.menuDecel.duration
-        easing.type: Appearance.animation.menuDecel.type
-        running: true
+    // Expose a static, unscaled item for the window input mask to prevent coordinate bugs during scale
+    property alias staticMaskTarget: staticMaskTarget
+    Item {
+        id: staticMaskTarget
+        anchors {
+            fill: parent
+            margins: Appearance.sizes.elevationMargin
+        }
     }
 
     // Hover scale for the InfoPill icons
@@ -278,22 +285,12 @@ Item {
         restoreMode: Binding.RestoreBindingOrValue
     }
 
-    // Entrance animation — scale (Levemente ajustado para um overshoot bem sutil na abertura)
-    NumberAnimation on scale {
-        from: 0.88
-        to: 1.0
-        duration: Appearance.animation.elementMoveEnter.duration
-        easing.type: Appearance.animation.elementMoveEnter.type
-        easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
-        running: true
-    }
-    transformOrigin: Item.TopRight
-
     Component.onCompleted: {
         // Garantir que a pílula comece invisível para a animação de entrada
         if (headerCard.children.length > 1) {
             headerCard.children[1].scale = 0;
         }
+        entranceAnim.start()
     }
 
     // === BACKGROUND with shadow and rounding (mask target) ===
@@ -308,6 +305,30 @@ Item {
 
         radius: Appearance.rounding.large
         color: Appearance.colors.colLayer1Base
+
+        // Animations applied on the card itself to keep root window input mapping clean
+        opacity: 0
+        scale: 0.88
+        transformOrigin: Item.TopRight
+
+        ParallelAnimation {
+            id: entranceAnim
+            NumberAnimation {
+                target: contentBackground
+                property: "opacity"
+                from: 0; to: 1
+                duration: Appearance.animation.menuDecel.duration
+                easing.type: Appearance.animation.menuDecel.type
+            }
+            NumberAnimation {
+                target: contentBackground
+                property: "scale"
+                from: 0.88; to: 1.0
+                duration: Appearance.animation.elementMoveEnter.duration
+                easing.type: Appearance.animation.elementMoveEnter.type
+                easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
+            }
+        }
 
         MouseArea {
             id: backgroundMa
@@ -355,18 +376,18 @@ Item {
                     }
                 }
 
-                // Override base color of HeroCard to use captured color
-                color: root.palette ? root.palette.primary_container : Qt.color(root.colorHex)
+                // Stable, theme-compliant background
+                color: Appearance.colors.colLayer2Base
 
-                // Cookie shape with captured color and paint bucket icon
+                // Cookie shape with the EXACT captured color and high-contrast paint bucket icon
                 shapeString: "Cookie12Sided"
-                shapeColor: root.palette ? Qt.color(root.palette.on_primary) : Qt.color(root.colorHex)
+                shapeColor: Qt.color(root.colorHex)
                 icon: "format_color_fill"
-                symbolColor: root.palette ? root.palette.primary : root.onColor
+                symbolColor: root.getContrastColor(root.colorHex)
                 iconSize: 100
 
-                // Text: color name (title) and hex (subtitle)
-                textColor: root.isMonochrome && root.palette ? root.palette.on_primary : root.palette.on_primary
+                // Text: guaranteed high-contrast text on the stable card background
+                textColor: Appearance.colors.colOnSurface
                 title: ColorNames.getColorName(root.colorHex)
                 subtitle: root.colorHex.toUpperCase()
                 titleSize: Appearance.font.pixelSize.huge
@@ -449,10 +470,10 @@ Item {
                         width: pillCarouselContainer.width
                         anchors.top: parent.top
 
-                        containerColor: root.rgbCopied ? root.copiedBgColor : (root.palette ? root.palette.secondary_container : Qt.darker(Qt.color(root.colorHex), 1.3))
-                        shapeColor: root.rgbCopied ? root.copiedAccent : (rgbCopyMa.containsMouse ? (root.palette ? Appearance.colors.colSecondaryHover : Qt.lighter(Qt.color(root.colorHex), 1.2)) : (root.palette ? root.palette.secondary : Qt.color(root.colorHex)))
-                        symbolColor: root.rgbCopied ? root.copiedOnColor : (root.palette ? root.palette.on_secondary : root.onColor)
-                        textColor: root.rgbCopied ? root.copiedOnColor : (root.palette ? root.palette.on_secondary_container : root.onColor)
+                        containerColor: root.rgbCopied ? root.copiedBgColor : (root.palette ? root.palette.secondary_container : Appearance.colors.colSecondaryContainer)
+                        shapeColor: root.rgbCopied ? root.copiedAccent : (rgbCopyMa.containsMouse ? (root.palette ? Appearance.colors.colSecondaryHover : Appearance.colors.colSecondary) : (root.palette ? root.palette.secondary : Qt.color(root.colorHex)))
+                        symbolColor: root.rgbCopied ? root.copiedOnColor : root.getContrastColor(shapeColor)
+                        textColor: root.rgbCopied ? root.copiedOnColor : root.getContrastColor(containerColor)
                         shapeString: "Cookie12Sided"
                         icon: root.rgbCopied ? "check" : "content_copy"
                         text: root.rgbCopied ? qsTr("Copied") : root.rgbString
@@ -485,10 +506,10 @@ Item {
                         anchors.top: parent.top
                         anchors.left: rgbPill.right
 
-                        containerColor: root.formatCopied ? root.copiedBgColor : (root.palette ? root.palette.secondary_container : Qt.darker(Qt.color(root.colorHex), 1.3))
-                        shapeColor: root.formatCopied ? root.copiedAccent : (formatCopyMa.containsMouse ? (root.palette ? Appearance.colors.colSecondaryHover : Qt.lighter(Qt.color(root.colorHex), 1.2)) : (root.palette ? root.palette.secondary : Qt.color(root.colorHex)))
-                        symbolColor: root.formatCopied ? root.copiedOnColor : (root.palette ? root.palette.on_secondary : root.onColor)
-                        textColor: root.formatCopied ? root.copiedOnColor : (root.palette ? root.palette.on_secondary_container : root.onColor)
+                        containerColor: root.formatCopied ? root.copiedBgColor : (root.palette ? root.palette.secondary_container : Appearance.colors.colSecondaryContainer)
+                        shapeColor: root.formatCopied ? root.copiedAccent : (formatCopyMa.containsMouse ? (root.palette ? Appearance.colors.colSecondaryHover : Appearance.colors.colSecondary) : (root.palette ? root.palette.secondary : Qt.color(root.colorHex)))
+                        symbolColor: root.formatCopied ? root.copiedOnColor : root.getContrastColor(shapeColor)
+                        textColor: root.formatCopied ? root.copiedOnColor : root.getContrastColor(containerColor)
                         shapeString: "Cookie12Sided"
                         icon: root.formatCopied ? "check" : "content_copy"
                         text: root.formatCopied ? qsTr("Copied") : root.hslString
@@ -617,23 +638,19 @@ Item {
                     model: [
                         {
                             title: "Primary",
-                            color: root.palette ? root.palette.primary : root.colorHex,
-                            onColor: root.palette ? root.palette.on_primary : root.onColor
+                            color: root.palette ? root.palette.primary : root.colorHex
                         },
                         {
                             title: "Secondary",
-                            color: root.palette ? root.palette.secondary : Qt.darker(Qt.color(root.colorHex), 1.2),
-                            onColor: root.palette ? root.palette.on_secondary : root.onColor
+                            color: root.palette ? root.palette.secondary : Qt.darker(Qt.color(root.colorHex), 1.2)
                         },
                         {
                             title: "Tertiary",
-                            color: root.palette ? root.palette.tertiary : Qt.darker(Qt.color(root.colorHex), 1.4),
-                            onColor: root.palette ? root.palette.on_tertiary : root.onColor
+                            color: root.palette ? root.palette.tertiary : Qt.darker(Qt.color(root.colorHex), 1.4)
                         },
                         {
                             title: "Neutral",
-                            color: root.palette ? root.palette.surface_variant : Qt.darker(Qt.color(root.colorHex), 1.6),
-                            onColor: root.palette ? root.palette.on_surface_variant : root.onColor
+                            color: root.palette ? root.palette.surface_variant : Qt.darker(Qt.color(root.colorHex), 1.6)
                         }
                     ]
 
@@ -646,6 +663,8 @@ Item {
                         radius: Appearance.rounding.normal
                         color: modelData.color
                         clip: true
+
+                        readonly property bool isCardDark: root.getContrastColor(variantCard.color) === "#FFFFFF"
 
                         // Entrance
                         opacity: root.entrance3 ? 1.0 : 0.0
@@ -679,7 +698,7 @@ Item {
                             anchors.left: parent.left
                             anchors.margins: 12
                             text: modelData.title
-                            color: modelData.onColor
+                            color: root.getContrastColor(variantCard.color)
                             font.pixelSize: Appearance.font.pixelSize.medium
                             font.weight: Font.DemiBold
                         }
@@ -696,7 +715,7 @@ Item {
                                 }
                                 return c;
                             }
-                            color: modelData.onColor
+                            color: root.getContrastColor(variantCard.color)
                             font.pixelSize: Appearance.font.pixelSize.small
                             font.family: Appearance.font.family.monospace
                         }
@@ -715,14 +734,14 @@ Item {
                             MaterialCookie {
                                 anchors.fill: parent
                                 sides: 12
-                                color: variantCard.copied ? root.copiedAccent : (pillMa.containsMouse ? Qt.rgba(0, 0, 0, 0.3) : Qt.rgba(0, 0, 0, 0.15))
+                                color: variantCard.copied ? root.copiedAccent : (pillMa.containsMouse ? (isCardDark ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(0, 0, 0, 0.3)) : (isCardDark ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(0, 0, 0, 0.15)))
                             }
 
                             MaterialSymbol {
                                 anchors.centerIn: parent
                                 text: variantCard.copied ? "check" : "content_copy"
                                 iconSize: 16
-                                color: variantCard.copied ? root.copiedOnColor : modelData.onColor
+                                color: variantCard.copied ? root.copiedOnColor : root.getContrastColor(variantCard.color)
                             }
 
                             scale: variantCard.copied ? 1.15 : (pillMa.pressed ? 0.92 : (pillMa.containsMouse ? 1.05 : 1))
@@ -762,14 +781,14 @@ Item {
                             MaterialShape {
                                 anchors.fill: parent
                                 shapeString: "Cookie4Sided"
-                                color: variantCard.applied ? root.copiedAccent : (insertMa.containsMouse ? Qt.rgba(0, 0, 0, 0.3) : Qt.rgba(0, 0, 0, 0.15))
+                                color: variantCard.applied ? root.copiedAccent : (insertMa.containsMouse ? (isCardDark ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(0, 0, 0, 0.3)) : (isCardDark ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(0, 0, 0, 0.15)))
                             }
 
                             MaterialSymbol {
                                 anchors.centerIn: parent
                                 text: variantCard.applied ? "check" : "arrow_insert"
                                 iconSize: 16
-                                color: variantCard.applied ? root.copiedOnColor : modelData.onColor
+                                color: variantCard.applied ? root.copiedOnColor : root.getContrastColor(variantCard.color)
                             }
 
                             scale: variantCard.applied ? 1.15 : (insertMa.pressed ? 0.92 : (insertMa.containsMouse ? 1.05 : 1))

@@ -345,7 +345,7 @@ Item {
                 toggled: false
                 buttonIcon: "restart_alt"
                 onClicked: {
-                    Hyprland.dispatch("reload");
+                    Quickshell.execDetached(["hyprctl", "reload"]);
                     Quickshell.reload(true);
                 }
                 StyledToolTip {
@@ -367,7 +367,7 @@ Item {
                 id: updateButton
                 toggled: confirm
                 property bool confirm: false
-                property string updateScript: Quickshell.env("HOME") + "/.local/share/ii-vynx/update-with-customs.sh"
+                property string updateScript: Quickshell.env("HOME") + "/.local/share/ii-vynx/setup-ii-vynx.sh"
                 buttonIcon: confirm ? "check" : "download"
                 Timer {
                     id: confirmTimer
@@ -380,10 +380,8 @@ Item {
                 onClicked: {
                     if (confirm) {
                         GlobalStates.sidebarRightOpen = false;
-                        // Wrapper: roda dry-run primeiro, se exit 0 aplica de verdade
                         const script = updateScript;
-                        const wrapperCmd = [`echo '━━━ ii-vynx: Verificando conflitos (dry-run)... ━━━'`, `bash '${script}' --dry-run -v`, `echo ''`, `echo '━━━ Sem conflitos! Aplicando update... ━━━'`, `echo ''`, `bash '${script}' -v`,].join(" && ");
-                        const fullCmd = `${wrapperCmd} || echo -e '\\n⚠ Conflitos ou erro detectado. Update NÃO aplicado.'`;
+                        const fullCmd = `bash '${script}' --update-only`;
                         Quickshell.execDetached([Config.options.apps.terminal, "-e", "bash", "-c", fullCmd + "; echo ''; echo 'Pressione Enter para fechar...'; read"]);
                     } else {
                         confirm = true;

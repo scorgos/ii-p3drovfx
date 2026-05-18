@@ -8,6 +8,7 @@ import QtQuick.Layouts
 StyledPopup {
     id: root
     popupRadius: Appearance.rounding.large
+    stickyHover: true
 
     readonly property int cardWidth: 150
     readonly property int cardHeight: 130
