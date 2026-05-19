@@ -284,13 +284,13 @@ StyledPopup {
                 MaterialShape {
                     shapeString: "Circle"
                     implicitSize: 40
-                    color: Appearance.colors.colLayer0
+                    color: Appearance.colors.colLayer4
                     
                     MaterialSymbol {
                         anchors.centerIn: parent
                         text: "memory"
                         iconSize: 22
-                        color: Appearance.colors.colOnLayer0
+                        color: Appearance.colors.colOnLayer4
                     }
                 }
                 

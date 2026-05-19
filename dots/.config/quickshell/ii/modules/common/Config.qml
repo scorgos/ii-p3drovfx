@@ -654,6 +654,9 @@ Singleton {
             }
 
             property JsonObject light: JsonObject {
+                property JsonObject darkMode: JsonObject {
+                    property bool automatic: false
+                }
                 property JsonObject night: JsonObject {
                     property bool automatic: true
                     property string from: "19:00" // Format: "HH:mm", 24-hour time

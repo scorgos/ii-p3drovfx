@@ -11,17 +11,31 @@ Singleton {
     property int clockHour: DateTime.clock.hours
     property int clockMinute: DateTime.clock.minutes
 
-    onClockHourChanged: {
-        if (automatic && clockMinute === 0) {
-            if (clockHour === 18) enableDarkMode();
-            else if (clockHour === 6) disableDarkMode();
+    onAutomaticChanged: {
+        if (automatic) {
+            checkTime();
         }
     }
 
-    onClockMinuteChanged: {
-        if (automatic && clockMinute === 0) {
-            if (clockHour === 18) enableDarkMode();
-            else if (clockHour === 6) disableDarkMode();
+    onClockHourChanged: {
+        if (automatic) {
+            checkTime();
+        }
+    }
+
+    Component.onCompleted: {
+        if (automatic) {
+            checkTime();
+        }
+    }
+
+    function checkTime() {
+        if (!automatic)
+            return;
+        if (clockHour >= 18 || clockHour < 6) {
+            enableDarkMode();
+        } else {
+            disableDarkMode();
         }
     }
 

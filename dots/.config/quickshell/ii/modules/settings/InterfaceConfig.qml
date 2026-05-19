@@ -153,8 +153,6 @@ ContentPage {
         }
     }
 
-
-
     ContentSection {
         icon: "call_to_action"
         title: Translation.tr("Dock")
@@ -205,8 +203,6 @@ ContentPage {
                 }
             }
         }
-
-
 
         ConfigSwitch {
             buttonIcon: "play_pause"
@@ -407,8 +403,6 @@ ContentPage {
                 }
             }
         }
-
-
     }
 
     ContentSection {
@@ -1347,12 +1341,16 @@ ContentPage {
 
     Connections {
         target: Config.options.appearance.palette
-        function onTypeChanged() { page.showRestartFab = true }
+        function onTypeChanged() {
+            page.showRestartFab = true;
+        }
     }
 
     Connections {
         target: Appearance.m3colors
-        function onDarkmodeChanged() { page.showRestartFab = true }
+        function onDarkmodeChanged() {
+            page.showRestartFab = true;
+        }
     }
 
     FloatingActionButton {
@@ -1398,4 +1396,3 @@ ContentPage {
         }
     }
 }
-

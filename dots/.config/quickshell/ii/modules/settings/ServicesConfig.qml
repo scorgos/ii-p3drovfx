@@ -690,7 +690,7 @@ ContentPage {
                                 Image {
                                     anchors.fill: parent
                                     anchors.margins: 12
-                                    source: (modelData && modelData.image) ? Qt.resolvedUrl("../../assets/images/devices/" + modelData.image) : ""
+                                    source: (modelData && modelData.image) ? "file://" + Directories.shellConfig + "/bluetooth_images/" + modelData.image : ""
                                     fillMode: Image.PreserveAspectFit
                                     smooth: true
                                     mipmap: true
