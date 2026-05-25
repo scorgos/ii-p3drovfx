@@ -177,7 +177,7 @@ WindowDialog {
                         hoverEnabled: true
                         onClicked: {
                             if (Bluetooth.defaultAdapter?.discovering) {
-                                Bluetooth.defaultAdapter.stopDiscovery();
+                                Bluetooth.defaultAdapter?.stopDiscovery();
                             } else {
                                 Bluetooth.defaultAdapter?.startDiscovery();
                             }

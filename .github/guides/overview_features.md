@@ -23,6 +23,12 @@ This guide provides a comprehensive, step-by-step documentation for integrating 
   * **Arrow Indicator**: A primary-colored pointer (`arrow_forward`) representing the evaluation stream.
   * **RHS (Result)**: The bold, highlighted evaluation, replacing raw `qalc` symbols with standard human-readable symbols (e.g., converting `approx.` to `≈` and `deg` to `°`).
 
+### 📶 Bluetooth Control Panel (Connected Priority & Soundcore Integration)
+* **Reactive Connected Priority**: Connected Bluetooth devices are dynamically bubbled up to the very top of the list, styled with high-contrast active container states, bold names, and italicized status descriptions.
+* **Central State Sync & Timeout Watcher**: Connection state transitions (connecting/disconnecting) are processed by a centralized state watcher timer. It prevents stuck loading animations by syncing directly with the backend and applying a 15-second timestamp-based timeout fallback.
+* **Scanner Resource Safeguard**: Prevents background battery and CPU drain by ensuring the `bluetoothctl` scanner is explicitly stopped upon timer expiration or panel destruction.
+* **Soundcore Life Q30 ANC Controller**: Automatically detects when Anker Soundcore Life Q30 headphones are connected and displays a premium segmented control block to switch between **Normal**, **Ambient**, and **ANC** noise filtering modes.
+
 ---
 
 ## 2. Step-by-Step Implementation Files
@@ -312,10 +318,101 @@ Updates how the search launcher delegates render their content.
    const cmdKey = isSystemControl ? root.entry.key.slice(4) : "";
    const isConfirming = isSystemControl && LauncherSearch.confirmKey !== cmdKey;
 
-   if (!isConfirming) {
-       GlobalStates.overviewOpen = false;
+    if (!isConfirming) {
+        GlobalStates.overviewOpen = false;
+    }
+    root.itemExecute();
+    ```
+
+---
+
+### File 5: Reactive Bluetooth Status Service (`services/BluetoothStatus.qml`)
+Converts the static lists into dynamic, imperatively-updated arrays to resolve QML's C++ binding notification limitations.
+
+```qml
+// Convert static lists into dynamic properties
+property var connectedDevices: []
+property var pairedButNotConnectedDevices: []
+property var unpairedDevices: []
+property var friendlyDeviceList: []
+
+// Imperative update method triggered by connection checks and adapters
+function updateLists() {
+    if (!Bluetooth.devices) return;
+    let allDevices = Bluetooth.devices.values || [];
+    let conn = allDevices.filter(d => d && d.connected).sort(sortFunction);
+    let paired = allDevices.filter(d => d && d.paired && !d.connected).sort(sortFunction);
+    let unp = allDevices.filter(d => d && !d.paired && !d.connected).sort(sortFunction);
+    
+    root.connectedDevices = conn;
+    root.pairedButNotConnectedDevices = paired;
+    root.unpairedDevices = unp;
+    root.friendlyDeviceList = [...conn, ...paired, ...unp];
+}
+```
+
+---
+
+### File 6: Bluetooth Control Panel & Watcher (`modules/ii/overview/BluetoothPanel.qml`)
+Integrates the central timer watcher, delegate connection layouts, and the Soundcore ANC loader.
+
+#### Key Additions:
+1. **Central State Watcher & Scanning Cleanup**:
+   ```qml
+   // Auto-stop scanning when the panel is destroyed to prevent background leaks
+   Component.onDestruction: root.stopScan()
+
+   Timer {
+       id: connectionStateWatcher
+       interval: 300
+       running: root.btEnabled && (Object.keys(root.connectingDevices).length > 0 || Object.keys(root.disconnectingDevices).length > 0)
+       repeat: true
+       onTriggered: {
+           let tempCon = Object.assign({}, root.connectingDevices);
+           let tempDis = Object.assign({}, root.disconnectingDevices);
+           let changed = false;
+           let now = Date.now();
+
+           // 15-second Timeout Fallback
+           for (let addr in tempCon) {
+               if (typeof tempCon[addr] === 'number' && now - tempCon[addr] > 15000) {
+                   delete tempCon[addr];
+                   changed = true;
+               }
+           }
+           // ... same for disconnecting ...
+
+           // Sync with real adapter states
+           let all = BluetoothStatus.friendlyDeviceList;
+           for (let i = 0; i < all.length; i++) {
+               let d = all[i];
+               if (d && d.connected && tempCon[d.address]) {
+                   delete tempCon[d.address];
+                   changed = true;
+               }
+               // ... same for disconnecting ...
+           }
+
+           if (changed) {
+               root.connectingDevices = tempCon;
+               root.disconnectingDevices = tempDis;
+           }
+       }
    }
-   root.itemExecute();
+   ```
+
+2. **Soundcore ANC Segmented Controller Loader**:
+   ```qml
+   Loader {
+       active: root.selectedDevice !== null && root.selectedDevice.connected && 
+               (root.selectedDevice.name === SoundcoreService.targetDeviceName || root.selectedDevice.address === SoundcoreService.macAddress)
+       visible: active
+       Layout.fillWidth: true
+       
+       sourceComponent: ColumnLayout {
+           // Normal, Ambient, and ANC button row hooked to SoundcoreService singleton
+       }
+   }
    ```
 
 ---
@@ -338,3 +435,7 @@ Type equations or conversion formats naturally:
 * Distance/weight conversions: `50 miles to km` or `10 kg to lbs`
 
 The launcher will instantly split the expression, highlight the evaluation in your primary accent color, and show the structured breakdown card directly in the search result pane. Hitting `Enter` will instantly copy the raw evaluated answer to your clipboard!
+
+### Bluetooth & Soundcore Premium Controls
+* **Connected Priority**: Simply open the Bluetooth panel; any connected device will instantly bubble to the top, highlighted with a vibrant high-contrast container background, bold typography, and direct battery percentage display.
+* **Soundcore Controls**: When Anker Soundcore Life Q30 headphones are connected and selected, a custom "Soundcore Premium Audio" segmented control card will dynamically slide into view under their specifications. Clicking **Normal**, **Ambient**, or **ANC** instantly triggers the corresponding noise profile via the low-level service.

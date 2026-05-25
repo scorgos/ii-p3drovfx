@@ -61,8 +61,8 @@ FULL_INSTALL=false
 NO_CONFIRM=false
 USE_II_VYNX=false
 UPDATE_ONLY=false
-SKIP_HYPRLAND=true
 PRESERVE_CONFIG=false
+REBUILD_QS=false
 
 UPSTREAM_REPO="https://github.com/vaguesyntax/ii-vynx"
 UPSTREAM_DIR="$HOME/.local/share/ii-vynx-upstream"
@@ -91,23 +91,23 @@ for arg in "$@"; do
         --no-confirm)     NO_CONFIRM=true; FORCE_INSTALL=true ;;
         --ii-vynx)        USE_II_VYNX=true ;;
         --update-only)    UPDATE_ONLY=true; DO_PULL=true ;;
-        --include-hyprland) SKIP_HYPRLAND=false ;;
         --preserve-config)  PRESERVE_CONFIG=true ;;
+        --rebuild-quickshell) REBUILD_QS=true ;;
         *)
             echo -e "${RED}Unknown flag: $arg${NC}"
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --no-pull          Skip git pull (use local repos as-is)"
-            echo "  --no-backup        Skip backup of existing config"
-            echo "  --force-install    Skip illogical-impulse check"
-            echo "  --full-install     Install original dots first, then ii-vynx"
-            echo "  --no-confirm       Skip all confirmations"
-            echo "  --ii-vynx          Switch to official vaguesyntax/ii-vynx quickshell"
-             echo "  --update-only      Pull latest changes for current source, no switch"
-             echo "  --include-hyprland  Include hyprland config setup (default: skip)"
-             echo "  --preserve-config   Keep existing config.json (use with --no-confirm for update buttons)"
-             echo "  -v, --verbose      Enable verbose output"
+            echo "  --no-pull            Skip git pull (use local repos as-is)"
+            echo "  --no-backup          Skip backup of existing config"
+            echo "  --force-install      Skip illogical-impulse check"
+            echo "  --full-install       Install original dots first, then ii-vynx"
+            echo "  --no-confirm         Skip all confirmations"
+            echo "  --ii-vynx            Switch to official vaguesyntax/ii-vynx quickshell"
+            echo "  --update-only        Pull latest changes for current source, no switch"
+            echo "  --preserve-config     Keep existing config.json (use with --no-confirm for update buttons)"
+            echo "  --rebuild-quickshell  Compile Quickshell from source matching system Qt ABI"
+            echo "  -v, --verbose        Enable verbose output"
             exit 1
             ;;
     esac
@@ -212,75 +212,74 @@ fetch_upstream() {
     fi
 }
 
-setup_hyprland_rules() {
-    local REPO_HYPR_DIR="$SCRIPT_DIR/dots/.config/hypr"
-    local DEST_HYPR_DIR="$HOME/.config/hypr"
-    local SKIP_FILES=("colors.conf" "general.conf")
-
-    echo -e "${NC}• Copying Hyprland config files...${NC}"
-
-    if [ ! -d "$REPO_HYPR_DIR" ]; then
-        echo -e "${YELLOW}⚠ Hyprland config directory not found in repo, skipping.${NC}"
-        return 0
+check_qt_mismatch() {
+    if command -v quickshell &>/dev/null; then
+        local warning_msg=$(quickshell --version 2>&1 | grep -i -E "warning|mismatch|abi|symbol")
+        if [ -n "$warning_msg" ]; then
+            echo -e "${YELLOW}⚠ WARNING: A Qt ABI or symbol mismatch was detected in your current Quickshell installation:${NC}"
+            echo -e "${RED}  $warning_msg${NC}"
+            echo ""
+            return 0
+        fi
     fi
-
-    local REPO_CONF_DIR="$REPO_HYPR_DIR/hyprland"
-    local DEST_CONF_DIR="$DEST_HYPR_DIR/hyprland"
-
-    if [ -d "$REPO_CONF_DIR" ]; then
-        mkdir -p "$DEST_CONF_DIR"
-        for f in "$REPO_CONF_DIR"/*.conf; do
-            [ -f "$f" ] || continue
-            local fname; fname="$(basename "$f")"
-            local skip=false
-            for skip_file in "${SKIP_FILES[@]}"; do
-                [ "$fname" = "$skip_file" ] && skip=true && break
-            done
-            $skip && continue
-            [ -f "$DEST_CONF_DIR/$fname" ] && cp "$DEST_CONF_DIR/$fname" "$DEST_CONF_DIR/${fname}.bak"
-            cp "$f" "$DEST_CONF_DIR/$fname"
-            log_verbose "Copied $fname → $DEST_CONF_DIR/$fname"
-        done
-        echo -e "${GREEN}✓ Hyprland configs updated${NC}"
-    fi
+    return 1
 }
 
-setup_hyprland_source() {
-    local II_VYNX_DIR="$HOME/.local/share/ii-vynx"
-    local II_VYNX_CONF="$II_VYNX_DIR/hyprland.conf"
-    local MAIN_HYPR_CONF="$HOME/.config/hypr/hyprland.conf"
-    local REPO_HYPR_CONF="$SCRIPT_DIR/dots/.local/share/ii-vynx/hyprland.conf"
-    local HYPRMERGE="$SCRIPT_DIR/sdata/cli/lib/hyprmerge.sh"
+build_quickshell() {
+    echo -e "${BLUE}• Rebuilding Quickshell from source to match your system's Qt ABI...${NC}"
+    
+    if [ -f /etc/fedora-release ]; then
+        echo -e "${NC}• Fedora detected. Installing build dependencies...${NC}"
+        sudo dnf install -y cmake extra-cmake-modules qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel wayland-devel libxkbcommon-devel gcc-c++ git
+    elif [ -f /etc/arch-release ]; then
+        echo -e "${NC}• Arch Linux detected. Installing build dependencies...${NC}"
+        sudo pacman -Sy --needed cmake extra-cmake-modules qt6-base qt6-declarative qt6-wayland wayland libxkbcommon gcc git
+    elif [ -f /etc/debian_version ]; then
+        echo -e "${NC}• Debian/Ubuntu detected. Installing build dependencies...${NC}"
+        sudo apt-get update && sudo apt-get install -y cmake extra-cmake-modules qt6-base-dev qt6-declarative-dev qt6-wayland-dev libwayland-dev libxkbcommon-dev g++ git
+    else
+        echo -e "${YELLOW}⚠ Unknown distribution. Please ensure you have cmake, extra-cmake-modules, Qt6 development libraries, and a C++ compiler installed.${NC}"
+    fi
 
-    echo -e "${NC}• Checking Hyprland source config...${NC}"
-    mkdir -p "$II_VYNX_DIR"
-
-    if [ ! -f "$REPO_HYPR_CONF" ]; then
-        echo -e "${RED}⚠ Error: Hyprland config not found: $REPO_HYPR_CONF${NC}"
+    local temp_dir="/tmp/quickshell-build-$(date +%s)"
+    echo -e "${NC}• Cloning Quickshell source code into $temp_dir...${NC}"
+    git clone https://github.com/outfoxxed/quickshell.git --recursive "$temp_dir"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ Failed to clone Quickshell repository!${NC}"
         return 1
     fi
 
-    if [ ! -f "$II_VYNX_CONF" ]; then
-        cp "$REPO_HYPR_CONF" "$II_VYNX_CONF"
-        echo -e "${GREEN}✓ Fresh install: copied hyprland.conf${NC}"
-    else
-        echo -e "${BLUE}• Merging hyprland.conf...${NC}"
-        if [ -f "$HYPRMERGE" ]; then
-            bash "$HYPRMERGE" "$REPO_HYPR_CONF" "$II_VYNX_CONF"
-        else
-            cp "$REPO_HYPR_CONF" "$II_VYNX_CONF"
-            echo -e "${GREEN}✓ Copied hyprland.conf (fallback)${NC}"
-        fi
+    cd "$temp_dir"
+    echo -e "${NC}• Configuring build...${NC}"
+    cmake -B build -S . -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DCRASH_HANDLER=OFF
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ CMake configuration failed!${NC}"
+        return 1
     fi
 
-    if [ -f "$MAIN_HYPR_CONF" ]; then
-        if ! grep -q "$II_VYNX_CONF" "$MAIN_HYPR_CONF"; then
-            cp "$MAIN_HYPR_CONF" "${MAIN_HYPR_CONF}.bak"
-            echo -e "\n# ii-vynx\nsource = $II_VYNX_CONF" >> "$MAIN_HYPR_CONF"
-            echo -e "${GREEN}✓ Appended source to hyprland.conf${NC}"
-        fi
+    echo -e "${NC}• Building DBus bindings first...${NC}"
+    cmake --build build -t quickshell-dbus -j$(nproc)
+    
+    echo -e "${NC}• Compiling Quickshell...${NC}"
+    cmake --build build -j$(nproc)
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ Compilation failed!${NC}"
+        return 1
     fi
+
+    echo -e "${NC}• Installing binaries to ~/.local/bin/...${NC}"
+    cmake --install build
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ Installation failed!${NC}"
+        return 1
+    fi
+
+    echo -e "${GREEN}✓ Quickshell compiled and installed successfully to ~/.local/bin!${NC}"
+    cd - >/dev/null
+    rm -rf "$temp_dir"
 }
+
+
 
 run_bundled_setup() {
     echo -e "${RED}This fork's base dotfiles are not installed yet. Install them now? (y/n): ${NC}"
@@ -321,13 +320,11 @@ echo ""
 # If the script is being run from a different location (e.g. ~/Downloads/my-fork),
 # copy it to the standard location so the UI buttons keep working after install.
 if [ "$SCRIPT_DIR" != "$STANDARD_SCRIPT_DIR" ]; then
-    if [ ! -f "$STANDARD_SCRIPT_DIR/setup-ii-vynx.sh" ]; then
-        echo -e "${BLUE}• Installing setup script to standard location...${NC}"
-        mkdir -p "$STANDARD_SCRIPT_DIR"
-        cp "$SOURCE" "$STANDARD_SCRIPT_DIR/setup-ii-vynx.sh"
-        chmod +x "$STANDARD_SCRIPT_DIR/setup-ii-vynx.sh"
-        echo -e "${GREEN}✓ Script installed to $STANDARD_SCRIPT_DIR${NC}"
-    fi
+    echo -e "${BLUE}• Syncing setup script to standard location...${NC}"
+    mkdir -p "$STANDARD_SCRIPT_DIR"
+    cp "$SOURCE" "$STANDARD_SCRIPT_DIR/setup-ii-vynx.sh"
+    chmod +x "$STANDARD_SCRIPT_DIR/setup-ii-vynx.sh"
+    echo -e "${GREEN}✓ Script updated in $STANDARD_SCRIPT_DIR${NC}"
 fi
 
 UPDATE_SCRIPT_SRC="$SCRIPT_DIR/update-with-customs.sh"
@@ -452,6 +449,24 @@ if [ "$FORCE_INSTALL" = false ] && [ "$FULL_INSTALL" = false ]; then
     fi
 fi
 
+# ── Check Quickshell Qt ABI compatibility ────────────────────────────────────
+if [ "$REBUILD_QS" = true ]; then
+    build_quickshell
+elif check_qt_mismatch; then
+    if [ "$NO_CONFIRM" = true ]; then
+        echo -e "${YELLOW}Automatic rebuild triggered due to Qt ABI mismatch in no-confirm mode...${NC}"
+        build_quickshell
+    else
+        echo -ne "${CYAN}Do you want to automatically rebuild Quickshell from source now to fix this mismatch? (y/n): ${NC}"
+        read -r qs_response
+        if [[ "$qs_response" =~ ^[Yy]$ ]]; then
+            build_quickshell
+        else
+            echo -e "${YELLOW}⚠ Skipping rebuild. Warning/crashes might persist if system Qt version does not match Quickshell binary.${NC}"
+        fi
+    fi
+fi
+
 # ── CLI install ──────────────────────────────────────────────────────────────
 if command -v vynx &>/dev/null || [ "$NO_CONFIRM" = true ]; then
     install_cli
@@ -513,14 +528,7 @@ if [ "$UPDATE_ONLY" = false ] && [ "$PRESERVE_CONFIG" = false ] && [ -f "$CONFIG
     fi
 fi
 
-# ── Hyprland config ──────────────────────────────────────────────────────────
-if [ "$SKIP_HYPRLAND" = false ]; then
-    sleep 0.5
-    setup_hyprland_rules
-    setup_hyprland_source
-else
-    echo -e "${YELLOW}• Skipping hyprland config setup (--skip-hyprland)${NC}"
-fi
+
 
 # ── Restart ──────────────────────────────────────────────────────────────────
 echo ""

@@ -28,6 +28,7 @@ QtObject {
     property bool runInTerminal: false
     property string genericName: ""
     property list<string> keywords: []
+    property bool isMath: false
 
     // Extra stuff to allow for more flexibility
     property string category: type

@@ -402,6 +402,11 @@ main() {
         esac
     done
 
+    # Fallback to default wallpaper if empty
+    if [[ -z "$imgpath" || "$imgpath" == "null" ]]; then
+        imgpath="$CONFIG_DIR/assets/images/default_wallpaper.png"
+    fi
+
     # If accentColor is set in config, use it
     config_color="$(get_accent_color_from_config)"
     if [[ "$config_color" =~ ^#?[A-Fa-f0-9]{6}$ ]]; then

@@ -25,10 +25,10 @@ Item {
 
     function updateVisibility() {
         const hasAnyItems = pinnedItems.length > 0 || unpinnedItems.length > 0;
-        rootItem.toggleVisible(hasAnyItems);
+        sysTrayRoot.visible = hasAnyItems;
 
         if (unpinnedItems.length === 0) {
-            sysTrayRoot.closeOverflowMenu();
+            closeOverflowMenu();
         }
     }
 

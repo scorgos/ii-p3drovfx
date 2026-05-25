@@ -129,7 +129,7 @@ Singleton {
 		}
 
 		function onTrackArtUrlChanged() {
-			if (root.activeTrack.artUrl === root.activePlayer?.trackArtUrl) return;
+			if (root.activeTrack && root.activeTrack.artUrl === root.activePlayer?.trackArtUrl) return;
 			const r = root.__reverse;
 			root.updateTrack();
 			root.__reverse = r;
