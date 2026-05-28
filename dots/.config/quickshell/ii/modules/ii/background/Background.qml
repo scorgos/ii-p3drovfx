@@ -227,6 +227,12 @@ Scope {
                             easing.type: Easing.OutCubic
                         }
                     }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "#000000"
+                        opacity: 0.35
+                    }
                 }
 
                 // Shared zoom-out state — gated on zoomOutEnabled

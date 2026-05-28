@@ -97,6 +97,7 @@ Scope {
             // ── Visibility / readiness ──────────────────────────────────────
             // Must be visible while overview is open OR while exit animation runs.
             property bool exitAnimating: false
+            property bool isOverviewActive: GlobalStates.overviewOpen
 
             // Delay applying window opacity rule to let ScreencopyView render its first frame (prevents 1-frame wallpaper pop on open)
             Timer {
@@ -124,7 +125,10 @@ Scope {
                 id: exitAnimTimer
                 // Keep transition layer visible for an extra 400ms after restore starts to cover the reload delay and fadeIn animation perfectly
                 interval: 700
-                onTriggered: tRoot.exitAnimating = false
+                onTriggered: {
+                    tRoot.exitAnimating = false;
+                    tRoot.isOverviewActive = false;
+                }
             }
 
             // We only activate for the focused monitor to avoid showing
@@ -132,7 +136,7 @@ Scope {
             readonly property bool shouldBeActive:
                 transitionScope.featureEnabled &&
                 monitorFocused &&
-                (GlobalStates.overviewOpen || exitAnimating)
+                isOverviewActive
 
             visible: shouldBeActive
 
@@ -208,6 +212,7 @@ Scope {
                         tRoot.transitionProgress = 1.0
                         tRoot.outgoingToplevels = []
                         tRoot.exitAnimating = false
+                        tRoot.isOverviewActive = true
                         exitAnimTimer.stop()
                         restoreWindowsTimer.stop()
                         tRoot.displayedWsId = tRoot.activeWsId
