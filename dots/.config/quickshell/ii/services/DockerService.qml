@@ -310,6 +310,11 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", script])
     }
 
+    function openInBrowser(port) {
+        if (!port) return;
+        Qt.openUrlExternally("http://localhost:" + port);
+    }
+
     // ── Service toggle via pkexec ──────────────────────────────────────────
     function toggleDockerService(enable) {
         root.isLoading = true

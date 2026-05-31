@@ -367,7 +367,18 @@ Item {
                 execute: () => {
                     DockerService.openLogs(card.containerData.id);
                 }
-            });
+            })
+            if (card.containerData?.ports?.length > 0) {
+                items.push({
+                    icon: "open_in_new",
+                    isSecondaryContainer: true,
+                    tooltip: "Open in browser (http://localhost:" + card.containerData.ports[0].hostPort + ")",
+                    color: Appearance.colors.colOnSecondaryContainer,
+                    execute: () => {
+                        DockerService.openInBrowser(card.containerData.ports[0].hostPort);
+                    }
+                })
+            }
             if (card.containerData?.isRunning) {
                 // RAM Gauge quick button (moved to the end)
                 items.push({
@@ -517,21 +528,42 @@ Item {
 
                                 // Port chip
                                 Repeater {
-                                    model: (card.containerData?.ports ?? []).slice(0, 1)
-                                    delegate: Rectangle {
+                                    model: (card.containerData?.ports ?? []).slice(0, 2)
+                                    delegate: MouseArea {
+                                        id: portMouseArea
                                         required property var modelData
-                                        radius: Appearance.rounding.full
-                                        color: card.containerData?.isRunning ? Qt.rgba(Appearance.m3colors.m3onPrimary.r, Appearance.m3colors.m3onPrimary.g, Appearance.m3colors.m3onPrimary.b, 0.12) : Qt.rgba(Appearance.colors.colPrimary.r, Appearance.colors.colPrimary.g, Appearance.colors.colPrimary.b, 0.12)
+                                        hoverEnabled: true
                                         implicitHeight: 14
-                                        implicitWidth: portChipText.implicitWidth + 10
+                                        implicitWidth: portChipText.implicitWidth + 12
+                                        cursorShape: Qt.PointingHandCursor
 
-                                        StyledText {
-                                            id: portChipText
-                                            anchors.centerIn: parent
-                                            text: modelData.hostPort
-                                            font.pixelSize: Appearance.font.pixelSize.smaller - 1
-                                            font.weight: Font.Medium
-                                            color: card.containerData?.isRunning ? Appearance.m3colors.m3onPrimary : Appearance.colors.colPrimary
+                                        onClicked: {
+                                            DockerService.openInBrowser(modelData.hostPort);
+                                        }
+
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: Appearance.rounding.full
+                                            color: portMouseArea.containsMouse
+                                                ? (card.containerData?.isRunning ? Qt.rgba(Appearance.m3colors.m3onPrimary.r, Appearance.m3colors.m3onPrimary.g, Appearance.m3colors.m3onPrimary.b, 0.22) : Appearance.colors.colPrimaryContainerHover)
+                                                : (card.containerData?.isRunning ? Qt.rgba(Appearance.m3colors.m3onPrimary.r, Appearance.m3colors.m3onPrimary.g, Appearance.m3colors.m3onPrimary.b, 0.12) : Appearance.colors.colPrimaryContainer)
+
+                                            Behavior on color { ColorAnimation { duration: 100 } }
+
+                                            StyledText {
+                                                id: portChipText
+                                                anchors.centerIn: parent
+                                                text: modelData.hostPort
+                                                font.pixelSize: Appearance.font.pixelSize.smaller - 1
+                                                font.weight: Font.Bold
+                                                color: card.containerData?.isRunning ? Appearance.m3colors.m3onPrimary : Appearance.colors.colOnPrimaryContainer
+                                            }
+                                        }
+
+                                        StyledToolTip {
+                                            alternativeVisibleCondition: portMouseArea.containsMouse
+                                            extraVisibleCondition: false
+                                            text: "Open http://localhost:" + modelData.hostPort + " in browser"
                                         }
                                     }
                                 }
