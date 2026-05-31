@@ -21,7 +21,8 @@ ContentPage {
             "timer": indicators,
             "record_indicator": indicators,
             "system_monitor": resourcesConfig,
-            "sports": sportsConfig
+            "sports": sportsConfig,
+            "policies_panel_button": policiesConfig
         })
 
     function scrollTo(stringId) {
@@ -557,10 +558,20 @@ ContentPage {
                 title: Translation.tr("Battery")
                 ConfigSelectionArray {
                     currentValue: Config.options.bar.styles.battery
-                    onSelected: newValue => { Config.options.bar.styles.battery = newValue; }
+                    onSelected: newValue => {
+                        Config.options.bar.styles.battery = newValue;
+                    }
                     options: [
-                        { displayName: Translation.tr("Default"), icon: "battery_charging_full", value: "default" },
-                        { displayName: Translation.tr("Expressive"), icon: "fluid_med", value: "expressive" }
+                        {
+                            displayName: Translation.tr("Default"),
+                            icon: "battery_charging_full",
+                            value: "default"
+                        },
+                        {
+                            displayName: Translation.tr("Expressive"),
+                            icon: "fluid_med",
+                            value: "expressive"
+                        }
                     ]
                 }
             }
@@ -568,10 +579,20 @@ ContentPage {
                 title: Translation.tr("Bluetooth")
                 ConfigSelectionArray {
                     currentValue: Config.options.bar.styles.bluetooth
-                    onSelected: newValue => { Config.options.bar.styles.bluetooth = newValue; }
+                    onSelected: newValue => {
+                        Config.options.bar.styles.bluetooth = newValue;
+                    }
                     options: [
-                        { displayName: Translation.tr("Default"), icon: "bluetooth", value: "default" },
-                        { displayName: Translation.tr("Expressive"), icon: "fluid_med", value: "expressive" }
+                        {
+                            displayName: Translation.tr("Default"),
+                            icon: "bluetooth",
+                            value: "default"
+                        },
+                        {
+                            displayName: Translation.tr("Expressive"),
+                            icon: "fluid_med",
+                            value: "expressive"
+                        }
                     ]
                 }
             }
@@ -583,10 +604,20 @@ ContentPage {
                 title: Translation.tr("Keyboard Layout")
                 ConfigSelectionArray {
                     currentValue: Config.options.bar.styles.keyboard
-                    onSelected: newValue => { Config.options.bar.styles.keyboard = newValue; }
+                    onSelected: newValue => {
+                        Config.options.bar.styles.keyboard = newValue;
+                    }
                     options: [
-                        { displayName: Translation.tr("Default"), icon: "keyboard", value: "default" },
-                        { displayName: Translation.tr("Expressive"), icon: "fluid_med", value: "expressive" }
+                        {
+                            displayName: Translation.tr("Default"),
+                            icon: "keyboard",
+                            value: "default"
+                        },
+                        {
+                            displayName: Translation.tr("Expressive"),
+                            icon: "fluid_med",
+                            value: "expressive"
+                        }
                     ]
                 }
             }
@@ -598,14 +629,26 @@ ContentPage {
                 title: Translation.tr("Sports")
                 ConfigSelectionArray {
                     currentValue: Config.options.bar.styles.sports
-                    onSelected: newValue => { Config.options.bar.styles.sports = newValue; }
+                    onSelected: newValue => {
+                        Config.options.bar.styles.sports = newValue;
+                    }
                     options: [
-                        { displayName: Translation.tr("Default"), icon: "sports_soccer", value: "default" },
-                        { displayName: Translation.tr("Expressive"), icon: "fluid_med", value: "expressive" }
+                        {
+                            displayName: Translation.tr("Default"),
+                            icon: "sports_soccer",
+                            value: "default"
+                        },
+                        {
+                            displayName: Translation.tr("Expressive"),
+                            icon: "fluid_med",
+                            value: "expressive"
+                        }
                     ]
                 }
             }
-            Item { Layout.fillWidth: true }
+            Item {
+                Layout.fillWidth: true
+            }
         }
     }
 
@@ -779,8 +822,6 @@ ContentPage {
                 Config.options.tray.monochromeIcons = checked;
             }
         }
-
-
     }
 
     ContentSection {
@@ -1062,17 +1103,12 @@ ContentPage {
                         onSelected: newValue => {
                             Config.options.appearance.icons.shapeMask = newValue;
                         }
-                        options: ([
-                            "Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle",
-                            "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided",
-                            "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst",
-                            "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart"
-                        ]).map(icon => {
+                        options: (["Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle", "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided", "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst", "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart"]).map(icon => {
                             return {
                                 displayName: "",
                                 shape: icon,
                                 value: icon
-                            }
+                            };
                         })
                     }
                 }
@@ -1132,17 +1168,12 @@ ContentPage {
                         onSelected: newValue => {
                             Config.options.bar.workspaces.activeIndicatorShape = newValue;
                         }
-                        options: ([
-                            "Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle",
-                            "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided",
-                            "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst",
-                            "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart"
-                        ]).map(icon => {
+                        options: (["Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle", "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided", "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst", "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart"]).map(icon => {
                             return {
                                 displayName: "",
                                 shape: icon,
                                 value: icon
-                            }
+                            };
                         })
                     }
                 }
@@ -1308,12 +1339,42 @@ ContentPage {
             });
             if (enable && !hasMatch) {
                 let presets = [
-                    { sport: "soccer", league: "bra.1", name: "Brasileirão", enabled: true },
-                    { sport: "basketball", league: "nba", name: "NBA", enabled: true },
-                    { sport: "football", league: "nfl", name: "NFL", enabled: true },
-                    { sport: "racing", league: "f1", name: "Formula 1", enabled: true },
-                    { sport: "hockey", league: "nhl", name: "NHL", enabled: true },
-                    { sport: "baseball", league: "mlb", name: "MLB", enabled: true }
+                    {
+                        sport: "soccer",
+                        league: "bra.1",
+                        name: "Brasileirão",
+                        enabled: true
+                    },
+                    {
+                        sport: "basketball",
+                        league: "nba",
+                        name: "NBA",
+                        enabled: true
+                    },
+                    {
+                        sport: "football",
+                        league: "nfl",
+                        name: "NFL",
+                        enabled: true
+                    },
+                    {
+                        sport: "racing",
+                        league: "f1",
+                        name: "Formula 1",
+                        enabled: true
+                    },
+                    {
+                        sport: "hockey",
+                        league: "nhl",
+                        name: "NHL",
+                        enabled: true
+                    },
+                    {
+                        sport: "baseball",
+                        league: "mlb",
+                        name: "MLB",
+                        enabled: true
+                    }
                 ];
                 let defaultPreset = presets.find(p => p.sport === sportName);
                 if (defaultPreset) {
@@ -1371,7 +1432,7 @@ ContentPage {
             delegate: ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                
+
                 visible: {
                     let sportKey = modelData;
                     let followed = sportsConfig.isSportFollowed(sportKey);
@@ -1419,19 +1480,63 @@ ContentPage {
             Flow {
                 Layout.fillWidth: true
                 spacing: 8
-                
+
                 property var presets: [
-                    { sport: "soccer", league: "bra.1", name: "Brasileirão" },
-                    { sport: "soccer", league: "eng.1", name: "Premier League" },
-                    { sport: "soccer", league: "uefa.champions", name: "Champions League" },
-                    { sport: "soccer", league: "ger.1", name: "Bundesliga" },
-                    { sport: "soccer", league: "esp.1", name: "LaLiga" },
-                    { sport: "soccer", league: "conmebol.libertadores", name: "Libertadores" },
-                    { sport: "basketball", league: "nba", name: "NBA" },
-                    { sport: "football", league: "nfl", name: "NFL" },
-                    { sport: "racing", league: "f1", name: "Formula 1" },
-                    { sport: "hockey", league: "nhl", name: "NHL" },
-                    { sport: "baseball", league: "mlb", name: "MLB" }
+                    {
+                        sport: "soccer",
+                        league: "bra.1",
+                        name: "Brasileirão"
+                    },
+                    {
+                        sport: "soccer",
+                        league: "eng.1",
+                        name: "Premier League"
+                    },
+                    {
+                        sport: "soccer",
+                        league: "uefa.champions",
+                        name: "Champions League"
+                    },
+                    {
+                        sport: "soccer",
+                        league: "ger.1",
+                        name: "Bundesliga"
+                    },
+                    {
+                        sport: "soccer",
+                        league: "esp.1",
+                        name: "LaLiga"
+                    },
+                    {
+                        sport: "soccer",
+                        league: "conmebol.libertadores",
+                        name: "Libertadores"
+                    },
+                    {
+                        sport: "basketball",
+                        league: "nba",
+                        name: "NBA"
+                    },
+                    {
+                        sport: "football",
+                        league: "nfl",
+                        name: "NFL"
+                    },
+                    {
+                        sport: "racing",
+                        league: "f1",
+                        name: "Formula 1"
+                    },
+                    {
+                        sport: "hockey",
+                        league: "nhl",
+                        name: "NHL"
+                    },
+                    {
+                        sport: "baseball",
+                        league: "mlb",
+                        name: "MLB"
+                    }
                 ]
 
                 Repeater {
@@ -1579,6 +1684,107 @@ ContentPage {
                     stepSize: 30
                     onValueChanged: {
                         Config.options.bar.sports.showAfterMinutes = value;
+                    }
+                }
+            }
+        }
+    }
+
+    ContentSection {
+        id: policiesConfig
+        icon: "policy"
+        title: Translation.tr("Policies Panel Button")
+
+        ContentSubsection {
+            title: Translation.tr("Preset icons")
+            tooltip: Translation.tr("Choose from a list of predefined SVG icons for the policies panel button")
+            ConfigSelectionArray {
+                currentValue: Config.options.bar.useMaterialSymbolForTopLeftIcon ? "" : Config.options.bar.topLeftIcon
+                onSelected: newValue => {
+                    Config.options.bar.topLeftIcon = newValue;
+                    Config.options.bar.useMaterialSymbolForTopLeftIcon = false;
+                }
+                options: [
+                    {
+                        displayName: Translation.tr("System Distro"),
+                        value: "distro"
+                    },
+                    {
+                        displayName: Translation.tr("Spark"),
+                        value: "spark"
+                    },
+                    {
+                        displayName: Translation.tr("Arch Linux"),
+                        value: "arch"
+                    },
+                    {
+                        displayName: Translation.tr("Debian"),
+                        value: "debian"
+                    },
+                    {
+                        displayName: Translation.tr("Fedora"),
+                        value: "fedora"
+                    },
+                    {
+                        displayName: Translation.tr("Ubuntu"),
+                        value: "ubuntu"
+                    },
+                    {
+                        displayName: Translation.tr("Gentoo"),
+                        value: "gentoo"
+                    },
+                    {
+                        displayName: Translation.tr("NixOS"),
+                        value: "nixos"
+                    },
+                    {
+                        displayName: Translation.tr("CachyOS"),
+                        value: "cachyos"
+                    },
+                    {
+                        displayName: Translation.tr("EndeavourOS"),
+                        value: "endeavouros"
+                    },
+                    {
+                        displayName: Translation.tr("Nyarch"),
+                        value: "nyarch"
+                    },
+                    {
+                        displayName: Translation.tr("Linux Generic"),
+                        value: "linux"
+                    }
+                ]
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Custom Material Symbol Icon")
+            tooltip: Translation.tr("Type a Material Symbol name to use as a custom icon (e.g. policy, shield, fingerprint, home)")
+            
+            MaterialTextField {
+                id: customMaterialSymbolField
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("Type a MaterialSymbol name...")
+                
+                Component.onCompleted: {
+                    text = Config.options.bar.useMaterialSymbolForTopLeftIcon ? Config.options.bar.topLeftIcon : "";
+                }
+                
+                Connections {
+                    target: Config.options.bar
+                    function onTopLeftIconChanged() {
+                        customMaterialSymbolField.text = Config.options.bar.useMaterialSymbolForTopLeftIcon ? Config.options.bar.topLeftIcon : "";
+                    }
+                    function onUseMaterialSymbolForTopLeftIconChanged() {
+                        customMaterialSymbolField.text = Config.options.bar.useMaterialSymbolForTopLeftIcon ? Config.options.bar.topLeftIcon : "";
+                    }
+                }
+
+                onTextChanged: {
+                    var val = text.trim();
+                    if (val !== "" && activeFocus) {
+                        Config.options.bar.topLeftIcon = val;
+                        Config.options.bar.useMaterialSymbolForTopLeftIcon = true;
                     }
                 }
             }

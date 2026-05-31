@@ -14,9 +14,15 @@ Scope {
     property bool isOpen: false
     property bool isInitialized: false
 
-    Component.onCompleted: Qt.callLater(() => {
-        isInitialized = true;
-    })
+    Timer {
+        id: startupTimer
+        interval: 2000
+        running: true
+        repeat: false
+        onTriggered: {
+            root.isInitialized = true;
+        }
+    }
 
     // Listen for keyboard layout changes to show the popup
     Connections {

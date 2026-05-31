@@ -10,8 +10,8 @@ RippleButton {
     property bool showPing: false
 
     property real buttonPadding: 5
-    implicitWidth: distroIcon.width + buttonPadding * 2 + 10
-    implicitHeight: distroIcon.height + buttonPadding * 2 + 4
+    implicitWidth: 42
+    implicitHeight: 34
 
     property real startRadius: Appearance.rounding.full
     property real endRadius: Appearance.rounding.full
@@ -35,7 +35,8 @@ RippleButton {
     Connections {
         target: Ai
         function onResponseFinished() {
-            if (GlobalStates.sidebarLeftOpen) return;
+            if (GlobalStates.sidebarLeftOpen)
+                return;
             leftSidebarButton.showPing = true;
         }
     }
@@ -43,7 +44,8 @@ RippleButton {
     Connections {
         target: Booru
         function onResponseFinished() {
-            if (GlobalStates.sidebarLeftOpen) return;
+            if (GlobalStates.sidebarLeftOpen)
+                return;
             leftSidebarButton.showPing = true;
         }
     }
@@ -58,10 +60,40 @@ RippleButton {
     CustomIcon {
         id: distroIcon
         anchors.centerIn: parent
-        width: 19.5
-        height: 19.5
+        width: 16
+        height: 16
+        visible: !Config.options.bar.useMaterialSymbolForTopLeftIcon
         source: Config.options.bar.topLeftIcon == 'distro' ? SystemInfo.distroIcon : `${Config.options.bar.topLeftIcon}-symbolic`
         colorize: true
+        color: Appearance.colors.colOnLayer0
+
+        Rectangle {
+            opacity: leftSidebarButton.showPing ? 1 : 0
+            visible: opacity > 0
+            anchors {
+                bottom: parent.bottom
+                right: parent.right
+                bottomMargin: -2
+                rightMargin: -2
+            }
+            implicitWidth: 8
+            implicitHeight: 8
+            radius: Appearance.rounding.full
+            color: Appearance.colors.colTertiary
+
+            Behavior on opacity {
+                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+            }
+        }
+    }
+
+    MaterialSymbol {
+        id: materialIcon
+        anchors.centerIn: parent
+        visible: Config.options.bar.useMaterialSymbolForTopLeftIcon
+        text: Config.options.bar.topLeftIcon
+        iconSize: 16
+        fill: 1
         color: Appearance.colors.colOnLayer0
 
         Rectangle {

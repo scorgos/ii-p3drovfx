@@ -38,7 +38,9 @@ Item {
         implicitHeight: root.vertical ? flow.implicitHeight + 16 : Appearance.sizes.baseBarHeight - 8
 
         Behavior on color {
-            ColorAnimation { duration: 150 }
+            ColorAnimation {
+                duration: 150
+            }
         }
     }
 
