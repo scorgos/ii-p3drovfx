@@ -36,7 +36,17 @@ Scope {
             // Hide when fullscreen
             property list<HyprlandWorkspace> workspacesForMonitor: Hyprland.workspaces.values.filter(workspace => workspace.monitor && workspace.monitor.name == monitor.name)
             property var activeWorkspaceWithFullscreen: workspacesForMonitor.filter(workspace => ((workspace.toplevels.values.filter(window => window.wayland?.fullscreen)[0] != undefined) && workspace.active))[0]
-            visible: GlobalStates.screenLocked || (!(activeWorkspaceWithFullscreen != undefined)) || !Config?.options.background.hideWhenFullscreen
+            property bool isFullscreen: activeWorkspaceWithFullscreen != undefined
+            // Deferred to avoid Wayland dispatch reentrancy crash in PanelWindow visibility
+            property bool deferredFullscreen: false
+            Timer {
+                id: fullscreenDeferTimer
+                interval: 0
+                repeat: false
+                onTriggered: bgRoot.deferredFullscreen = bgRoot.isFullscreen
+            }
+            onIsFullscreenChanged: fullscreenDeferTimer.restart()
+            visible: GlobalStates.screenLocked || !deferredFullscreen || !Config?.options.background.hideWhenFullscreen
 
             // Workspaces
             property HyprlandMonitor monitor: Hyprland.monitorFor(modelData)

@@ -152,26 +152,35 @@ Scope {
             property list<HyprlandWorkspace> workspacesForMonitor: Hyprland.workspaces.values.filter(workspace => workspace.monitor && workspace.monitor.name == monitor.name)
             property var activeWorkspaceWithFullscreen: workspacesForMonitor.filter(workspace => ((workspace.toplevels.values.filter(window => window.wayland?.fullscreen)[0] != undefined) && workspace.active))[0]
             property bool fullscreen: activeWorkspaceWithFullscreen != undefined
+            // Deferred to avoid Wayland dispatch reentrancy crash in PanelWindow visibility
+            property bool deferredFullscreen: false
+            Timer {
+                id: fullscreenDeferTimer
+                interval: 0
+                repeat: false
+                onTriggered: monitorScope.deferredFullscreen = monitorScope.fullscreen
+            }
+            onFullscreenChanged: fullscreenDeferTimer.restart()
 
             CornerPanelWindow {
                 screen: modelData
                 corner: RoundCorner.CornerEnum.TopLeft
-                fullscreen: monitorScope.fullscreen
+                fullscreen: monitorScope.deferredFullscreen
             }
             CornerPanelWindow {
                 screen: modelData
                 corner: RoundCorner.CornerEnum.TopRight
-                fullscreen: monitorScope.fullscreen
+                fullscreen: monitorScope.deferredFullscreen
             }
             CornerPanelWindow {
                 screen: modelData
                 corner: RoundCorner.CornerEnum.BottomLeft
-                fullscreen: monitorScope.fullscreen
+                fullscreen: monitorScope.deferredFullscreen
             }
             CornerPanelWindow {
                 screen: modelData
                 corner: RoundCorner.CornerEnum.BottomRight
-                fullscreen: monitorScope.fullscreen
+                fullscreen: monitorScope.deferredFullscreen
             }
         }
     }

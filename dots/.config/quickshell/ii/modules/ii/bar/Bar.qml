@@ -37,11 +37,6 @@ Scope {
                 id: barScope
                 
                 property HyprlandMonitor hyprMonitor: Hyprland.monitorFor(barLoader.modelData)
-                property bool hasFullscreenOnThisMonitor: {
-                    const ws = barScope.hyprMonitor?.activeWorkspace;
-                    if (!ws) return false;
-                    return ws.toplevels.values.some(w => w.wayland?.fullscreen === true);
-                }
 
                 PanelWindow {
                     id: barSpaceReserver
@@ -57,13 +52,14 @@ Scope {
                     implicitHeight: Appearance.sizes.barHeight + Appearance.rounding.screenRounding
                     color: "transparent"
                     mask: Region {}
-                    visible: !barScope.hasFullscreenOnThisMonitor
                 }
 
                 PanelWindow { // Bar window (Full screen)
                     id: barRoot
                     screen: barLoader.modelData
-                    visible: !barScope.hasFullscreenOnThisMonitor
+                    // Fullscreen windows naturally cover the bar via the Wayland compositor
+                    // (Hyprland places fullscreen windows above WlrLayer.Top). No QML
+                    // visibility toggling needed — that approach caused SIGSEGV crashes.
 
                     property int monitorIndex: barLoader.monitorIndex
                     property bool hasActiveWindows: false

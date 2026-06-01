@@ -39,8 +39,6 @@ Item {
 
                 property HyprlandMonitor monitor: Hyprland.monitorFor(modelData)
                 property list<HyprlandWorkspace> workspacesForMonitor: Hyprland.workspaces.values.filter(workspace => workspace.monitor && workspace.monitor.name == monitor.name)
-                property var activeWorkspaceWithFullscreen: workspacesForMonitor.filter(workspace => ((workspace.toplevels.values.filter(window => window.wayland?.fullscreen)[0] != undefined) && workspace.active))[0]
-                property bool fullscreen: activeWorkspaceWithFullscreen != undefined
 
                 Connections {
                     enabled: Config.options.bar.barBackgroundStyle === 2
@@ -115,10 +113,11 @@ Item {
     }
 
     // INVISIBLE SPACE RESERVERS: Push windows by frameThickness
+    // Hyprland overrides exclusive zones for fullscreen windows automatically,
+    // so no visibility toggling is needed here.
     component FrameSpaceReserver: PanelWindow {
         color: "transparent"
         mask: Region {}
         exclusionMode: ExclusionMode.Exclusive
-        visible: !monitorScope.fullscreen
     }
 }
