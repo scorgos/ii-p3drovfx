@@ -161,6 +161,7 @@ quickshell, home_attrs, ... }:
 
       ### illogical-impulse-widgets
       fuzzel #fuzzel
+      gjs #gjs
       glib #glib2
       imagemagick #imagemagick
       hypridle #hypridle

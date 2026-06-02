@@ -187,6 +187,7 @@ packages = [
 [groups.widgets]
 packages = [
   "fuzzel",
+  "gjs",
   "glib2",
   "ImageMagick",
   "hypridle",

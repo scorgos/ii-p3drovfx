@@ -13,6 +13,7 @@ KEYWORDS="~amd64 ~arm64 ~x86"
 DEPEND=""
 RDEPEND="
 	gui-apps/fuzzel
+	dev-libs/gjs
 	dev-libs/glib
 	media-gfx/imagemagick
 	gui-apps/hypridle

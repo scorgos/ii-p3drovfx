@@ -41,7 +41,7 @@ Scope {
             property bool deferredFullscreen: false
             Timer {
                 id: fullscreenDeferTimer
-                interval: 0
+                interval: 50
                 repeat: false
                 onTriggered: bgRoot.deferredFullscreen = bgRoot.isFullscreen
             }
@@ -182,14 +182,14 @@ Scope {
 
             property bool mediaModeOpen: mediaModeLoader.active && MprisController.activePlayer
             onMediaModeOpenChanged: {
-                if (!mediaModeOpen) {
+                if (!mediaModeOpen && Config.options.appearance.palette.type.startsWith("scheme")) {
                     Wallpapers.apply(Config.options.background.wallpaperPath);
                     LyricsService.shellColorChanged = false;
                 }
             }
 
             Component.onCompleted: {
-                if (!mediaModeOpen) {
+                if (!mediaModeOpen && Config.options.appearance.palette.type.startsWith("scheme")) {
                     Wallpapers.apply(Config.options.background.wallpaperPath);
                 }
             }
@@ -228,22 +228,25 @@ Scope {
                     visible: Config.options.background.zoomOutStyle !== 2 && (wallpaperItem.wallpaperZoomedOut || wallpaperItem.wallpaperClipRadius > 0) && !bgRoot.wallpaperIsVideo
                     opacity: 1.0
                 }
-                GaussianBlur {
-                    id: bgWallpaperBlurEffect
+                Loader {
+                    id: bgWallpaperBlurLoader
                     anchors.fill: bgWallpaperBlurred
-                    source: bgWallpaperBlurred
-                    radius: 40
-                    samples: 81
-                    visible: bgWallpaperBlurred.visible
+                    active: wallpaperItem.wallpaperZoomedOut || opacity > 0.01
                     opacity: wallpaperItem.wallpaperZoomedOut ? 1.0 : 0.0
                     Behavior on opacity {
                         animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
                     }
-
-                    Rectangle {
+                    sourceComponent: GaussianBlur {
                         anchors.fill: parent
-                        color: "#000000"
-                        opacity: 0.24
+                        source: bgWallpaperBlurred
+                        radius: 40
+                        samples: 81
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "#000000"
+                            opacity: 0.24
+                        }
                     }
                 }
 
@@ -474,19 +477,22 @@ Scope {
                     }
 
                     // A single highly-optimized GaussianBlur to blur all 8 outer tiles at 1/4 texture size for maximum performance
-                    GaussianBlur {
-                        id: outerTilesBlur
+                    Loader {
+                        id: outerTilesBlurLoader
                         anchors.fill: parent
-                        source: ShaderEffectSource {
-                            sourceItem: outerTilesContainer
-                            hideSource: false
-                            smooth: true
-                            textureSize: Qt.size(parent.width / 4, parent.height / 4)
+                        active: outerTilesContainer.visible
+                        sourceComponent: GaussianBlur {
+                            anchors.fill: parent
+                            source: ShaderEffectSource {
+                                sourceItem: outerTilesContainer
+                                hideSource: false
+                                smooth: true
+                                textureSize: Qt.size(parent.width / 4, parent.height / 4)
+                            }
+                            radius: 40
+                            samples: 81
+                            opacity: wallpaperPlanes.scaleProgress
                         }
-                        radius: 40
-                        samples: 81
-                        visible: outerTilesContainer.visible
-                        opacity: wallpaperPlanes.scaleProgress
                     }
 
                     // Mask rectangle for rounded clip — must be a real scene Item with layer.enabled

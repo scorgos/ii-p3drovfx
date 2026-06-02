@@ -7,6 +7,7 @@ arch=(any)
 license=(None)
 depends=(
   fuzzel
+  gjs
   glib2
   imagemagick
   hypridle

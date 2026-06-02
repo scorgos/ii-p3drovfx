@@ -52,7 +52,8 @@ Scope {
         RoundCorner {
             id: cornerWidget
             anchors.fill: parent
-            visible: (Config.options.appearance.fakeScreenRounding === 1 || (Config.options.appearance.fakeScreenRounding === 2 && !cornerPanelWindow.fullscreen))
+            visible: true
+            opacity: (Config.options.appearance.fakeScreenRounding === 1 || (Config.options.appearance.fakeScreenRounding === 2 && !cornerPanelWindow.fullscreen)) ? 1.0 : 0.0
             corner: cornerPanelWindow.corner
             rightVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.right) * 1
             bottomVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.bottom) * 1
@@ -63,13 +64,8 @@ Scope {
 
             Loader {
                 id: sidebarCornerOpenInteractionLoader
-                active: {
-                    if (!Config.options.sidebar.cornerOpen.enable)
-                        return false;
-                    if (cornerPanelWindow.fullscreen)
-                        return false;
-                    return (Config.options.sidebar.cornerOpen.bottom == cornerWidget.isBottom);
-                }
+                active: Config.options.sidebar.cornerOpen.enable && (Config.options.sidebar.cornerOpen.bottom == cornerWidget.isBottom)
+                visible: !cornerPanelWindow.fullscreen
                 anchors {
                     top: (cornerWidget.isTopLeft || cornerWidget.isTopRight) ? parent.top : undefined
                     bottom: (cornerWidget.isBottomLeft || cornerWidget.isBottomRight) ? parent.bottom : undefined
@@ -79,6 +75,7 @@ Scope {
 
                 sourceComponent: FocusedScrollMouseArea {
                     id: mouseArea
+                    enabled: !cornerPanelWindow.fullscreen
                     implicitWidth: Config.options.sidebar.cornerOpen.cornerRegionWidth
                     implicitHeight: Config.options.sidebar.cornerOpen.cornerRegionHeight
                     hoverEnabled: true
@@ -157,7 +154,7 @@ Scope {
             property bool deferredFullscreen: false
             Timer {
                 id: fullscreenDeferTimer
-                interval: 0
+                interval: 50
                 repeat: false
                 onTriggered: monitorScope.deferredFullscreen = monitorScope.fullscreen
             }
