@@ -269,14 +269,21 @@ Item {
 
             // === HEADPHONE ANC MODE INDICATOR ===
             Loader {
-                active: root.device?.name === "Soundcore Life Q30" || root.device?.name === "Pedro's Buds FE"
+                active: SoundcoreService.isHeadsetSupported(root.device) || BudsService.isHeadsetSupported(root.device)
                 Layout.fillWidth: true
                 Layout.topMargin: 4
                 sourceComponent: RowLayout {
                     spacing: 8
+
+                    readonly property var service: {
+                        if (SoundcoreService.isHeadsetSupported(root.device)) return SoundcoreService;
+                        if (BudsService.isHeadsetSupported(root.device)) return BudsService;
+                        return null;
+                    }
+
                     MaterialSymbol {
                         text: {
-                            let mode = SoundcoreService.getModeForMac(root.device?.address);
+                            let mode = parent.service ? parent.service.getModeForMac(root.device?.address) : "Normal";
                             if (mode === "Normal") return "hearing";
                             if (mode === "Transparency") return "visibility";
                             if (mode === "NoiseCanceling") return "noise_control_off";
@@ -287,7 +294,7 @@ Item {
                     }
                     StyledText {
                         text: {
-                            let mode = SoundcoreService.getModeForMac(root.device?.address);
+                            let mode = parent.service ? parent.service.getModeForMac(root.device?.address) : "Normal";
                             if (mode === "Normal") return Translation.tr("Normal");
                             if (mode === "Transparency") return Translation.tr("Transparency");
                             if (mode === "NoiseCanceling") return Translation.tr("ANC");

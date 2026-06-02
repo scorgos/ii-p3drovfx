@@ -81,33 +81,34 @@ export function checkForSamsungBuds(uuids, name) {
 
     if (!model && name) {
         const lower = name.toLowerCase();
+        const normalized = lower.replace(/[\s\-_]+/g, '');
 
-        if (lower.includes('buds4 pro'))
+        if (normalized.includes('buds4pro'))
             model = GalaxyBudsModel.GalaxyBuds4Pro;
-        else if (lower.includes('buds3 pro'))
+        else if (normalized.includes('buds3pro'))
             model = GalaxyBudsModel.GalaxyBuds3Pro;
-        else if (lower.includes('buds2 pro'))
+        else if (normalized.includes('buds2pro'))
             model = GalaxyBudsModel.GalaxyBuds2Pro;
-        else if (lower.includes('buds pro'))
+        else if (normalized.includes('budspro'))
             model = GalaxyBudsModel.GalaxyBudsPro;
 
-        else if (lower.includes('buds3 fe'))
+        else if (normalized.includes('buds3fe'))
             model = GalaxyBudsModel.GalaxyBuds3Fe;
-        else if (lower.includes('buds fe'))
+        else if (normalized.includes('budsfe'))
             model = GalaxyBudsModel.GalaxyBudsFe;
 
-        else if (lower.includes('buds4'))
+        else if (normalized.includes('buds4'))
             model = GalaxyBudsModel.GalaxyBuds4;
-        else if (lower.includes('buds3'))
+        else if (normalized.includes('buds3'))
             model = GalaxyBudsModel.GalaxyBuds3;
-        else if (lower.includes('buds2'))
+        else if (normalized.includes('buds2'))
             model = GalaxyBudsModel.GalaxyBuds2;
 
-        else if (lower.includes('buds live'))
+        else if (normalized.includes('budslive'))
             model = GalaxyBudsModel.GalaxyBudsLive;
-        else if (lower.includes('buds+') || lower.includes('buds plus'))
+        else if (normalized.includes('buds+') || normalized.includes('budsplus'))
             model = GalaxyBudsModel.GalaxyBudsPlus;
-        else if (lower.includes('buds core'))
+        else if (normalized.includes('budscore'))
             model = GalaxyBudsModel.GalaxyBudsCore;
     }
 

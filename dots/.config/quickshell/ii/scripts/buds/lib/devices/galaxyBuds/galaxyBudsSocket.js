@@ -474,17 +474,17 @@ export const GalaxyBudsSocket = GObject.registerClass({
     _processAdvanceTouch(payload) {
         const touchProps = {};
 
-        touchProps.touchpadLock(Boolean(payload[0]));
+        touchProps.touchpadLock = Boolean(payload[0]);
         if (payload.length > 4) {
-            touchProps.singleTapOn(Boolean(payload[1]));
-            touchProps.doubleTapOn(Boolean(payload[2]));
-            touchProps.tripleTapOn(Boolean(payload[3]));
-            touchProps.touchHoldOn(Boolean(payload[4]));
+            touchProps.singleTapOn = Boolean(payload[1]);
+            touchProps.doubleTapOn = Boolean(payload[2]);
+            touchProps.tripleTapOn = Boolean(payload[3]);
+            touchProps.touchHoldOn = Boolean(payload[4]);
         }
 
         if (payload.length > 6 && this._features.advancedTouchLockForCalls) {
-            touchProps.touchHoldOnForCallOff(Boolean(payload[5]));
-            touchProps.touchHoldOnForCallOff(Boolean(payload[6]));
+            touchProps.doubleTapForCallOn = Boolean(payload[5]);
+            touchProps.touchHoldOnForCallOff = Boolean(payload[6]);
         }
 
         this._recvAdvanceTouchpadLock(touchProps);

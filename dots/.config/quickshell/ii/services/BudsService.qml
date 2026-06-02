@@ -31,12 +31,23 @@ Singleton {
         return activeDevice ? getModeForMac(activeDevice.address) : "Normal";
     }
 
-    readonly property string soundcoreScriptPath: Quickshell.shellPath("scripts/soundcore/soundcore_anc.sh")
+    readonly property string budsScriptPath: Quickshell.shellPath("scripts/buds/core.js")
 
     function isHeadsetSupported(device) {
         if (!device) return false;
         let name = (device.name || "").toLowerCase();
-        return name.includes("soundcore") || name.includes("life q30") || name.includes("q30");
+        
+        // Exclude Soundcore Life Q30/Anker since it is handled by SoundcoreService
+        if (name.includes("q30") || name.includes("soundcore")) return false;
+
+        return name.includes("buds") ||
+               name.includes("ear") ||
+               name.includes("airpods") ||
+               name.includes("beats") ||
+               name.includes("linkbuds") ||
+               name.includes("wf-") ||
+               name.includes("wh-") ||
+               name.includes("wi-");
     }
 
     function getModeForMac(mac) {
@@ -59,7 +70,7 @@ Singleton {
         if (!mac)
             return;
 
-        Quickshell.execDetached([soundcoreScriptPath, "set", mac, mode]);
+        Quickshell.execDetached(["gjs", "-m", budsScriptPath, "set", mac, mode.toLowerCase()]);
 
         // Optimistic update for immediate visual feedback
         updateDeviceMode(mac, mode);
@@ -92,7 +103,7 @@ Singleton {
             id: proc
             property string mac: ""
 
-            command: [soundcoreScriptPath, "get", mac]
+            command: ["gjs", "-m", budsScriptPath, "get", mac]
             running: true
 
             stdout: StdioCollector {

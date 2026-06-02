@@ -7,40 +7,51 @@ import qs.modules.common.functions
 
 QuickToggleModel {
     name: Translation.tr("ANC Mode")
+
+    readonly property var activeService: {
+        if (SoundcoreService.isConnected) return SoundcoreService;
+        if (BudsService.isConnected) return BudsService;
+        return null;
+    }
+
     // Consider toggled on when not Normal (i.e. NoiseCanceling or Transparency)
-    toggled: SoundcoreService.currentMode !== "Normal"
+    toggled: activeService ? activeService.currentMode !== "Normal" : false
 
     icon: {
-        if (SoundcoreService.currentMode === "Normal")
+        let mode = activeService ? activeService.currentMode : "Normal";
+        if (mode === "Normal")
             return "hearing";
-        if (SoundcoreService.currentMode === "Transparency")
+        if (mode === "Transparency")
             return "visibility";
-        if (SoundcoreService.currentMode === "NoiseCanceling")
+        if (mode === "NoiseCanceling")
             return "noise_control_off";
         return "hearing";
     }
 
     statusText: {
-        if (SoundcoreService.currentMode === "Normal")
+        let mode = activeService ? activeService.currentMode : "Normal";
+        if (mode === "Normal")
             return Translation.tr("Normal");
-        if (SoundcoreService.currentMode === "Transparency")
+        if (mode === "Transparency")
             return Translation.tr("Transparency");
-        if (SoundcoreService.currentMode === "NoiseCanceling")
+        if (mode === "NoiseCanceling")
             return Translation.tr("ANC");
         return Translation.tr("Normal");
     }
 
     mainAction: () => {
+        if (!activeService) return;
+        let mode = activeService.currentMode;
         let nextMode = "Normal";
-        if (SoundcoreService.currentMode === "Normal")
+        if (mode === "Normal")
             nextMode = "Transparency";
-        else if (SoundcoreService.currentMode === "Transparency")
+        else if (mode === "Transparency")
             nextMode = "NoiseCanceling";
-        else if (SoundcoreService.currentMode === "NoiseCanceling")
+        else if (mode === "NoiseCanceling")
             nextMode = "Normal";
 
-        SoundcoreService.setMode(nextMode);
+        activeService.setMode(nextMode);
     }
 
-    tooltipText: Translation.tr("Cycle Soundcore ANC Mode")
+    tooltipText: Translation.tr("Cycle ANC Mode")
 }

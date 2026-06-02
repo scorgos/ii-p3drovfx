@@ -274,10 +274,15 @@ StyledPopup {
                                 Layout.fillWidth: true
                                 Layout.topMargin: 12
                                 Layout.alignment: Qt.AlignRight
-                                visible: SoundcoreService.isHeadsetSupported(modelData)
+                                visible: SoundcoreService.isHeadsetSupported(modelData) || BudsService.isHeadsetSupported(modelData)
                                 spacing: 0
 
-                                readonly property string currentMode: SoundcoreService.getModeForMac(modelData.address)
+                                readonly property var service: {
+                                    if (SoundcoreService.isHeadsetSupported(modelData)) return SoundcoreService;
+                                    if (BudsService.isHeadsetSupported(modelData)) return BudsService;
+                                    return null;
+                                }
+                                readonly property string currentMode: service ? service.getModeForMac(modelData.address) : "Normal"
                                 
                                 // ANC (Noise Canceling)
                                 RippleButton {
@@ -287,7 +292,7 @@ StyledPopup {
                                     buttonRadius: 16
                                     colBackground: parent.currentMode === "NoiseCanceling" ? Appearance.colors.colPrimary : Appearance.colors.colSurfaceContainerHighest
                                     colBackgroundHover: parent.currentMode === "NoiseCanceling" ? Appearance.colors.colPrimaryHover : Appearance.colors.colSurfaceContainerHighestHover
-                                    onClicked: SoundcoreService.setMode(modelData.address, "NoiseCanceling")
+                                    onClicked: parent.service.setMode(modelData.address, "NoiseCanceling")
 
                                     MaterialSymbol {
                                         anchors.centerIn: parent
@@ -311,7 +316,7 @@ StyledPopup {
                                     buttonRadius: 16
                                     colBackground: parent.currentMode === "Normal" ? Appearance.colors.colPrimary : Appearance.colors.colSurfaceContainerHighest
                                     colBackgroundHover: parent.currentMode === "Normal" ? Appearance.colors.colPrimaryHover : Appearance.colors.colSurfaceContainerHighestHover
-                                    onClicked: SoundcoreService.setMode(modelData.address, "Normal")
+                                    onClicked: parent.service.setMode(modelData.address, "Normal")
 
                                     MaterialSymbol {
                                         anchors.centerIn: parent
@@ -335,7 +340,7 @@ StyledPopup {
                                     buttonRadius: 16
                                     colBackground: parent.currentMode === "Transparency" ? Appearance.colors.colPrimary : Appearance.colors.colSurfaceContainerHighest
                                     colBackgroundHover: parent.currentMode === "Transparency" ? Appearance.colors.colPrimaryHover : Appearance.colors.colSurfaceContainerHighestHover
-                                    onClicked: SoundcoreService.setMode(modelData.address, "Transparency")
+                                    onClicked: parent.service.setMode(modelData.address, "Transparency")
 
                                     MaterialSymbol {
                                         anchors.centerIn: parent
