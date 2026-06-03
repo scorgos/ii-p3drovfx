@@ -256,6 +256,13 @@ Singleton {
             }
         }
     } 
+
+    property bool borderless: Config.options.appearance.borderless ?? false
+    onBorderlessChanged: {
+        if (Config.ready) {
+            Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { border_size = " + (borderless ? "0" : "2") + " } })"]);
+        }
+    } 
     property int blurSize: Config.options.appearance.blurSize ?? 8
     onBlurSizeChanged: {
         if (Config.ready) {
@@ -287,6 +294,7 @@ Singleton {
             Quickshell.execDetached(["hyprctl", "eval", "hl.layer_rule({ match = { namespace = 'quickshell:workspaceBlurOverlay' }, ignore_alpha = 0.0 })"]);
             Quickshell.execDetached(["hyprctl", "eval", "hl.layer_rule({ match = { namespace = 'quickshell:session' }, ignore_alpha = 0.0 })"]);
             Quickshell.execDetached(["hyprctl", "eval", "hl.layer_rule({ match = { namespace = 'quickshell:wTaskView' }, ignore_alpha = 0.0 })"]);
+            Quickshell.execDetached(["hyprctl", "eval", "hl.config({ general = { border_size = " + (root.borderless ? "0" : "2") + " } })"]);
             
             let colorStr = activeBorderColor.toString();
             let rgb = "";

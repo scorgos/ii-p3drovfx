@@ -11,6 +11,7 @@ import Quickshell.Widgets
 Item {
     id: root
     property string appId: ""
+    property var desktopEntry: null
     property bool isRunning: true
     property real iconOpacity: isRunning ? 1.0 : (Config.options.dock.dimInactiveIcons ? 0.55 : 1.0)
 
@@ -33,7 +34,8 @@ Item {
         anchors.fill: parent
         source: {
             const _ = TaskbarApps.iconThemeRevision;
-            return Quickshell.iconPath(TaskbarApps.getCachedIcon(root.appId), "image-missing");
+            let iconStr = root.desktopEntry && root.desktopEntry.icon ? root.desktopEntry.icon : TaskbarApps.getCachedIcon(root.appId);
+            return Quickshell.iconPath(iconStr, "image-missing");
         }
         visible: !Config.options.dock.monochromeIcons
         opacity: root.iconOpacity

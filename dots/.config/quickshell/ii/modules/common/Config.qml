@@ -173,6 +173,7 @@ Singleton {
                     property string shapeMask: "Circle"
                 }
                 property string borderColorType: "primary" // Options: primary, secondary, tertiary, primaryContainer, surface
+                property bool borderless: false
                 property string iconTheme: "Papirus"
                 property JsonObject palette: JsonObject {
                     property string type: "scheme-fidelity" // Allowed: auto, scheme-content, scheme-expressive, scheme-fidelity, scheme-fruit-salad, scheme-monochrome, scheme-neutral, scheme-rainbow, scheme-tonal-spot

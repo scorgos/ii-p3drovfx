@@ -898,6 +898,14 @@ ContentPage {
                     Config.options.bar.utilButtons.showScreenRecord = checked;
                 }
             }
+            ConfigSwitch {
+                buttonIcon: "imagesmode"
+                text: Translation.tr("Wallpaper Selector")
+                checked: Config.options.bar.utilButtons.showWallpaperToggle
+                onCheckedChanged: {
+                    Config.options.bar.utilButtons.showWallpaperToggle = checked;
+                }
+            }
         }
     }
 

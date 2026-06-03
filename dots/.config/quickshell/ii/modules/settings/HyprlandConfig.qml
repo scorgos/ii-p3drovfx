@@ -100,6 +100,15 @@ ContentPage {
         icon: "border_outer"
         title: Translation.tr("Window Border")
 
+        ConfigSwitch {
+            buttonIcon: "border_clear"
+            text: Translation.tr("Borderless")
+            checked: Config.options.appearance.borderless
+            onCheckedChanged: {
+                Config.options.appearance.borderless = checked;
+            }
+        }
+
         ContentSubsection {
             title: Translation.tr("Active border color")
             ConfigSelectionArray {
