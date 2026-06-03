@@ -1053,12 +1053,16 @@ Singleton {
         }
     }
 
-    function sendEmail(to, subject, bodyHtml, attachments, threadId = "", inReplyTo = "", references = "") {
+    function sendEmail(to, subject, bodyHtml, attachments, threadId = "", inReplyTo = "", references = "", cc = "", bcc = "") {
         if (!authenticated || _refreshToken === "") {
             root.emailSent(false, "Not authenticated");
             return;
         }
         let cmd = ["python3", Directories.scriptPath + "/email/send_email.py", _refreshToken, to, subject, bodyHtml];
+        if (cc)
+            cmd.push("--cc", cc);
+        if (bcc)
+            cmd.push("--bcc", bcc);
         if (threadId)
             cmd.push("--thread-id", threadId);
         if (inReplyTo)

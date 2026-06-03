@@ -86,6 +86,11 @@ Item {
                 anchors.fill: parent
                 visible: EmailService.authenticated && root.activeTab !== "settings"
 
+                onComposeRequested: {
+                    root.activeTab = "compose";
+                    emailSidebar.activeTab = "compose";
+                }
+
                 opacity: (root.emailActive || root.activeTab === "compose") ? 0.0 : 1.0
                 scale: (root.emailActive || root.activeTab === "compose") ? 0.95 : 1.0
                 enabled: !root.emailActive && root.activeTab !== "compose"
