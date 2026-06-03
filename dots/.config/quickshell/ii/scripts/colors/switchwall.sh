@@ -146,10 +146,6 @@ EOF
 
 set_wallpaper_path() {
     local path="$1"
-    if [ ! -f "$SHELL_CONFIG_FILE" ]; then
-        mkdir -p "$(dirname "$SHELL_CONFIG_FILE")"
-        echo '{}' > "$SHELL_CONFIG_FILE"
-    fi
     if [ -f "$SHELL_CONFIG_FILE" ]; then
         jq --indent 4 --arg path "$path" '.background.wallpaperPath = $path' "$SHELL_CONFIG_FILE" > "$SHELL_CONFIG_FILE.tmp" && mv "$SHELL_CONFIG_FILE.tmp" "$SHELL_CONFIG_FILE"
     fi

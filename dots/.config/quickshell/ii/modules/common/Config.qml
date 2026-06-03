@@ -68,7 +68,9 @@ Singleton {
         watchChanges: true
         blockWrites: root.blockWrites
         onFileChanged: fileReloadTimer.restart()
-        onAdapterUpdated: fileWriteTimer.restart()
+        onAdapterUpdated: {
+            if (root.ready) fileWriteTimer.restart();
+        }
         onLoaded: root.ready = true
         onLoadFailed: error => {
             if (error == FileViewError.FileNotFound) {
