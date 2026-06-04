@@ -219,8 +219,8 @@ Item { // Bar content region
         height: (root.height - middleSection.height) / 2
         width: Appearance.sizes.verticalBarWidth
 
-        onScrollDown: Brightness.decreaseBrightness()
-        onScrollUp: Brightness.increaseBrightness()
+        onScrollDown: if (Config.options.bar.enableBrightnessScroll) Brightness.decreaseBrightness()
+        onScrollUp: if (Config.options.bar.enableBrightnessScroll) Brightness.increaseBrightness()
         onMovedAway: GlobalStates.osdBrightnessOpen = false
         onPressed: event => {
             if (event.button === Qt.LeftButton)
@@ -367,8 +367,8 @@ Item { // Bar content region
         }
         implicitWidth: Appearance.sizes.baseVerticalBarWidth
 
-        onScrollDown: Audio.decrementVolume()
-        onScrollUp: Audio.incrementVolume()
+        onScrollDown: if (Config.options.bar.enableVolumeScroll) Audio.decrementVolume()
+        onScrollUp: if (Config.options.bar.enableVolumeScroll) Audio.incrementVolume()
         onMovedAway: GlobalStates.osdVolumeOpen = false
         onPressed: event => {
             if (event.button === Qt.LeftButton) {
