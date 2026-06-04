@@ -64,6 +64,11 @@ with open(template_path, "r") as f:
 for name, val in vars_dict.items():
     content = content.replace(name, val)
 
+import re
+if re.search(r"#\$[a-zA-Z0-9_]+", content):
+    print("Error: Unreplaced placeholders found in Kitty theme. Aborting update.", file=sys.stderr)
+    sys.exit(1)
+
 tmp_path = output_path + ".tmp"
 with open(tmp_path, "w") as f:
     f.write(content)
@@ -127,6 +132,11 @@ for name, val in vars_dict.items():
     content = content.replace(name, val)
 
 content = content.replace("$alpha", alpha)
+
+import re
+if re.search(r"#\$[a-zA-Z0-9_]+", content):
+    print("Error: Unreplaced placeholders found in Terminal sequences. Aborting update.", file=sys.stderr)
+    sys.exit(1)
 
 tmp_path = output_path + ".tmp"
 with open(tmp_path, "w") as f:
