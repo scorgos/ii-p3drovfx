@@ -26,9 +26,10 @@ Item {
     readonly property int scratchpadWindowsCount: HyprlandData.windowList.filter(win => win.workspace && win.workspace.name && win.workspace.name.startsWith("special")).length
 
     readonly property bool useWorkspaceMap: Config.options.bar.workspaces.useWorkspaceMap
-    readonly property list<int> workspaceMap: Config.options.bar.workspaces.workspaceMap
-    readonly property int monitorIndex: root.QsWindow.window && root.QsWindow.window.screen ? Quickshell.screens.indexOf(root.QsWindow.window.screen) : 0
-    property int workspaceOffset: useWorkspaceMap ? workspaceMap[monitorIndex] : 0
+    readonly property var workspaceMap: Config.options.bar.workspaces.workspaceMap
+    readonly property string monitorName: root.monitor?.name ?? ""
+    readonly property int screenIndex: root.QsWindow.window && root.QsWindow.window.screen ? Quickshell.screens.indexOf(root.QsWindow.window.screen) : 0
+    property int workspaceOffset: useWorkspaceMap ? (workspaceMap[monitorName] ?? (screenIndex * 6)) : 0
 
     property var shapesList: [
         "Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle",
@@ -72,12 +73,34 @@ Item {
         updateRandomShape();
     }
 
-    readonly property int workspacesShown: dynamicWorkspaces ? ((workspaceMap[monitorIndex + 1] ?? workspaceMap[monitorIndex] + Config.options.bar.workspaces.shown) - workspaceMap[monitorIndex]) : Config.options.bar.workspaces.shown
-    readonly property int workspaceGroup: Math.floor((monitor?.activeWorkspace?.id - root.workspaceOffset - 1) / root.workspacesShown)
-    property list<bool> workspaceOccupied: []
-    property int workspaceIndexInGroup: (monitor?.activeWorkspace?.id - root.workspaceOffset - 1) % root.workspacesShown
-    property var monitorWindows
+    function getMonitorMaxWsId(name, offset) {
+        if (!useWorkspaceMap) return 99999;
+        let offsets = [];
+        for (let i = 0; i < Quickshell.screens.length; i++) {
+            let scrName = Quickshell.screens[i].name;
+            let scrOffset = workspaceMap[scrName] ?? (i * 6);
+            offsets.push(scrOffset);
+        }
+        offsets.sort((a, b) => a - b);
+        let curIdx = offsets.indexOf(offset);
+        if (curIdx !== -1 && curIdx + 1 < offsets.length) {
+            return offsets[curIdx + 1];
+        }
+        return offset + Config.options.bar.workspaces.shown;
+    }
+
+    readonly property int monitorMinWsId: useWorkspaceMap ? workspaceOffset + 1 : 1
+    readonly property int monitorMaxWsId: useWorkspaceMap ? getMonitorMaxWsId(monitorName, workspaceOffset) : 99999
+    readonly property int workspacesShown: Math.min(
+        Config.options.bar.workspaces.shown,
+        useWorkspaceMap ? (monitorMaxWsId - workspaceOffset) : Config.options.bar.workspaces.shown
+    )
     readonly property int effectiveActiveWorkspaceId: monitor?.activeWorkspace?.id ?? 1
+    readonly property bool isActiveWorkspaceInRange: !useWorkspaceMap || (effectiveActiveWorkspaceId >= monitorMinWsId && effectiveActiveWorkspaceId <= monitorMaxWsId)
+    readonly property int workspaceGroup: isActiveWorkspaceInRange ? Math.max(0, Math.floor((effectiveActiveWorkspaceId - root.workspaceOffset - 1) / root.workspacesShown)) : 0
+    property list<bool> workspaceOccupied: []
+    property int workspaceIndexInGroup: isActiveWorkspaceInRange ? Math.max(0, (effectiveActiveWorkspaceId - root.workspaceOffset - 1) % root.workspacesShown) : 0
+    property var monitorWindows
 
     property int individualIconBoxHeight: 22
     property int iconBoxWrapperSize: 26
@@ -272,7 +295,7 @@ Item {
         width: root.vertical ? individualIconBoxHeight : (Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? individualIconBoxHeight : indicatorLength)
         height: root.vertical ? (Config.options.bar.workspaces.useRandomShapeForActiveIndicator ? individualIconBoxHeight : indicatorLength) : individualIconBoxHeight
 
-        opacity: root.scratchpadOpen ? 0.0 : 1.0
+        opacity: (root.scratchpadOpen || !root.isActiveWorkspaceInRange) ? 0.0 : 1.0
         Behavior on opacity {
             NumberAnimation {
                 duration: Appearance.animation.elementMoveFast.duration
@@ -429,14 +452,38 @@ Item {
         onWheel: event => {
             event.accepted = true;
             if (dynamicWorkspaces) {
-                if (event.angleDelta.y < 0)
-                    Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
-                else if (event.angleDelta.y > 0)
-                    Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
+                // Build sorted list of occupied ws IDs within this monitor's range
+                const delta = event.angleDelta.y < 0 ? 1 : -1;
+                if (useWorkspaceMap) {
+                    let monitorWs = Hyprland.workspaces.values
+                        .filter(ws => ws.id >= monitorMinWsId && ws.id <= monitorMaxWsId)
+                        .map(ws => ws.id)
+                        .sort((a, b) => a - b);
+                    if (!monitorWs.includes(effectiveActiveWorkspaceId)) monitorWs.push(effectiveActiveWorkspaceId);
+                    monitorWs.sort((a, b) => a - b);
+                    const curIdx = monitorWs.indexOf(effectiveActiveWorkspaceId);
+                    const nextIdx = curIdx + delta;
+                    if (nextIdx < 0 || nextIdx >= monitorWs.length) return;
+                    Hyprland.dispatch("hl.dsp.focus({ workspace = '" + monitorWs[nextIdx] + "' })");
+                } else {
+                    if (event.angleDelta.y < 0)
+                        Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
+                    else
+                        Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
+                }
             } else {
+                if (!useWorkspaceMap) {
+                    if (event.angleDelta.y < 0)
+                        Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
+                    else
+                        Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
+                    return;
+                }
                 let nextId = effectiveActiveWorkspaceId + (event.angleDelta.y < 0 ? 1 : -1);
                 const minId = workspaceOffset + workspaceGroup * workspacesShown + 1;
                 const maxId = workspaceOffset + (workspaceGroup + 1) * workspacesShown;
+                // Also clamp to absolute monitor range
+                if (nextId < monitorMinWsId || nextId > monitorMaxWsId) return;
                 if (nextId < minId || nextId > maxId) return;
                 Hyprland.dispatch("hl.dsp.focus({ workspace = '" + nextId + "' })");
             }

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
+import Quickshell
 
 import QtQml.Models
 
@@ -924,9 +925,11 @@ ContentPage {
                 checked: Config.options.bar.workspaces.useWorkspaceMap
                 onCheckedChanged: {
                     Config.options.bar.workspaces.useWorkspaceMap = checked;
+                    Config.forceSave();
+                    Quickshell.execDetached(["hyprctl", "reload"]);
                 }
                 StyledToolTip {
-                    text: Translation.tr("Only for multi-monitor setups, you must edit the workspace map manually in config.json\n Refer to the repo wiki for more information")
+                    text: Translation.tr("Map specific workspace ranges to each monitor.")
                 }
             }
 
@@ -936,6 +939,32 @@ ContentPage {
                 checked: Config.options.bar.workspaces.alwaysShowNumbers
                 onCheckedChanged: {
                     Config.options.bar.workspaces.alwaysShowNumbers = checked;
+                }
+            }
+        }
+
+        ContentSubsection {
+            visible: Config.options.bar.workspaces.useWorkspaceMap
+            title: Translation.tr("Monitor workspace ranges")
+            tooltip: Translation.tr("Set the first workspace ID for each monitor. Each monitor gets its own set of workspaces starting from this number.")
+
+            Repeater {
+                model: Quickshell.screens
+
+                ConfigSpinBox {
+                    required property var modelData
+                    required property int index
+                    icon: "monitor"
+                    text: modelData.name + " — " + Translation.tr("first workspace")
+                    value: (Config.options.bar.workspaces.workspaceMap[modelData.name] ?? (index * 6)) + 1
+                    from: 1
+                    to: 100
+                    stepSize: 1
+                    onValueChanged: {
+                        var cloned = JSON.parse(JSON.stringify(Config.options.bar.workspaces.workspaceMap));
+                        cloned[modelData.name] = value - 1;
+                        Config.options.bar.workspaces.workspaceMap = cloned;
+                    }
                 }
             }
         }

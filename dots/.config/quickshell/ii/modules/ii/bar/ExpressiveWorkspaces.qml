@@ -28,9 +28,30 @@ Item {
 
     // Pagination/Offset logic to match screens/monitor mapping
     readonly property bool useWorkspaceMap: Config.options.bar.workspaces.useWorkspaceMap
-    readonly property list<int> workspaceMap: Config.options.bar.workspaces.workspaceMap
-    readonly property int monitorIndex: root.QsWindow.window && root.QsWindow.window.screen ? Quickshell.screens.indexOf(root.QsWindow.window.screen) : 0
-    property int workspaceOffset: useWorkspaceMap ? workspaceMap[monitorIndex] : 0
+    readonly property var workspaceMap: Config.options.bar.workspaces.workspaceMap
+    readonly property string monitorName: root.monitor?.name ?? ""
+    readonly property int screenIndex: root.QsWindow.window && root.QsWindow.window.screen ? Quickshell.screens.indexOf(root.QsWindow.window.screen) : 0
+    property int workspaceOffset: useWorkspaceMap ? (workspaceMap[monitorName] ?? (screenIndex * 6)) : 0
+
+    function getMonitorMaxWsId(name, offset) {
+        if (!useWorkspaceMap) return 99999;
+        let offsets = [];
+        for (let i = 0; i < Quickshell.screens.length; i++) {
+            let scrName = Quickshell.screens[i].name;
+            let scrOffset = workspaceMap[scrName] ?? (i * 6);
+            offsets.push(scrOffset);
+        }
+        offsets.sort((a, b) => a - b);
+        let curIdx = offsets.indexOf(offset);
+        if (curIdx !== -1 && curIdx + 1 < offsets.length) {
+            return offsets[curIdx + 1];
+        }
+        return offset + workspacesShown;
+    }
+
+    // Absolute workspace range for this monitor (inclusive on both ends)
+    readonly property int monitorMinWsId: useWorkspaceMap ? workspaceOffset + 1 : 1
+    readonly property int monitorMaxWsId: useWorkspaceMap ? getMonitorMaxWsId(monitorName, workspaceOffset) : 99999
 
     readonly property int startWsId: dynamicWorkspaces ? workspaceOffset + 1 : Math.floor((activeWsId - workspaceOffset - 1) / workspacesShown) * workspacesShown + 1 + workspaceOffset
 
@@ -146,15 +167,28 @@ Item {
         onWheel: (wheel) => {
             wheel.accepted = true;
             if (dynamicWorkspaces) {
-                if (wheel.angleDelta.y > 0) Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
-                else Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
+                const delta = wheel.angleDelta.y > 0 ? -1 : 1;
+                if (useWorkspaceMap) {
+                    let monitorWs = Hyprland.workspaces.values
+                        .filter(ws => ws.id >= monitorMinWsId && ws.id <= monitorMaxWsId)
+                        .map(ws => ws.id)
+                        .sort((a, b) => a - b);
+                    if (!monitorWs.includes(activeWsId)) monitorWs.push(activeWsId);
+                    monitorWs.sort((a, b) => a - b);
+                    const curIdx = monitorWs.indexOf(activeWsId);
+                    const nextIdx = curIdx + delta;
+                    if (nextIdx < 0 || nextIdx >= monitorWs.length) return;
+                    Hyprland.dispatch("hl.dsp.focus({ workspace = '" + monitorWs[nextIdx] + "' })");
+                } else {
+                    if (wheel.angleDelta.y > 0) Hyprland.dispatch("hl.dsp.focus({workspace = 'r-1'})");
+                    else Hyprland.dispatch("hl.dsp.focus({workspace = 'r+1'})");
+                }
             } else {
                 let nextId = activeWsId + (wheel.angleDelta.y > 0 ? -1 : 1);
                 if (nextId < 1) return;
                 // Bound check if using workspace maps
                 if (useWorkspaceMap) {
-                    const nextMonitorStart = workspaceMap[monitorIndex + 1] ?? (workspaceMap[monitorIndex] + workspacesShown);
-                    if (nextId < workspaceOffset + 1 || nextId > nextMonitorStart) return;
+                    if (nextId < monitorMinWsId || nextId > monitorMaxWsId) return;
                 }
                 Hyprland.dispatch("hl.dsp.focus({ workspace = '" + nextId + "' })");
             }

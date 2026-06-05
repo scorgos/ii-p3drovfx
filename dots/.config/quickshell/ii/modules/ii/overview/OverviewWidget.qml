@@ -28,9 +28,10 @@ Item {
     // readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / workspacesShown)
     
     readonly property bool useWorkspaceMap: Config.options.overview.useWorkspaceMap
-    readonly property list<int> workspaceMap: Config.options.overview.workspaceMap
+    readonly property var workspaceMap: Config.options.overview.workspaceMap
+    readonly property string monitorName: root.monitor?.name ?? ""
     property int monitorIndex // to be set by parent
-    property int workspaceOffset: useWorkspaceMap ? workspaceMap[monitorIndex] : 0
+    property int workspaceOffset: useWorkspaceMap ? (workspaceMap[monitorName] ?? (monitorIndex * 6)) : 0
     
     readonly property int workspaceGroup: Math.floor((monitor.activeWorkspace?.id - workspaceOffset - 1) / workspacesShown)
     property bool monitorIsFocused: (Hyprland.focusedMonitor?.name == monitor.name)
