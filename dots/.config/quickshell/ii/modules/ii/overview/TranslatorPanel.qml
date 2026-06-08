@@ -229,46 +229,40 @@ Item {
             "日本語","ಕನ್ನಡ","한국어","मराठी","پښتو","فارسی","ਪੰਜਾਬੀ","русский","தமிழ்",
             "తెలుగు","ไทย","اردو"
         ].includes(root.targetLanguage))
-        command: ["bash", "-c", `trans -brief -no-bidi` + ` -source '${StringUtils.shellSingleQuoteEscape(root.sourceLanguage)}'` + ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'` + ` '${StringUtils.shellSingleQuoteEscape(root.searchQuery.trim())}'`]
         property string buffer: ""
-        stdout: SplitParser {
-            onRead: data => {
-                translateProc.buffer += data + "\n";
-            }
-        }
-        onStarted: {
-            buffer = "";
-            root.translatedText = "";
-            root.secondTranslatedText = "";
-        }
-        onExited: (exitCode, exitStatus) => {
-            root.translatedText = translateProc.buffer.trim();
-            if (canTransliterate) {
-                secondProc.running = true;
-            }
-        }
-    }
-
-    // Second Process to get transliteration if supported
-    Process {
-        id: secondProc
-        property string secondBuffer: ""
         command: [
-            "bash",
-            "-c",
-            "trans -brief -no-bidi -source '" + StringUtils.shellSingleQuoteEscape(root.sourceLanguage) + "' -target '@" + StringUtils.shellSingleQuoteEscape(root.targetLanguage) + "' '" + StringUtils.shellSingleQuoteEscape(root.searchQuery.trim()) + "'"
+            "bash", "-c",
+            `trans -brief -no-bidi` +
+            ` -source '${StringUtils.shellSingleQuoteEscape(root.sourceLanguage)}'` +
+            (
+                canTransliterate
+                ? ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}+@${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'`
+                : ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'`
+            ) +
+            ` '${StringUtils.shellSingleQuoteEscape(root.searchQuery.trim())}'`
         ]
         stdout: SplitParser {
             onRead: data => {
-                secondProc.secondBuffer += data + "\n";
+                translateProc.buffer += data + "\n"
             }
         }
         onStarted: {
-            secondBuffer = "";
+            buffer = ""
+            root.translatedText = ""
+            root.secondTranslatedText = ""
         }
-        onExited: {
-            root.secondTranslatedText = secondBuffer.trim();
-            running = false;
+        onExited: (exitCode, exitStatus) => {
+            const lines = buffer.trim().split(/\r?\n/).filter(l => l.length > 0)
+            if (!canTransliterate) {
+                root.translatedText = lines.join("\n")
+                root.secondTranslatedText = ""
+                return
+            }
+            const half = Math.floor(lines.length / 2)
+            const translationLines = lines.slice(0, half)
+            const transliterationLines = lines.slice(half)
+            root.translatedText = translationLines.join("\n")
+            root.secondTranslatedText = transliterationLines.join("\n")
         }
     }
 

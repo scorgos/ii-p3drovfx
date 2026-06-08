@@ -100,7 +100,6 @@ Item {
 
     Process {
         id: translateProc
-
         property bool canTransliterate: ([
             "العربية","বাংলা","भोजपुरी","简体中文","繁體中文","粵語","文言","ગુજરાતી","हिन्दी",
             "日本語","ಕನ್ನಡ","한국어","मराठी","پښتو","فارسی","ਪੰਜਾਬੀ","русский","தமிழ்",
@@ -109,7 +108,14 @@ Item {
         property string buffer: ""
         command: [
             "bash", "-c",
-            `trans -brief -no-bidi` + ` -source '${StringUtils.shellSingleQuoteEscape(root.sourceLanguage)}'` + ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'` + ` '${StringUtils.shellSingleQuoteEscape(root.inputField.text.trim())}'`
+            `trans -brief -no-bidi` +
+            ` -source '${StringUtils.shellSingleQuoteEscape(root.sourceLanguage)}'` +
+            (
+                canTransliterate
+                ? ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}+@${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'`
+                : ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'`
+            ) +
+            ` '${StringUtils.shellSingleQuoteEscape(root.inputField.text.trim())}'`
         ]
         stdout: SplitParser {
             onRead: data => {
@@ -122,33 +128,17 @@ Item {
             root.secondTranslatedText = ""
         }
         onExited: (exitCode, exitStatus) => {
-            root.translatedText = buffer.trim()
-
-            if (canTransliterate) {
-                secondProc.running = true
+            const lines = buffer.trim().split(/\r?\n/).filter(l => l.length > 0)
+            if (!canTransliterate) {
+                root.translatedText = lines.join("\n")
+                root.secondTranslatedText = ""
+                return
             }
-        }
-    }
-    
-    Process {
-        id: secondProc
-        property string secondBuffer: ""
-        command: [
-            "bash",
-            "-c",
-            `trans -brief -no-bidi -source '${StringUtils.shellSingleQuoteEscape(root.sourceLanguage)}' -target '@${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}' '${StringUtils.shellSingleQuoteEscape(root.inputField.text.trim())}'`
-        ]
-        stdout: SplitParser {
-            onRead: data => {
-                secondProc.secondBuffer += data + "\n"
-            }
-        }
-        onStarted: {
-            secondBuffer = ""
-        }
-        onExited: {
-            root.secondTranslatedText = secondBuffer.trim()
-            running = false
+            const half = Math.floor(lines.length / 2)
+            const translationLines = lines.slice(0, half)
+            const transliterationLines = lines.slice(half)
+            root.translatedText = translationLines.join("\n")
+            root.secondTranslatedText = transliterationLines.join("\n")
         }
     }
 
