@@ -81,6 +81,9 @@ Item {
             root.inputField.forceActiveFocus();
         }
     }
+    onTargetLanguageChanged: {
+        translateProc.canTransliterate = true
+    }
 
     Timer {
         id: translateTimer
@@ -100,18 +103,21 @@ Item {
 
     Process {
         id: translateProc
-        property bool probeDone: false
         property bool canTransliterate: true
         property string buffer: ""
+        function buildTarget() {
+            const s = StringUtils.shellSingleQuoteEscape
+            const tgt = s(root.targetLanguage)
+            return canTransliterate ? `${tgt}+@${tgt}` : tgt
+        }
         command: {
             const s = StringUtils.shellSingleQuoteEscape
             const src = s(root.sourceLanguage)
-            const tgt = s(root.targetLanguage)
+            const tgt = buildTarget()
             const inp = s(root.inputField.text.trim())
-            const t = canTransliterate ? `${tgt}+@${tgt}` : tgt
 
             return ["bash", "-c",
-                `trans -brief -no-bidi -source '${src}' -target '${t}' '${inp}'`
+                `trans -brief -no-bidi -source '${src}' -target '${tgt}' '${inp}'`
             ]
         }
         stdout: SplitParser {
@@ -129,13 +135,9 @@ Item {
             const tr = lines.slice(0, mid).join("\n").trim()
             const tl = lines.slice(mid).join("\n").trim()
             root.translatedText = tr
-            const has = tl.length > 0 && tl !== tr
-            if (!probeDone) {
-                probeDone = true
-                canTransliterate = has
-                if (!has) return
-            }
-            root.secondTranslatedText = (canTransliterate && has) ? tl : ""
+            const hasSecond = tl.length > 0 && tl !== tr
+            canTransliterate = hasSecond
+            root.secondTranslatedText = hasSecond ? tl : ""
         }
     }
 
