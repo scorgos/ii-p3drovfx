@@ -224,45 +224,42 @@ Item {
 
     Process {
         id: translateProc
-        property bool canTransliterate: ([
-            "العربية","বাংলা","भोजपुरी","简体中文","繁體中文","粵語","文言","ગુજરાતી","हिन्दी",
-            "日本語","ಕನ್ನಡ","한국어","मराठी","پښتو","فارسی","ਪੰਜਾਬੀ","русский","தமிழ்",
-            "తెలుగు","ไทย","اردو"
-        ].includes(root.targetLanguage))
+        property bool probeDone: false
+        property bool canTransliterate: true
         property string buffer: ""
-        command: [
-            "bash", "-c",
-            `trans -brief -no-bidi` +
-            ` -source '${StringUtils.shellSingleQuoteEscape(root.sourceLanguage)}'` +
-            (
-                canTransliterate
-                ? ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}+@${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'`
-                : ` -target '${StringUtils.shellSingleQuoteEscape(root.targetLanguage)}'`
-            ) +
-            ` '${StringUtils.shellSingleQuoteEscape(root.searchQuery.trim())}'`
-        ]
+        command: {
+            const s = StringUtils.shellSingleQuoteEscape
+            const src = s(root.sourceLanguage)
+            const tgt = s(root.targetLanguage)
+            const inp = s(root.searchQuery.trim())
+            const t = canTransliterate ? `${tgt}+@${tgt}` : tgt
+
+            return ["bash", "-c",
+                `trans -brief -no-bidi -source '${src}' -target '${t}' '${inp}'`
+            ]
+        }
         stdout: SplitParser {
-            onRead: data => {
-                translateProc.buffer += data + "\n"
-            }
+            onRead: d => translateProc.buffer += d + "\n"
         }
         onStarted: {
             buffer = ""
             root.translatedText = ""
             root.secondTranslatedText = ""
         }
-        onExited: (exitCode, exitStatus) => {
-            const lines = buffer.trim().split(/\r?\n/).filter(l => l.length > 0)
-            if (!canTransliterate) {
-                root.translatedText = lines.join("\n")
-                root.secondTranslatedText = ""
-                return
+        onExited: () => {
+            const lines = buffer.trim().split(/\r?\n/).filter(Boolean)
+            if (!lines.length) return
+            const mid = lines.length >> 1
+            const tr = lines.slice(0, mid).join("\n").trim()
+            const tl = lines.slice(mid).join("\n").trim()
+            root.translatedText = tr
+            const has = tl.length > 0 && tl !== tr
+            if (!probeDone) {
+                probeDone = true
+                canTransliterate = has
+                if (!has) return
             }
-            const half = Math.floor(lines.length / 2)
-            const translationLines = lines.slice(0, half)
-            const transliterationLines = lines.slice(half)
-            root.translatedText = translationLines.join("\n")
-            root.secondTranslatedText = transliterationLines.join("\n")
+            root.secondTranslatedText = (canTransliterate && has) ? tl : ""
         }
     }
 
