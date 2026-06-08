@@ -108,6 +108,7 @@ Item {
         function buildTarget() {
             const s = StringUtils.shellSingleQuoteEscape
             const tgt = s(root.targetLanguage)
+            // If transliteration detected, return `language+@language`; else `language`
             return canTransliterate ? `${tgt}+@${tgt}` : tgt
         }
         command: {
@@ -129,14 +130,16 @@ Item {
             root.secondTranslatedText = ""
         }
         onExited: () => {
+            // Split output in half, first half is translation
             const lines = buffer.trim().split(/\r?\n/).filter(Boolean)
             if (!lines.length) return
             const mid = lines.length >> 1
             const tr = lines.slice(0, mid).join("\n").trim()
             const tl = lines.slice(mid).join("\n").trim()
             root.translatedText = tr
+            // If second half is unique, it is the transliteration
             const hasSecond = tl.length > 0 && tl !== tr
-            canTransliterate = hasSecond
+            translateProc.canTransliterate = hasSecond
             root.secondTranslatedText = hasSecond ? tl : ""
         }
     }
