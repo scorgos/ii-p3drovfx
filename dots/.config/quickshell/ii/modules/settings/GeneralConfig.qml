@@ -572,32 +572,28 @@ ContentPage {
             Layout.fillWidth: true
 
             function addWorldClock() {
-                let list = [];
-                if (Config.options.time.worldClocks) {
-                    for (let i = 0; i < Config.options.time.worldClocks.length; i++) {
-                        list.push(Config.options.time.worldClocks[i]);
-                    }
-                }
+                let list = Config.options.time.worldClocks ? Array.from(Config.options.time.worldClocks) : [];
                 list.push({ "name": "", "tz": "" });
                 Config.options.time.worldClocks = list;
             }
 
             function removeWorldClock(index) {
-                let list = [];
-                for (let i = 0; i < Config.options.time.worldClocks.length; i++) {
-                    if (i !== index) {
-                        list.push(Config.options.time.worldClocks[i]);
-                    }
+                let list = Config.options.time.worldClocks ? Array.from(Config.options.time.worldClocks) : [];
+                if (index >= 0 && index < list.length) {
+                    list.splice(index, 1);
+                    Config.options.time.worldClocks = list;
                 }
-                Config.options.time.worldClocks = list;
             }
 
             function updateWorldClock(index, key, value) {
+                let current = Config.options.time.worldClocks || [];
+                if (index < 0 || index >= current.length) return;
+                
                 let list = [];
-                for (let i = 0; i < Config.options.time.worldClocks.length; i++) {
-                    let item = Config.options.time.worldClocks[i];
+                for (let i = 0; i < current.length; i++) {
+                    let item = current[i] || { "name": "", "tz": "" };
                     if (i === index) {
-                        let newItem = { "name": item.name, "tz": item.tz };
+                        let newItem = { "name": item.name || "", "tz": item.tz || "" };
                         newItem[key] = value;
                         list.push(newItem);
                     } else {
@@ -614,41 +610,90 @@ ContentPage {
                 Repeater {
                     model: Config.options.time.worldClocks
 
-                    RowLayout {
+                    ColumnLayout {
                         id: clockRow
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: 2
 
                         required property var modelData
                         required property int index
+                        property bool searchFailed: false
 
-                        MaterialTextField {
-                            Layout.fillWidth: true
-                            placeholderText: Translation.tr("City Name (e.g. New York)")
-                            text: clockRow.modelData.name
-                            onEditingFinished: {
-                                if (text !== clockRow.modelData.name) {
-                                    worldClocksSubsection.updateWorldClock(clockRow.index, "name", text);
+                        Process {
+                            id: tzSearchProc
+                            command: ["bash", "-c", "QUERY=$(echo '" + (clockRow.modelData.name || "").replace(/'/g, "'\\''").replace(/ /g, "_") + "' | iconv -f UTF-8 -t ASCII//TRANSLIT | sed 's/[^a-zA-Z0-9_]//g'); [ -n \"$QUERY\" ] && timedatectl list-timezones | grep -i \"$QUERY\" | head -n 1 || true"]
+                            property string buffer: ""
+                            stdout: SplitParser {
+                                onRead: data => tzSearchProc.buffer += data
+                            }
+                            onStarted: {
+                                buffer = "";
+                                clockRow.searchFailed = false;
+                            }
+                            onExited: {
+                                let res = buffer.trim();
+                                if (res) {
+                                    worldClocksSubsection.updateWorldClock(clockRow.index, "tz", res);
+                                    let prettyName = res.split("/").pop().replace(/_/g, " ");
+                                    if ((clockRow.modelData.name || "") === "" || clockRow.modelData.name.toLowerCase() === prettyName.toLowerCase()) {
+                                        worldClocksSubsection.updateWorldClock(clockRow.index, "name", prettyName);
+                                    }
+                                } else {
+                                    clockRow.searchFailed = true;
                                 }
                             }
                         }
 
-                        MaterialTextField {
+                        RowLayout {
                             Layout.fillWidth: true
-                            placeholderText: Translation.tr("Timezone ID (e.g. America/New_York)")
-                            text: clockRow.modelData.tz
-                            onEditingFinished: {
-                                if (text !== clockRow.modelData.tz) {
-                                    worldClocksSubsection.updateWorldClock(clockRow.index, "tz", text);
+                            spacing: 8
+
+                            MaterialTextField {
+                                Layout.fillWidth: true
+                                placeholderText: Translation.tr("City Name (e.g. Tokyo)")
+                                text: clockRow.modelData.name || ""
+                                onEditingFinished: {
+                                    if (text !== (clockRow.modelData.name || "")) {
+                                        worldClocksSubsection.updateWorldClock(clockRow.index, "name", text);
+                                        if ((clockRow.modelData.tz || "") === "") {
+                                            tzSearchProc.running = true;
+                                        }
+                                    }
+                                }
+                            }
+
+                            MaterialTextField {
+                                Layout.fillWidth: true
+                                placeholderText: Translation.tr("Timezone ID (e.g. Asia/Tokyo)")
+                                text: clockRow.modelData.tz || ""
+                                onEditingFinished: {
+                                    if (text !== (clockRow.modelData.tz || "")) {
+                                        worldClocksSubsection.updateWorldClock(clockRow.index, "tz", text);
+                                    }
+                                }
+                            }
+
+                            IconToolbarButton {
+                                text: "search"
+                                onClicked: tzSearchProc.running = true
+                                StyledToolTip { text: Translation.tr("Auto-detect Timezone from City Name") }
+                            }
+
+                            IconToolbarButton {
+                                text: "delete"
+                                onClicked: {
+                                    worldClocksSubsection.removeWorldClock(clockRow.index);
                                 }
                             }
                         }
 
-                        IconToolbarButton {
-                            text: "delete"
-                            onClicked: {
-                                worldClocksSubsection.removeWorldClock(clockRow.index);
-                            }
+                        StyledText {
+                            Layout.leftMargin: 8
+                            Layout.bottomMargin: 4
+                            visible: clockRow.searchFailed
+                            text: Translation.tr("Timezone not found for '%1'. Try a different name.").arg(clockRow.modelData.name || "")
+                            color: Appearance.colors.colError
+                            font.pixelSize: Appearance.font.pixelSize.smaller
                         }
                     }
                 }

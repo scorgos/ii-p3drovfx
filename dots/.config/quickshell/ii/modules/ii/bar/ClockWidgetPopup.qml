@@ -79,7 +79,6 @@ StyledPopup {
     required property bool compact
     property string formattedDate: Qt.locale().toString(DateTime.clock.date, "MMMM dd, dddd")
     property string formattedTime: DateTime.time
-    property string formattedUptime: DateTime.uptime
     property string todosSection: getUpcomingTodos(Todo.list)
     property bool todosEmpty: todosSection === ""
     stickyHover: true
@@ -237,20 +236,6 @@ StyledPopup {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 12
-
-            InfoPill {
-                visible: !root.compact ? LocalSend.currentTransfer == null || LocalSend.droppedFiles.length > 0 : false
-                text: root.formattedUptime
-
-                shapeContent: CustomIcon {
-                    anchors.centerIn: parent
-                    width: 24
-                    height: 24
-                    source: SystemInfo.distroIcon
-                    colorize: true
-                    color: Appearance.colors.colOnSecondary
-                }
-            }
 
             InfoPill {
                 visible: !root.compact ? LocalSend.currentTransfer == null || LocalSend.droppedFiles.length > 0 : false
