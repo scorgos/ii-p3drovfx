@@ -16,7 +16,7 @@ pragma ComponentBehavior: Bound
 //   • On overview close: reverse-animates scale back to 1.0 then hides.
 //
 // Flicker prevention:
-//   • ScreencopyView is kept live:true during overview so captures are always fresh.
+//   • ScreencopyView uses live:false for performance; captures are taken once on open.
 //   • captureSource is set BEFORE setting visible=true (QML binding order).
 //   • A 16ms delay ensures QML has painted the layer at scale=1.0 before
 //     we read GlobalStates.overviewZoomScale (which may already be < 1).
@@ -24,8 +24,10 @@ pragma ComponentBehavior: Bound
 import qs
 import qs.services
 import qs.modules.common
+import qs.modules.common.widgets
 import Qt5Compat.GraphicalEffects
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
@@ -260,8 +262,9 @@ Scope {
                 id: scaleContainer
                 anchors.fill: parent
                 opacity: tRoot.shouldBeActive ? 1.0 : 0.0
-                // Clip prevents window captures from bleeding outside screen bounds
-                clip: true
+                // Performance: removed clip to avoid scissor overhead during scale
+                // Window captures are already positioned within screen bounds
+                // clip: true
 
                 // ── OUTGOING WORKSPACE CONTAINER ────────────────────────────
                 Item {
@@ -269,8 +272,8 @@ Scope {
                     width: parent.width
                     height: parent.height
                     
-                    x: !tRoot.isVertical ? -tRoot.transitionDirection * tRoot.transitionProgress * (tRoot.width * 0.3) : 0
-                    y: tRoot.isVertical ? -tRoot.transitionDirection * tRoot.transitionProgress * (tRoot.height * 0.3) : 0
+                    x: !tRoot.isVertical ? -tRoot.transitionDirection * tRoot.transitionProgress * (tRoot.width * 0.5) : 0
+                    y: tRoot.isVertical ? -tRoot.transitionDirection * tRoot.transitionProgress * (tRoot.height * 0.5) : 0
                     opacity: 1.0 - tRoot.transitionProgress
                     scale: 1.0 - (0.07 * tRoot.transitionProgress)
                     visible: opacity > 0.0
@@ -374,11 +377,20 @@ Scope {
             }
         }
 
+        // Soft shadow behind the window capture
+        StyledRectangularShadow {
+            target: tile
+            blur: 16
+            opacity: 0.3
+            offset: Qt.vector2d(0, 4)
+        }
+
         ScreencopyView {
             id: capture
             anchors.fill: parent
             captureSource: tile.visible ? tile.toplevel : null
-            live: !tRoot.exitAnimating
+            // Performance: live false to avoid continuous screencopy overhead
+            live: false
             paintCursor: false
             opacity: 1.0
         }

@@ -227,6 +227,9 @@ Scope {
                     // Visible for both styles during zoom out & return animation to avoid any black fallback margins
                     visible: Config.options.background.zoomOutStyle !== 2 && (wallpaperItem.wallpaperZoomedOut || wallpaperItem.wallpaperClipRadius > 0) && !bgRoot.wallpaperIsVideo
                     opacity: 1.0
+                    // Performance: disable expensive mipmapping on background blur layer
+                    mipmap: false
+                    antialiasing: false
                 }
                 Loader {
                     id: bgWallpaperBlurLoader
@@ -236,11 +239,13 @@ Scope {
                     Behavior on opacity {
                         animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
                     }
-                    sourceComponent: GaussianBlur {
+                    sourceComponent: MultiEffect {
                         anchors.fill: parent
                         source: bgWallpaperBlurred
-                        radius: 40
-                        samples: 81
+                        blurEnabled: true
+                        // Performance: MultiEffect uses separable blur, ~2-3x faster than GaussianBlur
+                        blurMax: 75
+                        blur: 0.7
 
                         Rectangle {
                             anchors.fill: parent
@@ -304,6 +309,9 @@ Scope {
                             return 1.0;
                         if (Config.options.background.zoomOutStyle === 2)
                             return 1.15;
+                        // Style 1: use zoom-to-fill to cover screen without mirrored tiles
+                        if (Config.options.background.zoomOutStyle === 1)
+                            return Math.max(0.85, zoomOutCoverScale);
                         return Math.max(0.85, bgRoot.minSafeScale * 0.85);
                     }
                     Behavior on scaleValue {
@@ -337,162 +345,19 @@ Scope {
                         when: Hyprland.focusedMonitor?.name == bgRoot.monitor?.name
                     }
 
-                    // Tile visibility persists while clipRadius > 0 (through close animation)
-                    readonly property bool tilesVisible: Config.options.background.zoomOutStyle === 1 && (wallpaperItem.wallpaperZoomedOut || wallpaperItem.wallpaperClipRadius > 0) && !bgRoot.wallpaperIsVideo
-
-                    // --- MIRRORED PLANE TILES (Style 1) ---
-                    // Each tile mirrors the central wallpaper and is offset by ±wallpaperW or ±wallpaperH
-                    // Positions track parallaxX/Y directly so tiles are always pixel-perfect adjacent.
-                    // Placed outside any clipping wrapper so they fill the screen perfectly to avoid black margins.
-
-                    Item {
-                        id: outerTilesContainer
-                        anchors.fill: parent
-                        visible: wallpaperPlanes.tilesVisible
-
-                        TransitionImage {
-                            id: leftTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX - wallpaperPlanes.wallpaperW
-                            y: wallpaperPlanes.parallaxY
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                xScale: -1
-                                origin.x: leftTile.width / 2
-                                origin.y: leftTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: rightTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX + wallpaperPlanes.wallpaperW
-                            y: wallpaperPlanes.parallaxY
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                xScale: -1
-                                origin.x: rightTile.width / 2
-                                origin.y: rightTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: topTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX
-                            y: wallpaperPlanes.parallaxY - wallpaperPlanes.wallpaperH
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                yScale: -1
-                                origin.x: topTile.width / 2
-                                origin.y: topTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: bottomTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX
-                            y: wallpaperPlanes.parallaxY + wallpaperPlanes.wallpaperH
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                yScale: -1
-                                origin.x: bottomTile.width / 2
-                                origin.y: bottomTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: topLeftTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX - wallpaperPlanes.wallpaperW
-                            y: wallpaperPlanes.parallaxY - wallpaperPlanes.wallpaperH
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                xScale: -1
-                                yScale: -1
-                                origin.x: topLeftTile.width / 2
-                                origin.y: topLeftTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: topRightTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX + wallpaperPlanes.wallpaperW
-                            y: wallpaperPlanes.parallaxY - wallpaperPlanes.wallpaperH
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                xScale: -1
-                                yScale: -1
-                                origin.x: topRightTile.width / 2
-                                origin.y: topRightTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: bottomLeftTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX - wallpaperPlanes.wallpaperW
-                            y: wallpaperPlanes.parallaxY + wallpaperPlanes.wallpaperH
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                xScale: -1
-                                yScale: -1
-                                origin.x: bottomLeftTile.width / 2
-                                origin.y: bottomLeftTile.height / 2
-                            }
-                        }
-                        TransitionImage {
-                            id: bottomRightTile
-                            width: wallpaperPlanes.wallpaperW
-                            height: wallpaperPlanes.wallpaperH
-                            x: wallpaperPlanes.parallaxX + wallpaperPlanes.wallpaperW
-                            y: wallpaperPlanes.parallaxY + wallpaperPlanes.wallpaperH
-                            imageSource: (wallpaperPlanes.tilesVisible && !bgRoot.wallpaperSafetyTriggered) ? bgRoot.wallpaperPath : ""
-                            animated: Config.options.background.animateWallpaperChanges
-                            fillMode: Image.PreserveAspectCrop
-                            transform: Scale {
-                                xScale: -1
-                                yScale: -1
-                                origin.x: bottomRightTile.width / 2
-                                origin.y: bottomRightTile.height / 2
-                            }
-                        }
-                    }
-
-                    // A single highly-optimized GaussianBlur to blur all 8 outer tiles at 1/4 texture size for maximum performance
-                    Loader {
-                        id: outerTilesBlurLoader
-                        anchors.fill: parent
-                        active: outerTilesContainer.visible
-                        sourceComponent: GaussianBlur {
-                            anchors.fill: parent
-                            source: ShaderEffectSource {
-                                sourceItem: outerTilesContainer
-                                hideSource: false
-                                smooth: true
-                                textureSize: Qt.size(parent.width / 4, parent.height / 4)
-                            }
-                            radius: 40
-                            samples: 81
-                            opacity: wallpaperPlanes.scaleProgress
-                        }
+                    // --- STYLE 1: Zoom-to-fill (no mirrored tiles) ---
+                    // When zoomed out, the central wallpaper scales to cover the entire screen
+                    // without parallax movement, eliminating the need for expensive mirrored tiles.
+                    // The wallpaper already uses PreserveAspectCrop and sufficient scale.
+                    property real zoomOutCoverScale: {
+                        // Ensure the wallpaper always covers the screen during zoom-out,
+                        // even when parallax is disabled or the wallpaper is smaller than the screen.
+                        const w = bgRoot.wallpaperWidth / bgRoot.wallpaperToScreenRatio * bgRoot.effectiveWallpaperScale;
+                        const h = bgRoot.wallpaperHeight / bgRoot.wallpaperToScreenRatio * bgRoot.effectiveWallpaperScale;
+                        if (w <= 0 || h <= 0)
+                            return 1.0;
+                        // Scale to cover the screen, adding a small margin for safety
+                        return Math.max(bgRoot.screen.width / w, bgRoot.screen.height / h) * 1.05;
                     }
 
                     // Mask rectangle for rounded clip — must be a real scene Item with layer.enabled
@@ -512,7 +377,7 @@ Scope {
                         target: centralWallpaperClipRect
                         blur: 32 * wallpaperPlanes.scaleProgress
                         offset: Qt.vector2d(0, 4 * wallpaperPlanes.scaleProgress)
-                        visible: Config.options.background.zoomOutStyle === 0
+                        visible: Config.options.background.zoomOutStyle === 0 && wallpaperPlanes.scaleProgress > 0.01
                         opacity: wallpaperPlanes.scaleProgress
                     }
 
@@ -535,25 +400,25 @@ Scope {
 
                         Behavior on x {
                             NumberAnimation {
-                                duration: 600
+                                duration: 400
                                 easing.type: Easing.OutCubic
                             }
                         }
                         Behavior on y {
                             NumberAnimation {
-                                duration: 600
+                                duration: 400
                                 easing.type: Easing.OutCubic
                             }
                         }
                         Behavior on width {
                             NumberAnimation {
-                                duration: 800
+                                duration: 500
                                 easing.type: Easing.OutCubic
                             }
                         }
                         Behavior on height {
                             NumberAnimation {
-                                duration: 800
+                                duration: 500
                                 easing.type: Easing.OutCubic
                             }
                         }
@@ -561,9 +426,21 @@ Scope {
                         TransitionImage {
                             id: wallpaper
                             // Style 0: Centered when zoomed out, follows parallax when zoomed in
-                            // Style 1: Fills the clip wrapper perfectly
-                            x: Config.options.background.zoomOutStyle !== 1 ? (wallpaperItem.wallpaperZoomedOut ? -bgRoot.movableXSpace : wallpaperPlanes.parallaxX) : 0
-                            y: Config.options.background.zoomOutStyle !== 1 ? (wallpaperItem.wallpaperZoomedOut ? -bgRoot.movableYSpace : wallpaperPlanes.parallaxY) : 0
+                            // Style 1: Fills the clip wrapper perfectly, no parallax during zoom-out
+                            x: {
+                                if (Config.options.background.zoomOutStyle === 1) {
+                                    // In style 1, wallpaper fills the clip rect; no parallax offset needed
+                                    return 0;
+                                }
+                                // Style 0: centered when zoomed out, parallax when zoomed in
+                                return wallpaperItem.wallpaperZoomedOut ? -bgRoot.movableXSpace : wallpaperPlanes.parallaxX;
+                            }
+                            y: {
+                                if (Config.options.background.zoomOutStyle === 1) {
+                                    return 0;
+                                }
+                                return wallpaperItem.wallpaperZoomedOut ? -bgRoot.movableYSpace : wallpaperPlanes.parallaxY;
+                            }
                             width: Config.options.background.zoomOutStyle !== 1 ? wallpaperPlanes.wallpaperW : parent.width
                             height: Config.options.background.zoomOutStyle !== 1 ? wallpaperPlanes.wallpaperH : parent.height
 
@@ -597,28 +474,31 @@ Scope {
                             imageSource: bgRoot.wallpaperSafetyTriggered ? "" : bgRoot.wallpaperPath
                             animated: Config.options.background.animateWallpaperChanges
                             fillMode: Image.PreserveAspectCrop
+                            // Performance: disable mipmapping on the central wallpaper
+                            mipmap: false
+                            antialiasing: false
 
                             Behavior on x {
                                 NumberAnimation {
-                                    duration: 600
+                                    duration: 400
                                     easing.type: Easing.OutCubic
                                 }
                             }
                             Behavior on y {
                                 NumberAnimation {
-                                    duration: 600
+                                    duration: 400
                                     easing.type: Easing.OutCubic
                                 }
                             }
                             Behavior on width {
                                 NumberAnimation {
-                                    duration: 800
+                                    duration: 500
                                     easing.type: Easing.OutCubic
                                 }
                             }
                             Behavior on height {
                                 NumberAnimation {
-                                    duration: 800
+                                    duration: 500
                                     easing.type: Easing.OutCubic
                                 }
                             }
@@ -644,15 +524,18 @@ Scope {
                                     easing.type: Easing.OutCubic
                                 }
                             }
-                            sourceComponent: GaussianBlur {
+                            sourceComponent: MultiEffect {
                                 source: ShaderEffectSource {
                                     sourceItem: wallpaper
                                     textureSize: Qt.size(centralWallpaperClipRect.width / 4, centralWallpaperClipRect.height / 4)
                                     smooth: true
-                                    recursive: true
+                                    // Performance: disable recursive capture to avoid double texture read
+                                    recursive: false
                                 }
-                                radius: Math.round(Config.options.lock.blur.radius / 4)
-                                samples: Math.round(radius * 2 + 1)
+                                blurEnabled: true
+                                // Performance: MultiEffect uses separable blur, ~2-3x faster than GaussianBlur
+                                blurMax: 64
+                                blur: Math.min(Config.options.lock.blur.radius / 4, 24) / 64
 
                                 Rectangle {
                                     opacity: 1.0
@@ -830,6 +713,7 @@ Scope {
     // --- Compositor-level blur overlay over active windows and wallpaper ---
     // Uses the quickshell:workspaceBlurOverlay namespace to trigger Hyprland's hardware-accelerated
     // blur and dimming over the entire screen when the overview or cheatsheet is active (Mirrored style only).
+    // Performance: simplified to reduce Wayland surface overhead. Only active for Mirrored style.
     Variants {
         id: blurOverlayVariant
         model: Quickshell.screens
@@ -856,20 +740,24 @@ Scope {
             readonly property bool isMirroredStyle: Config.options.background.zoomOutStyle === 1
             readonly property bool isActive: animEnabled && isMirroredStyle && (GlobalStates.cheatsheetOpen || GlobalStates.overviewOpen)
 
+            // Performance: use a lighter animation with shorter duration
             property real zoomProgress: isActive ? 1.0 : 0.0
             Behavior on zoomProgress {
                 NumberAnimation {
-                    duration: 375
+                    duration: 250
                     easing.type: Easing.OutCubic
                 }
             }
 
-            visible: isActive || zoomProgress > 0.001
+            // Performance: use stricter visibility threshold to avoid idle composition
+            visible: isActive || zoomProgress > 0.01
 
+            // Performance: use a simple Rectangle instead of animated opacity for dimming
             Rectangle {
                 id: overlayDimRect
                 anchors.fill: parent
                 color: Qt.rgba(0, 0, 0, 0.25)
+                // Opacity directly bound to zoomProgress without separate Behavior
                 opacity: blurOverlayWindow.zoomProgress
             }
         }

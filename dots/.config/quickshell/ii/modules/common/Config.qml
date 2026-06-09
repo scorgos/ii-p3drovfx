@@ -384,8 +384,8 @@ Singleton {
 
                 property JsonObject mediaPlayer: JsonObject {
                     property bool expressivePopup: false
-                    property bool useFixedSize: false
-                    property int customSize: 250
+                    property bool useFixedSize: true
+                    property int customSize: 200
                     property int maxSize: 400
                     property JsonObject artwork: JsonObject {
                         property bool enable: false
@@ -1057,6 +1057,7 @@ Singleton {
                     property int focus: 1500
                     property int longBreak: 900
                 }
+                property list<var> worldClocks: []
                 property bool secondPrecision: false
             }
 
