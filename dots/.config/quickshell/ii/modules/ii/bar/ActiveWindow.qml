@@ -22,7 +22,7 @@ Item {
     readonly property int maxSize: 350
     property int popupWidth: 350
     property int maxPopupWidth: 600
-    readonly property int fixedSize: root.vertical ? 150 : Config.options.bar.activeWindow.customSize
+    readonly property int fixedSize: Config.options.bar.activeWindow.customSize
 
     property string appClassText: root.focusingThisMonitor && root.activeWindow?.activated && root.biggestWindow ? 
                 root.activeWindow?.appId : (root.biggestWindow?.class) ?? Translation.tr("Desktop")
