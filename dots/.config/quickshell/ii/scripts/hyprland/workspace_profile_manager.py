@@ -132,7 +132,7 @@ def cmd_snapshot(meta_json: str) -> None:
             "width":        w["size"][0],
             "height":       w["size"][1],
             "floating":     w.get("floating", False),
-            "autolaunch":   ov.get("autolaunch", False),
+            "autolaunch":   ov.get("autolaunch", True),
             "launchCmd":    ov.get("launchCmd", ""),
         })
 
