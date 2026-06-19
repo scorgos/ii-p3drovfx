@@ -39,6 +39,12 @@ Scope {
                 "name": Translation.tr("Commands")
             });
         }
+        if (Config.options.cheatsheet.enableWorkspaceProfiles) {
+            list.push({
+                "icon": "dashboard",
+                "name": Translation.tr("Workspaces")
+            });
+        }
         if (Config.options.cheatsheet.enableGmail) {
             list.push({
                 "icon": "mail",
@@ -334,6 +340,8 @@ Scope {
                                         return "CheatsheetPeriodicTable.qml";
                                     case "terminal":
                                         return "commands/CheatsheetCommands.qml";
+                                    case "dashboard":
+                                        return "CheatsheetWorkspaces.qml";
                                     case "mail":
                                         return "CheatsheetEmail.qml";
                                     default:

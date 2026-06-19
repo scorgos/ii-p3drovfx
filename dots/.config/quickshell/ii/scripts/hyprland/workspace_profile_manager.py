@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""
+Workspace Profile Manager — backend helper for Quickshell.
+
+Commands:
+  list                          → JSON array of profile metadata (one line per entry)
+  snapshot <json_str>           → capture current layout, write file, print slug
+  restore  <slug>               → dispatch hyprctl commands to restore layout
+  delete   <slug>               → delete profile file
+  rename   <old_slug> <new_name>→ rename file + update name field, print new slug
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+PROFILES_DIR = Path.home() / ".config" / "illogical-impulse" / "workspace_profiles"
+
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+def slugify(name: str) -> str:
+    slug = name.lower().strip()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[\s_-]+", "_", slug)
+    slug = slug.strip("_")
+    return slug or "profile"
+
+
+def unique_slug(name: str, exclude: str = None) -> str:
+    """Return a filename slug that does not collide with existing files."""
+    base = slugify(name)
+    slug = base
+    i = 1
+    while (PROFILES_DIR / f"{slug}.json").exists() and slug != exclude:
+        slug = f"{base}_{i}"
+        i += 1
+    return slug
+
+
+def load_profile(slug: str) -> dict:
+    path = PROFILES_DIR / f"{slug}.json"
+    with open(path) as f:
+        return json.load(f)
+
+
+def write_profile(profile: dict, slug: str) -> None:
+    PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+    path = PROFILES_DIR / f"{slug}.json"
+    with open(path, "w") as f:
+        json.dump(profile, f, indent=2, ensure_ascii=False)
+
+
+def hyprctl(*args) -> tuple[int, str, str]:
+    result = subprocess.run(
+        ["hyprctl"] + list(args),
+        capture_output=True, text=True
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+def live_clients() -> list[dict]:
+    rc, stdout, _ = hyprctl("clients", "-j")
+    if rc != 0:
+        print("[error] hyprctl clients -j failed", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(stdout)
+
+
+# ─── commands ─────────────────────────────────────────────────────────────────
+
+def cmd_list() -> None:
+    PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+    results = []
+    for path in sorted(PROFILES_DIR.glob("*.json")):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            windows = data.get("windows", [])
+            workspace_ids = sorted(set(w["workspaceId"] for w in windows))
+            results.append({
+                "slug":        path.stem,
+                "id":          data.get("id", path.stem),
+                "name":        data.get("name", path.stem),
+                "emoji":       data.get("emoji", "🗂️"),
+                "description": data.get("description", ""),
+                "createdAt":   data.get("createdAt", 0),
+                "windowCount": len(windows),
+                "workspaceIdsJson": json.dumps(workspace_ids),
+                "windowsJson": json.dumps(windows),
+                "hasDuplicateClasses": _has_duplicate_classes(windows),
+            })
+        except Exception as e:
+            print(f"[warn] could not load {path}: {e}", file=sys.stderr)
+    print(json.dumps(results))
+
+
+def _has_duplicate_classes(windows: list) -> bool:
+    seen = set()
+    for w in windows:
+        cls = w.get("class", "")
+        if cls in seen:
+            return True
+        seen.add(cls)
+    return False
+
+
+def cmd_snapshot(meta_json: str) -> None:
+    meta = json.loads(meta_json)
+    clients = live_clients()
+
+    # Per-class override data (autolaunch, launchCmd) keyed by class name
+    overrides: dict = meta.get("windowOverrides", {})
+
+    windows = []
+    for w in clients:
+        ws_id = w.get("workspace", {}).get("id", 0)
+        if ws_id < 1:          # skip scratchpad / special workspaces
+            continue
+        cls = w.get("class", "")
+        ov = overrides.get(cls, {})
+        windows.append({
+            "class":        cls,
+            "initialClass": w.get("initialClass", cls),
+            "workspaceId":  ws_id,
+            "x":            w["at"][0],
+            "y":            w["at"][1],
+            "width":        w["size"][0],
+            "height":       w["size"][1],
+            "floating":     w.get("floating", False),
+            "autolaunch":   ov.get("autolaunch", False),
+            "launchCmd":    ov.get("launchCmd", ""),
+        })
+
+    profile = {
+        "name":        meta["name"],
+        "emoji":       meta.get("emoji", "🗂️"),
+        "description": meta.get("description", ""),
+        "createdAt":   int(time.time()),
+        "windows":     windows,
+    }
+
+    slug = unique_slug(meta["name"])
+    profile["id"] = f"{slug}_{hex(int(time.time()))[2:]}"
+    write_profile(profile, slug)
+    print(slug)
+
+
+def cmd_restore(slug: str) -> None:
+    profile = load_profile(slug)
+    saved_windows: list[dict] = profile.get("windows", [])
+
+    if not saved_windows:
+        print("ok")
+        return
+
+    # ── Step 1: gather live clients with their addresses ──────────────────────
+    clients = live_clients()
+
+    # Group live windows by class → list of {address, workspace_id}
+    live_by_class: dict[str, list[dict]] = {}
+    for c in clients:
+        cls = c.get("class", "")
+        live_by_class.setdefault(cls, []).append({
+            "address":      c["address"],
+            "workspace_id": c.get("workspace", {}).get("id", 0),
+            "width":        c["size"][0],
+            "height":       c["size"][1],
+        })
+
+    # ── Step 2: group saved entries by class ──────────────────────────────────
+    saved_by_class: dict[str, list[dict]] = {}
+    for sw in saved_windows:
+        saved_by_class.setdefault(sw["class"], []).append(sw)
+
+    # ── Step 3: pair saved → live (address used only during this session) ─────
+    # Heuristic: for each saved entry pick the live window whose current
+    # workspace_id is closest to the target workspace (fewest moves).
+    # Ties broken by closest size area.  Assigned addresses are removed from
+    # the pool so two identical-class windows are never aliased.
+    assigned: set[str] = set()
+    pairs: list[tuple[dict, str]] = []   # (saved_window, live_address)
+
+    for cls, saved_list in saved_by_class.items():
+        available = [lw for lw in live_by_class.get(cls, [])
+                     if lw["address"] not in assigned]
+
+        for sw in saved_list:
+            if not available:
+                # Optional autolaunch
+                if sw.get("autolaunch"):
+                    launch_cmd = sw.get("launchCmd")
+                    if not launch_cmd:
+                        raw_cmd = sw.get("initialClass") or sw.get("class") or ""
+                        # Map common window classes to their correct binary/executable commands
+                        class_mappings = {
+                            "brave-browser": "brave",
+                            "Brave-browser": "brave",
+                            "Navigator": "firefox",
+                            "firefox-esr": "firefox",
+                            "google-chrome": "google-chrome-stable",
+                            "chrome": "google-chrome-stable",
+                        }
+                        launch_cmd = class_mappings.get(raw_cmd) or raw_cmd
+                    if launch_cmd:
+                        subprocess.Popen(
+                            launch_cmd,
+                            shell=True,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            stdin=subprocess.DEVNULL,
+                            start_new_session=True
+                        )
+                        # Poll for up to 3.0 seconds (15 * 0.2s) for window creation
+                        for _ in range(15):
+                            time.sleep(0.2)
+                            fresh = live_clients()
+                            available = [
+                                {"address": c["address"],
+                                 "workspace_id": c.get("workspace", {}).get("id", 0),
+                                 "width": c["size"][0],
+                                 "height": c["size"][1]}
+                                for c in fresh
+                                if c.get("class") == cls
+                                and c["address"] not in assigned
+                            ]
+                            if available:
+                                break
+                if not available:
+                    print(f"[warn] no live window for class '{cls}', skipping",
+                          file=sys.stderr)
+                    continue
+
+            target_ws = sw["workspaceId"]
+            saved_area = sw["width"] * sw["height"]
+
+            def score(lw):
+                ws_dist = abs(lw["workspace_id"] - target_ws)
+                area_diff = abs(lw["width"] * lw["height"] - saved_area)
+                return (ws_dist, area_diff)
+
+            best = min(available, key=score)
+            assigned.add(best["address"])
+            available.remove(best)
+            pairs.append((sw, best["address"]))
+
+    # ── Step 4: dispatch using ephemeral addresses ────────────────────────────
+    errors = 0
+    for sw, addr in pairs:
+        target_ws = sw["workspaceId"]
+        addr_clean = addr if addr.startswith("0x") else f"0x{addr}"
+        addr_sel = f"address:{addr_clean}"
+
+        # 1. Move to workspace (silent = don't focus that workspace)
+        rc, _, err = hyprctl("dispatch", f'hl.dsp.window.move({{ workspace = {target_ws}, window = "{addr_sel}", follow = false }})')
+        if rc != 0:
+            print(f"[warn] hl.dsp.window.move failed for {addr_sel}: {err.strip()}",
+                  file=sys.stderr)
+            errors += 1
+            continue
+
+        time.sleep(0.04)
+
+        # 2. Float status enforcement
+        float_action = "set" if sw.get("floating") else "disable"
+        rc, _, err = hyprctl("dispatch", f'hl.dsp.window.float({{ action = "{float_action}", window = "{addr_sel}" }})')
+        if rc != 0:
+            print(f"[warn] hl.dsp.window.float ({float_action}) failed for {addr_sel}: {err.strip()}",
+                  file=sys.stderr)
+            errors += 1
+            continue
+
+        time.sleep(0.04)
+
+        # 3. Resize window
+        rc, _, err = hyprctl("dispatch", f'hl.dsp.window.resize({{ x = {sw["width"]}, y = {sw["height"]}, relative = false, window = "{addr_sel}" }})')
+        if rc != 0:
+            print(f"[warn] hl.dsp.window.resize failed for {addr_sel}: {err.strip()}",
+                  file=sys.stderr)
+            errors += 1
+            continue
+
+        time.sleep(0.04)
+
+        # 4. Reposition floating windows
+        if sw.get("floating"):
+            rc, _, err = hyprctl("dispatch", f'hl.dsp.window.move({{ x = {sw["x"]}, y = {sw["y"]}, relative = false, window = "{addr_sel}" }})')
+            if rc != 0:
+                print(f"[warn] hl.dsp.window.move coordinates failed for {addr_sel}: {err.strip()}",
+                      file=sys.stderr)
+                errors += 1
+                continue
+
+    if errors == 0:
+        print("ok")
+    else:
+        print(f"partial:{errors}")
+
+
+def cmd_delete(slug: str) -> None:
+    path = PROFILES_DIR / f"{slug}.json"
+    path.unlink(missing_ok=True)
+
+
+def cmd_update_window(slug: str, idx_str: str, autolaunch_str: str, launch_cmd: str) -> None:
+    profile = load_profile(slug)
+    windows = profile.get("windows", [])
+    try:
+        idx = int(idx_str)
+    except ValueError:
+        print("[error] invalid window index", file=sys.stderr)
+        sys.exit(1)
+
+    if idx < 0 or idx >= len(windows):
+        print("[error] window index out of range", file=sys.stderr)
+        sys.exit(1)
+
+    autolaunch = autolaunch_str.lower() in ("true", "1", "yes")
+    windows[idx]["autolaunch"] = autolaunch
+    windows[idx]["launchCmd"] = launch_cmd.strip()
+
+    write_profile(profile, slug)
+    print("ok")
+
+
+def cmd_rename(old_slug: str, new_name: str) -> None:
+    profile = load_profile(old_slug)
+    profile["name"] = new_name
+    new_slug = unique_slug(new_name, exclude=old_slug)
+    # Remove old file first so unique_slug can reuse the old slug if the name
+    # didn't actually change (e.g. only capitalisation changed).
+    old_path = PROFILES_DIR / f"{old_slug}.json"
+    old_path.unlink(missing_ok=True)
+    write_profile(profile, new_slug)
+    print(new_slug)
+
+
+# ─── entry point ──────────────────────────────────────────────────────────────
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        print(__doc__, file=sys.stderr)
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+
+    if cmd == "list":
+        cmd_list()
+
+    elif cmd == "snapshot" and len(sys.argv) >= 3:
+        cmd_snapshot(sys.argv[2])
+
+    elif cmd == "restore" and len(sys.argv) >= 3:
+        cmd_restore(sys.argv[2])
+
+    elif cmd == "delete" and len(sys.argv) >= 3:
+        cmd_delete(sys.argv[2])
+
+    elif cmd == "rename" and len(sys.argv) >= 4:
+        cmd_rename(sys.argv[2], sys.argv[3])
+
+    elif cmd == "update_window" and len(sys.argv) >= 6:
+        cmd_update_window(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+
+    else:
+        print(f"[error] unknown command or missing args: {sys.argv[1:]}",
+              file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
