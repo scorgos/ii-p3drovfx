@@ -89,6 +89,7 @@ def cmd_list() -> None:
                 "emoji":       data.get("emoji", "🗂️"),
                 "description": data.get("description", ""),
                 "createdAt":   data.get("createdAt", 0),
+                "closeOthers": data.get("closeOthers", False),
                 "windowCount": len(windows),
                 "workspaceIdsJson": json.dumps(workspace_ids),
                 "windowsJson": json.dumps(windows),
@@ -141,6 +142,7 @@ def cmd_snapshot(meta_json: str) -> None:
         "emoji":       meta.get("emoji", "🗂️"),
         "description": meta.get("description", ""),
         "createdAt":   int(time.time()),
+        "closeOthers": meta.get("closeOthers", False),
         "windows":     windows,
     }
 
@@ -295,6 +297,20 @@ def cmd_restore(slug: str) -> None:
                 errors += 1
                 continue
 
+    # ── Step 5: optionally close all other windows ────────────────────────────
+    if profile.get("closeOthers", False):
+        final_clients = live_clients()
+        assigned_clean = {a if a.startswith("0x") else f"0x{a}" for a in assigned}
+        for c in final_clients:
+            addr = c["address"]
+            addr_clean = addr if addr.startswith("0x") else f"0x{addr}"
+            if addr_clean not in assigned_clean:
+                ws_id = c.get("workspace", {}).get("id", 0)
+                if ws_id >= 1:
+                    addr_sel = f"address:{addr_clean}"
+                    hyprctl("dispatch", f'hl.dsp.window.close({{ window = "{addr_sel}" }})')
+                    time.sleep(0.02)
+
     if errors == 0:
         print("ok")
     else:
@@ -323,6 +339,14 @@ def cmd_update_window(slug: str, idx_str: str, autolaunch_str: str, launch_cmd: 
     windows[idx]["autolaunch"] = autolaunch
     windows[idx]["launchCmd"] = launch_cmd.strip()
 
+    write_profile(profile, slug)
+    print("ok")
+
+
+def cmd_update_profile(slug: str, close_others_str: str) -> None:
+    profile = load_profile(slug)
+    close_others = close_others_str.lower() in ("true", "1", "yes")
+    profile["closeOthers"] = close_others
     write_profile(profile, slug)
     print("ok")
 
@@ -365,6 +389,9 @@ def main() -> None:
 
     elif cmd == "update_window" and len(sys.argv) >= 6:
         cmd_update_window(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+
+    elif cmd == "update_profile" and len(sys.argv) >= 4:
+        cmd_update_profile(sys.argv[2], sys.argv[3])
 
     else:
         print(f"[error] unknown command or missing args: {sys.argv[1:]}",

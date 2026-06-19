@@ -26,6 +26,7 @@ Item {
     required property string workspaceIdsJson
     required property string windowsJson
     required property bool   hasDuplicateClasses
+    required property bool   closeOthers
  
     // ── internal state ──────────────────────────────────────────────────────
     property bool isRestoring: WorkspaceProfileService.restoring
@@ -462,6 +463,32 @@ Item {
                     color: root.colOnSurface
                     Layout.leftMargin: 2
                 }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Layout.leftMargin: 2
+                    Layout.rightMargin: 2
+
+                    StyledText {
+                        text: "Close all other windows on restore"
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: root.colOnSurface
+                        Layout.fillWidth: true
+                    }
+
+                    StyledSwitch {
+                        checked: root.closeOthers
+                        onCheckedChanged: {
+                            if (checked !== root.closeOthers) {
+                                WorkspaceProfileService.updateProfileOptions(root.slug, checked)
+                            }
+                        }
+                    }
+                }
+
+                // Sub-divider or spacer
+                Item { Layout.preferredHeight: 2 }
 
                 // Repeater of windows
                 Repeater {

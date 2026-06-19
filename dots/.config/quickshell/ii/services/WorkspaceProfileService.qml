@@ -81,6 +81,14 @@ Singleton {
         updateWindowProc.running = true;
     }
 
+    function updateProfileOptions(slug, closeOthers) {
+        updateProfileProc.command = [
+            "python3", root.scriptPath, "update_profile",
+            slug, closeOthers ? "true" : "false"
+        ];
+        updateProfileProc.running = true;
+    }
+
     // ── internal processes ───────────────────────────────────────────────────
 
     // list
@@ -172,6 +180,19 @@ Singleton {
             id: updateWindowCollector
             onStreamFinished: {
                 const out = updateWindowCollector.text.trim();
+                if (out === "ok") {
+                    root.refresh();
+                }
+            }
+        }
+    }
+
+    Process {
+        id: updateProfileProc
+        stdout: StdioCollector {
+            id: updateProfileCollector
+            onStreamFinished: {
+                const out = updateProfileCollector.text.trim();
                 if (out === "ok") {
                     root.refresh();
                 }
