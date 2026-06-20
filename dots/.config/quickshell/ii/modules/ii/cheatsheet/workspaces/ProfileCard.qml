@@ -27,7 +27,7 @@ Item {
     required property string windowsJson
     required property bool   hasDuplicateClasses
     required property bool   closeOthers
- 
+
     // ── internal state ──────────────────────────────────────────────────────
     property bool isRestoring: WorkspaceProfileService.restoring
     property bool restoreSuccess: false
@@ -108,7 +108,7 @@ Item {
         radius: Appearance.rounding.large
         color: hoverHandler.hovered ? root.colBgHover : root.colBg
         border { width: 1; color: root.colBorder }
-        implicitHeight: cardLayout.implicitHeight + 28
+        implicitHeight: cardLayout.implicitHeight + 36
 
         Behavior on color {
             ColorAnimation { duration: Appearance.animation.elementMoveFast.duration }
@@ -129,7 +129,7 @@ Item {
 
                 // emoji badge
                 Rectangle {
-                    implicitWidth: 38; implicitHeight: 38
+                    implicitWidth: 36; implicitHeight: 36
                     radius: Appearance.rounding.normal
                     color: Appearance.colors.colPrimaryContainer
 
@@ -159,7 +159,7 @@ Item {
                     StyledText {
                         visible: root.createdAt > 0
                         text: root.createdAt > 0 ? _dateString(root.createdAt) : ""
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.pixelSize: Appearance.font.pixelSize.small
                         color: root.colSubtle
                     }
                 }
@@ -172,7 +172,7 @@ Item {
                     placeholderText: "Profile name…"
                     onTextChanged: root.editNameValue = text
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    implicitHeight: 38
+                    implicitHeight: 36
                     onVisibleChanged: {
                         if (visible) {
                             forceActiveFocus();
@@ -195,7 +195,7 @@ Item {
 
                     // rename button
                     RippleButton {
-                        implicitWidth: 32; implicitHeight: 32
+                        implicitWidth: 36; implicitHeight: 36
                         buttonRadius: Appearance.rounding.full
                         colBackground: Appearance.colors.colSecondaryContainer
                         colBackgroundHover: Appearance.colors.colSecondaryContainerHover
@@ -214,7 +214,7 @@ Item {
 
                     // delete button (shows confirm inline)
                     RippleButton {
-                        implicitWidth: 32; implicitHeight: 32
+                        implicitWidth: 36; implicitHeight: 36
                         buttonRadius: Appearance.rounding.full
                         colBackground: root.showDeleteConfirm
                             ? Appearance.colors.colError
@@ -254,7 +254,7 @@ Item {
                     visible: root.isEditing
 
                     RippleButton {
-                        implicitWidth: 32; implicitHeight: 32
+                        implicitWidth: 36; implicitHeight: 36
                         buttonRadius: Appearance.rounding.full
                         colBackground: Appearance.colors.colPrimary
                         colBackgroundHover: Appearance.colors.colPrimaryHover
@@ -271,7 +271,7 @@ Item {
                         }
                     }
                     RippleButton {
-                        implicitWidth: 32; implicitHeight: 32
+                        implicitWidth: 36; implicitHeight: 36
                         buttonRadius: Appearance.rounding.full
                         colBackground: Appearance.colors.colLayer2
                         onClicked: root.isEditing = false
@@ -291,7 +291,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 2
                 text: root.description
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: Appearance.font.pixelSize.small
                 color: root.colSubtle
                 wrapMode: Text.WordWrap
             }
@@ -308,13 +308,13 @@ Item {
                         radius: Appearance.rounding.full
                         color: root.colChipBg
                         implicitWidth: chipLabel.implicitWidth + 16
-                        implicitHeight: 22
+                        implicitHeight: 36
 
                         StyledText {
                             id: chipLabel
                             anchors.centerIn: parent
                             text: root.getWorkspaceApps(modelData)
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: Appearance.font.pixelSize.small
                             color: root.colChipText
                         }
                     }
@@ -326,7 +326,7 @@ Item {
                     radius: Appearance.rounding.full
                     color: root.colWarnBg
                     implicitWidth: warnRow.implicitWidth + 14
-                    implicitHeight: 22
+                    implicitHeight: 36
 
                     HoverHandler { id: warnHover }
 
@@ -337,12 +337,12 @@ Item {
 
                         MaterialSymbol {
                             text: "info"
-                            iconSize: Appearance.font.pixelSize.smaller
+                            iconSize: Appearance.font.pixelSize.small
                             color: root.colWarnText
                         }
                         StyledText {
                             text: "best-effort"
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: Appearance.font.pixelSize.small
                             color: root.colWarnText
                         }
                     }
@@ -359,14 +359,14 @@ Item {
                 // window count chip
                 StyledText {
                     text: `${root.windowCount} window${root.windowCount !== 1 ? "s" : ""}`
-                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.pixelSize: Appearance.font.pixelSize.small
                     color: root.colSubtle
                 }
 
                 // age
                 StyledText {
                     text: root.createdAt > 0 ? _ageString(root.createdAt) : ""
-                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.pixelSize: Appearance.font.pixelSize.small
                     color: root.colSubtle
                 }
             }
@@ -378,7 +378,7 @@ Item {
 
                 // settings button to expand
                 RippleButton {
-                    implicitWidth: 32; implicitHeight: 32
+                    implicitWidth: 36; implicitHeight: 36
                     buttonRadius: Appearance.rounding.full
                     colBackground: root.expanded
                         ? Appearance.colors.colSecondaryContainer
@@ -389,6 +389,27 @@ Item {
                         anchors.centerIn: parent
                         text: root.expanded ? "expand_less" : "settings"
                         iconSize: Appearance.font.pixelSize.normal
+                        color: root.colOnSurface
+                    }
+                }
+
+                // Close other windows switch (visible even when collapsed)
+                RowLayout {
+                    spacing: 8
+                    Layout.leftMargin: 4
+
+                    StyledSwitch {
+                        checked: root.closeOthers
+                        onCheckedChanged: {
+                            if (checked !== root.closeOthers) {
+                                WorkspaceProfileService.updateProfileOptions(root.slug, checked)
+                            }
+                        }
+                    }
+
+                    StyledText {
+                        text: "Close all other windows on restore"
+                        font.pixelSize: Appearance.font.pixelSize.small
                         color: root.colOnSurface
                     }
                 }
@@ -414,7 +435,7 @@ Item {
                         text: root.restoreSuccess
                             ? "Restored"
                             : "Partially restored"
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.pixelSize: Appearance.font.pixelSize.small
                         color: root.restoreSuccess
                             ? Appearance.m3colors.m3primary
                             : Appearance.m3colors.m3tertiary
@@ -438,7 +459,7 @@ Item {
                     colBackground: Appearance.colors.colPrimary
                     colBackgroundHover: Appearance.colors.colPrimaryHover
                     buttonRadius: Appearance.rounding.full
-                    implicitHeight: 34
+                    implicitHeight: 36
 
                     onClicked: root.restoreRequested()
                 }
@@ -469,31 +490,7 @@ Item {
                     Layout.leftMargin: 2
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Layout.leftMargin: 2
-                    Layout.rightMargin: 2
 
-                    StyledText {
-                        text: "Close all other windows on restore"
-                        font.pixelSize: Appearance.font.pixelSize.small
-                        color: root.colOnSurface
-                        Layout.fillWidth: true
-                    }
-
-                    StyledSwitch {
-                        checked: root.closeOthers
-                        onCheckedChanged: {
-                            if (checked !== root.closeOthers) {
-                                WorkspaceProfileService.updateProfileOptions(root.slug, checked)
-                            }
-                        }
-                    }
-                }
-
-                // Sub-divider or spacer
-                Item { Layout.preferredHeight: 4 }
 
                 // Repeater of windows
                 Repeater {
@@ -547,11 +544,30 @@ Item {
                                 verticalAlignment: TextInput.AlignVCenter
                                 topPadding: 0
                                 bottomPadding: 0
-                                text: modelData.workspaceId.toString()
-                                validator: IntValidator { bottom: 1; top: 20 }
+                                text: {
+                                    let ws = modelData.workspaceId;
+                                    if (typeof ws === "string" && ws.startsWith("special")) {
+                                        return "sp";
+                                    }
+                                    if (typeof ws === "number" && ws < 0) {
+                                        return "sp";
+                                    }
+                                    return ws.toString();
+                                }
+                                validator: RegularExpressionValidator {
+                                    regularExpression: /^(SP|sp|[1-9]|1[0-9]|20)$/
+                                }
                                 onEditingFinished: {
-                                    let val = parseInt(text);
-                                    if (!isNaN(val) && val !== modelData.workspaceId) {
+                                    let val = text.trim();
+                                    if (val.toLowerCase() === "sp" || val.toLowerCase() === "special") {
+                                        val = "special:special";
+                                    } else {
+                                        let parsed = parseInt(val);
+                                        if (!isNaN(parsed)) {
+                                            val = parsed;
+                                        }
+                                    }
+                                    if (val !== modelData.workspaceId) {
                                         WorkspaceProfileService.updateWindowWorkspace(
                                             root.slug,
                                             index,
@@ -598,7 +614,7 @@ Item {
                             topPadding: 0
                             bottomPadding: 0
                             text: modelData.launchCmd || ""
-                            placeholderText: activeFocus ? "" : ("Custom command/args for " + root.cleanAppName(modelData.initialClass || modelData.class))
+                            placeholderText: "Arguments for " + root.cleanAppName(modelData.initialClass || modelData.class)
                             enabled: modelData.autolaunch || false
 
                             onEditingFinished: {
@@ -650,7 +666,7 @@ Item {
                         colBackground: Appearance.colors.colLayer2
                         colBackgroundHover: Appearance.colors.colLayer2Hover
                         buttonRadius: Appearance.rounding.full
-                        implicitHeight: 34
+                        implicitHeight: 36
                         onClicked: {
                             root.newAppClass = "";
                             root.newAppWorkspace = "1";
@@ -677,7 +693,7 @@ Item {
                             verticalAlignment: TextInput.AlignVCenter
                             topPadding: 0
                             bottomPadding: 0
-                            placeholderText: activeFocus ? "" : "App class (e.g. kitty)"
+                            placeholderText: "App class (e.g. kitty)"
                             text: root.newAppClass
                             onTextChanged: root.newAppClass = text
                         }
@@ -701,7 +717,9 @@ Item {
                                 bottomPadding: 0
                                 text: root.newAppWorkspace
                                 onTextChanged: root.newAppWorkspace = text
-                                validator: IntValidator { bottom: 1; top: 20 }
+                                validator: RegularExpressionValidator {
+                                    regularExpression: /^(SP|sp|[1-9]|1[0-9]|20)$/
+                                }
                             }
                         }
 
@@ -731,7 +749,7 @@ Item {
                             verticalAlignment: TextInput.AlignVCenter
                             topPadding: 0
                             bottomPadding: 0
-                            placeholderText: activeFocus ? "" : "Launch cmd (optional)"
+                            placeholderText: "Arguments (optional)"
                             text: root.newAppLaunchCmd
                             onTextChanged: root.newAppLaunchCmd = text
                             enabled: root.newAppAutolaunch
@@ -750,8 +768,14 @@ Item {
                                 colBackgroundHover: Appearance.colors.colPrimaryHover
                                 enabled: root.newAppClass.trim().length > 0 && root.newAppWorkspace.trim().length > 0
                                 onClicked: {
-                                    let ws = parseInt(root.newAppWorkspace.trim());
-                                    if (isNaN(ws)) ws = 1;
+                                    let ws = root.newAppWorkspace.trim();
+                                    if (ws.toLowerCase() === "sp" || ws.toLowerCase() === "special") {
+                                        ws = "special:special";
+                                    } else {
+                                        let parsed = parseInt(ws);
+                                        if (!isNaN(parsed)) ws = parsed;
+                                        else ws = 1;
+                                    }
                                     WorkspaceProfileService.addWindow(
                                         root.slug,
                                         root.newAppClass.trim(),
@@ -813,7 +837,7 @@ Item {
         if (name === "inkscape") return "Inkscape";
         if (name === "libreoffice-writer") return "Writer";
         if (name === "libreoffice-calc") return "Calc";
-        
+
         name = name.replace(/[-_]/g, " ");
         return name.charAt(0).toUpperCase() + name.slice(1);
     }
@@ -828,7 +852,7 @@ Item {
                 }
             }
         }
-        return apps.length > 0 ? apps.join(", ") : `ws ${wsId}`;
+        return apps.length > 0 ? apps.join(", ") : ((typeof wsId === "string" && wsId.startsWith("special")) || (typeof wsId === "number" && wsId < 0) ? "scratchpad" : `ws ${wsId}`);
     }
 
     function getDefaultLaunchCmd(cls) {

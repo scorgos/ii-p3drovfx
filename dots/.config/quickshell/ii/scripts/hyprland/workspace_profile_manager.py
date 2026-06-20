@@ -23,6 +23,38 @@ PROFILES_DIR = Path.home() / ".config" / "illogical-impulse" / "workspace_profil
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
+def workspace_sort_key(ws_val):
+    if isinstance(ws_val, int):
+        return (0, ws_val)
+    elif isinstance(ws_val, str):
+        if ws_val.isdigit():
+            return (0, int(ws_val))
+        return (1, ws_val)
+    return (2, str(ws_val))
+
+
+def is_special_workspace(ws) -> bool:
+    if isinstance(ws, str):
+        return ws.startswith("special")
+    if isinstance(ws, int):
+        return ws < 0
+    return False
+
+
+def get_dispatcher_workspace(ws_val, clients_list) -> str:
+    if isinstance(ws_val, int):
+        if ws_val < 0:
+            for c in clients_list:
+                ws = c.get("workspace", {})
+                if ws.get("id") == ws_val and ws.get("name"):
+                    return f'"{ws["name"]}"'
+            return '"special:special"'
+        return str(ws_val)
+    elif isinstance(ws_val, str):
+        return f'"{ws_val}"'
+    return str(ws_val)
+
+
 def slugify(name: str) -> str:
     slug = name.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
@@ -81,7 +113,7 @@ def cmd_list() -> None:
             with open(path) as f:
                 data = json.load(f)
             windows = data.get("windows", [])
-            workspace_ids = sorted(set(w["workspaceId"] for w in windows))
+            workspace_ids = sorted(set(w["workspaceId"] for w in windows), key=workspace_sort_key)
             results.append({
                 "slug":        path.stem,
                 "id":          data.get("id", path.stem),
@@ -119,9 +151,17 @@ def cmd_snapshot(meta_json: str) -> None:
 
     windows = []
     for w in clients:
-        ws_id = w.get("workspace", {}).get("id", 0)
-        if ws_id < 1:          # skip scratchpad / special workspaces
+        ws = w.get("workspace", {})
+        ws_id = ws.get("id", 0)
+        ws_name = ws.get("name", "")
+        if ws_id == 0:          # skip invalid/empty workspaces
             continue
+        
+        # Save negative IDs or special names as string "special:special"
+        if ws_name.startswith("special:") or ws_id < 0:
+            target_ws = ws_name if ws_name else "special:special"
+        else:
+            target_ws = ws_id
         cls = w.get("class", "")
         ov = overrides.get(cls, {})
         windows.append({
@@ -170,6 +210,7 @@ def cmd_restore(slug: str) -> None:
         live_by_class.setdefault(cls, []).append({
             "address":      c["address"],
             "workspace_id": c.get("workspace", {}).get("id", 0),
+            "workspace_name": c.get("workspace", {}).get("name", ""),
             "width":        c["size"][0],
             "height":       c["size"][1],
         })
@@ -224,6 +265,7 @@ def cmd_restore(slug: str) -> None:
                             available = [
                                 {"address": c["address"],
                                  "workspace_id": c.get("workspace", {}).get("id", 0),
+                                 "workspace_name": c.get("workspace", {}).get("name", ""),
                                  "width": c["size"][0],
                                  "height": c["size"][1]}
                                 for c in fresh
@@ -241,7 +283,19 @@ def cmd_restore(slug: str) -> None:
             saved_area = sw["width"] * sw["height"]
 
             def score(lw):
-                ws_dist = abs(lw["workspace_id"] - target_ws)
+                lw_special = lw["workspace_id"] < 0
+                target_special = is_special_workspace(target_ws)
+                
+                if lw_special != target_special:
+                    ws_dist = 100
+                else:
+                    if target_special:
+                        if isinstance(target_ws, str):
+                            ws_dist = 0 if lw["workspace_name"] == target_ws else 10
+                        else:
+                            ws_dist = abs(lw["workspace_id"] - target_ws)
+                    else:
+                        ws_dist = abs(lw["workspace_id"] - target_ws)
                 area_diff = abs(lw["width"] * lw["height"] - saved_area)
                 return (ws_dist, area_diff)
 
@@ -257,8 +311,10 @@ def cmd_restore(slug: str) -> None:
         addr_clean = addr if addr.startswith("0x") else f"0x{addr}"
         addr_sel = f"address:{addr_clean}"
 
+        ws_param = get_dispatcher_workspace(target_ws, clients)
+
         # 1. Move to workspace (silent = don't focus that workspace)
-        rc, _, err = hyprctl("dispatch", f'hl.dsp.window.move({{ workspace = {target_ws}, window = "{addr_sel}", follow = false }})')
+        rc, _, err = hyprctl("dispatch", f'hl.dsp.window.move({{ workspace = {ws_param}, window = "{addr_sel}", follow = false }})')
         if rc != 0:
             print(f"[warn] hl.dsp.window.move failed for {addr_sel}: {err.strip()}",
                   file=sys.stderr)
@@ -357,7 +413,7 @@ def cmd_add_window(slug: str, class_name: str, workspace_str: str, autolaunch_st
     try:
         ws = int(workspace_str)
     except ValueError:
-        ws = 1
+        ws = workspace_str.strip()
     autolaunch = autolaunch_str.lower() in ("true", "1", "yes")
     windows.append({
         "class": class_name.strip(),
@@ -396,13 +452,18 @@ def cmd_update_window_workspace(slug: str, idx_str: str, workspace_str: str) -> 
     windows = profile.get("windows", [])
     try:
         idx = int(idx_str)
-        ws = int(workspace_str)
     except ValueError:
-        print("[error] invalid index or workspace", file=sys.stderr)
+        print("[error] invalid index", file=sys.stderr)
         sys.exit(1)
     if idx < 0 or idx >= len(windows):
         print("[error] window index out of range", file=sys.stderr)
         sys.exit(1)
+    
+    try:
+        ws = int(workspace_str)
+    except ValueError:
+        ws = workspace_str.strip()
+        
     windows[idx]["workspaceId"] = ws
     write_profile(profile, slug)
     print("ok")
