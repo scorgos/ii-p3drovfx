@@ -318,6 +318,7 @@ Item {
                             if (visible) {
                                 formEnterOp.start()
                                 formEnterScale.start()
+                                nameField.forceActiveFocus()
                             }
                         }
                         NumberAnimation {
@@ -584,6 +585,21 @@ Item {
         }
     }
 
+    function triggerDeleteShortcut(index) {
+        if (!root.visible || WorkspaceProfileService.restoring) return;
+        var count = 0;
+        for (var i = 0; i < profileRepeater.count; i++) {
+            var card = profileRepeater.itemAt(i);
+            if (card && card.visible) {
+                if (count === index) {
+                    card.requestDeleteAction();
+                    return;
+                }
+                count++;
+            }
+        }
+    }
+
     Shortcut { sequence: "Ctrl+1"; onActivated: root.triggerShortcut(0) }
     Shortcut { sequence: "Ctrl+2"; onActivated: root.triggerShortcut(1) }
     Shortcut { sequence: "Ctrl+3"; onActivated: root.triggerShortcut(2) }
@@ -593,6 +609,25 @@ Item {
     Shortcut { sequence: "Ctrl+7"; onActivated: root.triggerShortcut(6) }
     Shortcut { sequence: "Ctrl+8"; onActivated: root.triggerShortcut(7) }
     Shortcut { sequence: "Ctrl+9"; onActivated: root.triggerShortcut(8) }
+
+    Shortcut { sequence: "Ctrl+Alt+1"; onActivated: root.triggerDeleteShortcut(0) }
+    Shortcut { sequence: "Ctrl+Alt+2"; onActivated: root.triggerDeleteShortcut(1) }
+    Shortcut { sequence: "Ctrl+Alt+3"; onActivated: root.triggerDeleteShortcut(2) }
+    Shortcut { sequence: "Ctrl+Alt+4"; onActivated: root.triggerDeleteShortcut(3) }
+    Shortcut { sequence: "Ctrl+Alt+5"; onActivated: root.triggerDeleteShortcut(4) }
+    Shortcut { sequence: "Ctrl+Alt+6"; onActivated: root.triggerDeleteShortcut(5) }
+    Shortcut { sequence: "Ctrl+Alt+7"; onActivated: root.triggerDeleteShortcut(6) }
+    Shortcut { sequence: "Ctrl+Alt+8"; onActivated: root.triggerDeleteShortcut(7) }
+    Shortcut { sequence: "Ctrl+Alt+9"; onActivated: root.triggerDeleteShortcut(8) }
+
+    Shortcut {
+        sequence: "Ctrl+N"
+        onActivated: {
+            if (!root.visible || WorkspaceProfileService.restoring) return;
+            root.showNewForm = true;
+            nameField.forceActiveFocus();
+        }
+    }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 

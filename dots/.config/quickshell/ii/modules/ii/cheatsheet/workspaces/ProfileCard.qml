@@ -50,6 +50,15 @@ Item {
     signal renameRequested(string newName)
     signal toggleExpandedRequested()
 
+    function requestDeleteAction() {
+        if (root.showDeleteConfirm) {
+            root.deleteRequested();
+        } else {
+            root.showDeleteConfirm = true;
+            deleteConfirmResetTimer.restart();
+        }
+    }
+
     readonly property var workspaceIds: {
         try { return JSON.parse(workspaceIdsJson); } catch(e) { return []; }
     }
@@ -243,15 +252,15 @@ Item {
                 Rectangle {
                     visible: !root.isEditing && root.shortcutHint !== ""
                     color: Appearance.colors.colSurfaceContainerHighest
-                    radius: 4
-                    implicitWidth: scText.implicitWidth + 8
-                    implicitHeight: 20
-                    Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                    radius: Appearance.rounding.verysmall
+                    implicitWidth: scText.implicitWidth + 10
+                    implicitHeight: 22
+                    Layout.alignment: Qt.AlignVCenter
                     StyledText {
                         id: scText
                         anchors.centerIn: parent
                         text: root.shortcutHint
-                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        font.pixelSize: Appearance.font.pixelSize.smaller
                         color: Appearance.colors.colOnSurfaceVariant
                         font.weight: Font.Bold
                     }
