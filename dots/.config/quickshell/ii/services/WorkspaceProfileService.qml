@@ -31,12 +31,12 @@ Singleton {
     signal deleteFinished(bool success)
 
     // ── paths ────────────────────────────────────────────────────────────────
-    readonly property string scriptPath: `${Directories.scriptPath}/hyprland/workspace_profile_manager.py`
+    readonly property string scriptPath: `${Directories.scriptPath}/hyprland/workspace_profile_manager`
 
     // ── public API ───────────────────────────────────────────────────────────
 
     function refresh() {
-        listProc.command = ["python3", root.scriptPath, "list"];
+        listProc.command = [root.scriptPath, "list"];
         listProc.running = true;
     }
 
@@ -47,7 +47,7 @@ Singleton {
             description:    description || "",
             windowOverrides: windowOverrides || {}
         });
-        snapshotProc.command = ["python3", root.scriptPath, "snapshot", meta];
+        snapshotProc.command = [root.scriptPath, "snapshot", meta];
         snapshotProc.running = true;
     }
 
@@ -63,28 +63,28 @@ Singleton {
         }
         root.restoringSlug = slug;
         root.restoring = true;
-        restoreProc.command = ["python3", root.scriptPath, "restore", slug];
+        restoreProc.command = [root.scriptPath, "restore", slug];
         restoreProc.running = true;
     }
 
     function deleteProfile(slug) {
-        deleteProc.command = ["python3", root.scriptPath, "delete", slug];
+        deleteProc.command = [root.scriptPath, "delete", slug];
         deleteProc.running = true;
     }
 
     function renameProfile(oldSlug, newName) {
-        renameProc.command = ["python3", root.scriptPath, "rename", oldSlug, newName];
+        renameProc.command = [root.scriptPath, "rename", oldSlug, newName];
         renameProc.running = true;
     }
 
     function updateEmoji(slug, newEmoji) {
-        updateEmojiProc.command = ["python3", root.scriptPath, "update_emoji", slug, newEmoji];
+        updateEmojiProc.command = [root.scriptPath, "update_emoji", slug, newEmoji];
         updateEmojiProc.running = true;
     }
 
     function updateWindowOptions(slug, index, autolaunch, launchCmd) {
         updateWindowProc.command = [
-            "python3", root.scriptPath, "update_window",
+            root.scriptPath, "update_window",
             slug, index.toString(), autolaunch ? "true" : "false", launchCmd || ""
         ];
         updateWindowProc.running = true;
@@ -92,7 +92,7 @@ Singleton {
 
     function updateProfileOptions(slug, closeOthers) {
         updateProfileProc.command = [
-            "python3", root.scriptPath, "update_profile",
+            root.scriptPath, "update_profile",
             slug, closeOthers ? "true" : "false"
         ];
         updateProfileProc.running = true;
@@ -100,7 +100,7 @@ Singleton {
 
     function addWindow(slug, className, workspace, autolaunch, launchCmd) {
         addWindowProc.command = [
-            "python3", root.scriptPath, "add_window",
+            root.scriptPath, "add_window",
             slug, className, workspace.toString(), autolaunch ? "true" : "false", launchCmd || ""
         ];
         addWindowProc.running = true;
@@ -108,7 +108,7 @@ Singleton {
 
     function deleteWindow(slug, index) {
         deleteWindowProc.command = [
-            "python3", root.scriptPath, "delete_window",
+            root.scriptPath, "delete_window",
             slug, index.toString()
         ];
         deleteWindowProc.running = true;
@@ -116,7 +116,7 @@ Singleton {
 
     function updateWindowWorkspace(slug, index, workspace) {
         updateWindowWorkspaceProc.command = [
-            "python3", root.scriptPath, "update_window_workspace",
+            root.scriptPath, "update_window_workspace",
             slug, index.toString(), workspace.toString()
         ];
         updateWindowWorkspaceProc.running = true;
