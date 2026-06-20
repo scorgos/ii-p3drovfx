@@ -104,7 +104,14 @@ Item {
                 placeholderText: "Search profiles…"
                 text: root.filter
                 onTextChanged: root.filter = text
-                Keys.onEscapePressed: root.filter = ""
+                Keys.onEscapePressed: (event) => {
+                    if (root.filter !== "") {
+                        root.filter = "";
+                        event.accepted = true;
+                    } else {
+                        event.accepted = false;
+                    }
+                }
             }
 
             // snapshot feedback badge
@@ -414,7 +421,10 @@ Item {
                                         text: root.newName
                                         onTextChanged: root.newName = text
                                         Keys.onReturnPressed: if (root.newName.trim().length > 0) _doSnapshot()
-                                        Keys.onEscapePressed: root.showNewForm = false
+                                        Keys.onEscapePressed: (event) => {
+                                            root.showNewForm = false;
+                                            event.accepted = true;
+                                        }
                                         Component.onCompleted: if (root.showNewForm) forceActiveFocus()
                                     }
 
@@ -423,7 +433,10 @@ Item {
                                         hint: "Description (optional)…"
                                         text: root.newDesc
                                         onTextChanged: root.newDesc = text
-                                        Keys.onEscapePressed: root.showNewForm = false
+                                        Keys.onEscapePressed: (event) => {
+                                            root.showNewForm = false;
+                                            event.accepted = true;
+                                        }
                                     }
                                 }
                             }
@@ -556,27 +569,30 @@ Item {
     }
 
     // ── keyboard shortcuts ───────────────────────────────────────────────────
-    Repeater {
-        model: 9
-        delegate: Shortcut {
-            sequence: "Ctrl+" + (index + 1)
-            enabled: root.visible
-            onActivated: {
-                if (WorkspaceProfileService.restoring) return;
-                var count = 0;
-                for (var i = 0; i < profileRepeater.count; i++) {
-                    var card = profileRepeater.itemAt(i);
-                    if (card && card.visible) {
-                        if (count === index) {
-                            WorkspaceProfileService.restoreProfile(card.slug);
-                            return;
-                        }
-                        count++;
-                    }
+    function triggerShortcut(index) {
+        if (!root.visible || WorkspaceProfileService.restoring) return;
+        var count = 0;
+        for (var i = 0; i < profileRepeater.count; i++) {
+            var card = profileRepeater.itemAt(i);
+            if (card && card.visible) {
+                if (count === index) {
+                    WorkspaceProfileService.restoreProfile(card.slug);
+                    return;
                 }
+                count++;
             }
         }
     }
+
+    Shortcut { sequence: "Ctrl+1"; onActivated: root.triggerShortcut(0) }
+    Shortcut { sequence: "Ctrl+2"; onActivated: root.triggerShortcut(1) }
+    Shortcut { sequence: "Ctrl+3"; onActivated: root.triggerShortcut(2) }
+    Shortcut { sequence: "Ctrl+4"; onActivated: root.triggerShortcut(3) }
+    Shortcut { sequence: "Ctrl+5"; onActivated: root.triggerShortcut(4) }
+    Shortcut { sequence: "Ctrl+6"; onActivated: root.triggerShortcut(5) }
+    Shortcut { sequence: "Ctrl+7"; onActivated: root.triggerShortcut(6) }
+    Shortcut { sequence: "Ctrl+8"; onActivated: root.triggerShortcut(7) }
+    Shortcut { sequence: "Ctrl+9"; onActivated: root.triggerShortcut(8) }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
