@@ -471,6 +471,20 @@ Item {
                                        description.toLowerCase().includes(q)
                             }
 
+                            shortcutHint: {
+                                var _trigger = gridArea.visibleProfileCount;
+                                if (!card.visible) return "";
+                                var count = 0;
+                                for (var i = 0; i < profileRepeater.count; i++) {
+                                    var other = profileRepeater.itemAt(i);
+                                    if (other && other.visible) {
+                                        if (other === card) return count < 9 ? ("Ctrl+" + (count + 1)) : "";
+                                        count++;
+                                    }
+                                }
+                                return "";
+                            }
+
                             // ── masonry positioning ─────────────────────────
                             readonly property var _layout: {
                                 var _rev = gridArea.layoutRevision
@@ -535,6 +549,29 @@ Item {
                         interval: 400
                         repeat: false
                         onTriggered: gridArea.triggerLayout()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── keyboard shortcuts ───────────────────────────────────────────────────
+    Repeater {
+        model: 9
+        delegate: Shortcut {
+            sequence: "Ctrl+" + (index + 1)
+            enabled: root.visible
+            onActivated: {
+                if (WorkspaceProfileService.restoring) return;
+                var count = 0;
+                for (var i = 0; i < profileRepeater.count; i++) {
+                    var card = profileRepeater.itemAt(i);
+                    if (card && card.visible) {
+                        if (count === index) {
+                            WorkspaceProfileService.restoreProfile(card.slug);
+                            return;
+                        }
+                        count++;
                     }
                 }
             }

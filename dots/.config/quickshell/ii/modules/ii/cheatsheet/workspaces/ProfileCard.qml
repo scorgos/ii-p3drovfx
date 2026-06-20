@@ -29,9 +29,11 @@ Item {
     required property bool   closeOthers
 
     // ── internal state ──────────────────────────────────────────────────────
-    property bool isRestoring: WorkspaceProfileService.restoring
+    property bool isRestoring:   WorkspaceProfileService.restoring && WorkspaceProfileService.restoringSlug === root.slug
     property bool restoreSuccess: false
     property bool restorePartial: false
+
+    property string shortcutHint: ""
     property bool showDeleteConfirm: false
     property bool isEditing: false
     property string editNameValue: root.name
@@ -234,6 +236,24 @@ Item {
                         text: root.createdAt > 0 ? _dateString(root.createdAt) : ""
                         font.pixelSize: Appearance.font.pixelSize.small
                         color: root.colSubtle
+                    }
+                }
+
+                // shortcut badge
+                Rectangle {
+                    visible: !root.isEditing && root.shortcutHint !== ""
+                    color: Appearance.colors.colSurfaceContainerHighest
+                    radius: 4
+                    implicitWidth: scText.implicitWidth + 8
+                    implicitHeight: 20
+                    Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                    StyledText {
+                        id: scText
+                        anchors.centerIn: parent
+                        text: root.shortcutHint
+                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        color: Appearance.colors.colOnSurfaceVariant
+                        font.weight: Font.Bold
                     }
                 }
 
