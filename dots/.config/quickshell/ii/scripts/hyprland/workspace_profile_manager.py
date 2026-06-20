@@ -232,22 +232,18 @@ def cmd_restore(slug: str) -> None:
     for sw in saved_windows:
         saved_by_class.setdefault(sw["class"], []).append(sw)
 
-    # ── Step 3: pair saved → live (address used only during this session) ─────
-    # Heuristic: for each saved entry pick the live window whose current
-    # workspace_id is closest to the target workspace (fewest moves).
-    # Ties broken by closest size area.  Assigned addresses are removed from
-    # the pool so two identical-class windows are never aliased.
-    assigned: set[str] = set()
-    pairs: list[tuple[dict, str]] = []   # (saved_window, live_address)
-
+    # ── Step 3a: identify missing windows & launch them simultaneously ────────
+    missing_to_launch = []
     for cls, saved_list in saved_by_class.items():
-        available = [lw for lw in live_by_class.get(cls, [])
-                     if lw["address"] not in assigned]
+        # How many windows of this class are currently running?
+        available_count = len(live_by_class.get(cls, []))
+        needed_count = len(saved_list)
+        missing_count = max(0, needed_count - available_count)
 
-        for sw in saved_list:
-            if not available:
-                # Optional autolaunch
-                if sw.get("autolaunch"):
+        if missing_count > 0:
+            # Find the launch commands for the missing windows
+            for sw in saved_list:
+                if sw.get("autolaunch") and missing_count > 0:
                     launch_cmd = sw.get("launchCmd")
                     if not launch_cmd:
                         raw_cmd = sw.get("initialClass") or sw.get("class") or ""
@@ -261,35 +257,63 @@ def cmd_restore(slug: str) -> None:
                             "dev.zed.Zed": "zeditor",
                         }
                         launch_cmd = class_mappings.get(raw_cmd) or raw_cmd
+                    
                     if launch_cmd:
-                        subprocess.Popen(
-                            launch_cmd,
-                            shell=True,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            stdin=subprocess.DEVNULL,
-                            start_new_session=True
-                        )
-                        # Poll for up to 3.0 seconds (15 * 0.2s) for window creation
-                        for _ in range(15):
-                            time.sleep(0.2)
-                            fresh = live_clients()
-                            available = [
-                                {"address": c["address"],
-                                 "workspace_id": c.get("workspace", {}).get("id", 0),
-                                 "workspace_name": c.get("workspace", {}).get("name", ""),
-                                 "width": c["size"][0],
-                                 "height": c["size"][1]}
-                                for c in fresh
-                                if c.get("class") == cls
-                                and c["address"] not in assigned
-                            ]
-                            if available:
-                                break
-                if not available:
-                    print(f"[warn] no live window for class '{cls}', skipping",
-                          file=sys.stderr)
-                    continue
+                        missing_to_launch.append(launch_cmd)
+                        missing_count -= 1
+
+    # Launch all missing windows in parallel
+    for launch_cmd in missing_to_launch:
+        subprocess.Popen(
+            launch_cmd,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True
+        )
+
+    # Poll once for all launched windows (up to 3.0 seconds)
+    if missing_to_launch:
+        for _ in range(15):
+            time.sleep(0.2)
+            fresh = live_clients()
+            
+            # Rebuild live_by_class
+            live_by_class.clear()
+            for c in fresh:
+                c_cls = c.get("class", "")
+                live_by_class.setdefault(c_cls, []).append({
+                    "address":      c["address"],
+                    "workspace_id": c.get("workspace", {}).get("id", 0),
+                    "workspace_name": c.get("workspace", {}).get("name", ""),
+                    "width":        c["size"][0],
+                    "height":       c["size"][1],
+                })
+            
+            # Check if we have enough windows now
+            all_found = True
+            for cls, saved_list in saved_by_class.items():
+                if len(live_by_class.get(cls, [])) < len(saved_list):
+                    all_found = False
+                    break
+            
+            if all_found:
+                break
+
+    # ── Step 3b: pair saved → live (address used only during this session) ────
+    assigned: set[str] = set()
+    pairs: list[tuple[dict, str]] = []   # (saved_window, live_address)
+
+    for cls, saved_list in saved_by_class.items():
+        available = [lw for lw in live_by_class.get(cls, [])
+                     if lw["address"] not in assigned]
+
+        for sw in saved_list:
+            if not available:
+                print(f"[warn] no live window for class '{cls}', skipping",
+                      file=sys.stderr)
+                continue
 
             target_ws = sw["workspaceId"]
             saved_area = sw["width"] * sw["height"]
