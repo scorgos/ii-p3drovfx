@@ -600,25 +600,25 @@ Item {
         }
     }
 
-    Shortcut { sequence: "Ctrl+1"; onActivated: root.triggerShortcut(0) }
-    Shortcut { sequence: "Ctrl+2"; onActivated: root.triggerShortcut(1) }
-    Shortcut { sequence: "Ctrl+3"; onActivated: root.triggerShortcut(2) }
-    Shortcut { sequence: "Ctrl+4"; onActivated: root.triggerShortcut(3) }
-    Shortcut { sequence: "Ctrl+5"; onActivated: root.triggerShortcut(4) }
-    Shortcut { sequence: "Ctrl+6"; onActivated: root.triggerShortcut(5) }
-    Shortcut { sequence: "Ctrl+7"; onActivated: root.triggerShortcut(6) }
-    Shortcut { sequence: "Ctrl+8"; onActivated: root.triggerShortcut(7) }
-    Shortcut { sequence: "Ctrl+9"; onActivated: root.triggerShortcut(8) }
+    Shortcut { sequences: ["Ctrl+1", "Ctrl+&"]; onActivated: root.triggerShortcut(0) }
+    Shortcut { sequences: ["Ctrl+2", "Ctrl+é"]; onActivated: root.triggerShortcut(1) }
+    Shortcut { sequences: ["Ctrl+3", "Ctrl+\""]; onActivated: root.triggerShortcut(2) }
+    Shortcut { sequences: ["Ctrl+4", "Ctrl+'"]; onActivated: root.triggerShortcut(3) }
+    Shortcut { sequences: ["Ctrl+5", "Ctrl+("]; onActivated: root.triggerShortcut(4) }
+    Shortcut { sequences: ["Ctrl+6", "Ctrl+-"]; onActivated: root.triggerShortcut(5) }
+    Shortcut { sequences: ["Ctrl+7", "Ctrl+è"]; onActivated: root.triggerShortcut(6) }
+    Shortcut { sequences: ["Ctrl+8", "Ctrl+_"]; onActivated: root.triggerShortcut(7) }
+    Shortcut { sequences: ["Ctrl+9", "Ctrl+ç"]; onActivated: root.triggerShortcut(8) }
 
-    Shortcut { sequence: "Ctrl+Alt+1"; onActivated: root.triggerDeleteShortcut(0) }
-    Shortcut { sequence: "Ctrl+Alt+2"; onActivated: root.triggerDeleteShortcut(1) }
-    Shortcut { sequence: "Ctrl+Alt+3"; onActivated: root.triggerDeleteShortcut(2) }
-    Shortcut { sequence: "Ctrl+Alt+4"; onActivated: root.triggerDeleteShortcut(3) }
-    Shortcut { sequence: "Ctrl+Alt+5"; onActivated: root.triggerDeleteShortcut(4) }
-    Shortcut { sequence: "Ctrl+Alt+6"; onActivated: root.triggerDeleteShortcut(5) }
-    Shortcut { sequence: "Ctrl+Alt+7"; onActivated: root.triggerDeleteShortcut(6) }
-    Shortcut { sequence: "Ctrl+Alt+8"; onActivated: root.triggerDeleteShortcut(7) }
-    Shortcut { sequence: "Ctrl+Alt+9"; onActivated: root.triggerDeleteShortcut(8) }
+    Shortcut { sequences: ["Ctrl+Alt+1", "Ctrl+Alt+&"]; onActivated: root.triggerDeleteShortcut(0) }
+    Shortcut { sequences: ["Ctrl+Alt+2", "Ctrl+Alt+é"]; onActivated: root.triggerDeleteShortcut(1) }
+    Shortcut { sequences: ["Ctrl+Alt+3", "Ctrl+Alt+\""]; onActivated: root.triggerDeleteShortcut(2) }
+    Shortcut { sequences: ["Ctrl+Alt+4", "Ctrl+Alt+'"]; onActivated: root.triggerDeleteShortcut(3) }
+    Shortcut { sequences: ["Ctrl+Alt+5", "Ctrl+Alt+("]; onActivated: root.triggerDeleteShortcut(4) }
+    Shortcut { sequences: ["Ctrl+Alt+6", "Ctrl+Alt+-"]; onActivated: root.triggerDeleteShortcut(5) }
+    Shortcut { sequences: ["Ctrl+Alt+7", "Ctrl+Alt+è"]; onActivated: root.triggerDeleteShortcut(6) }
+    Shortcut { sequences: ["Ctrl+Alt+8", "Ctrl+Alt+_"]; onActivated: root.triggerDeleteShortcut(7) }
+    Shortcut { sequences: ["Ctrl+Alt+9", "Ctrl+Alt+ç"]; onActivated: root.triggerDeleteShortcut(8) }
 
     Shortcut {
         sequence: "Ctrl+N"
