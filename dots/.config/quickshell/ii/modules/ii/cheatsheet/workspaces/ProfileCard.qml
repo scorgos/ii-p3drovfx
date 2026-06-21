@@ -521,15 +521,34 @@ Item {
                             id: chipRect
                             radius: Appearance.rounding.full
                             color: root.colChipBg
-                            implicitWidth: chipLabel.implicitWidth + 16
+                            implicitWidth: chipRow.implicitWidth + 16
                             implicitHeight: 36
 
-                            StyledText {
-                                id: chipLabel
+                            RowLayout {
+                                id: chipRow
                                 anchors.centerIn: parent
-                                text: root.getWorkspaceApps(chipItem.modelData)
-                                font.pixelSize: Appearance.font.pixelSize.small
-                                color: root.colChipText
+                                spacing: 6
+
+                                Repeater {
+                                    model: root.getWorkspaceClasses(chipItem.modelData)
+                                    delegate: Image {
+                                        required property var modelData
+                                        sourceSize: Qt.size(16, 16)
+                                        source: {
+                                            const _ = TaskbarApps.iconThemeRevision;
+                                            return Quickshell.iconPath(AppSearch.guessIcon(modelData), "");
+                                        }
+                                        visible: source.toString() !== "" && status !== Image.Error
+                                        smooth: true
+                                    }
+                                }
+
+                                StyledText {
+                                    id: chipLabel
+                                    text: root.getWorkspaceApps(chipItem.modelData)
+                                    font.pixelSize: Appearance.font.pixelSize.small
+                                    color: root.colChipText
+                                }
                             }
                         }
                     }
@@ -830,8 +849,21 @@ Item {
                                     radius: Appearance.rounding.full
                                     color: Appearance.colors.colSecondaryContainer
 
+                                    Image {
+                                        id: appIconImg
+                                        anchors.centerIn: parent
+                                        sourceSize: Qt.size(14, 14)
+                                        source: {
+                                            const _ = TaskbarApps.iconThemeRevision;
+                                            return Quickshell.iconPath(AppSearch.guessIcon(windowRowItem.modelData.class || ""), "");
+                                        }
+                                        smooth: true
+                                        visible: source.toString() !== "" && status !== Image.Error
+                                    }
+
                                     StyledText {
                                         anchors.centerIn: parent
+                                        visible: !appIconImg.visible
                                         text: (windowRowItem.modelData.class || "?").charAt(0).toUpperCase()
                                         font {
                                             pixelSize: Appearance.font.pixelSize.smaller
@@ -1196,6 +1228,17 @@ Item {
             : ((typeof wsId === "string" && wsId.startsWith("special")) || (typeof wsId === "number" && wsId < 0)
                 ? "scratchpad"
                 : `ws ${wsId}`);
+    }
+
+    function getWorkspaceClasses(wsId) {
+        let classes = [];
+        for (const w of root.windowsList) {
+            if (w.workspaceId === wsId) {
+                let className = w.class || w.initialClass;
+                if (className && !classes.includes(className)) classes.push(className);
+            }
+        }
+        return classes;
     }
 
     function getDefaultLaunchCmd(cls) {
