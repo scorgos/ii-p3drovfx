@@ -18,7 +18,7 @@ cd ~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager_src
 cargo build --release
 
 # Replace the shipped binary with your newly compiled version
-cp target/release/workspace_profile_manager_src ../workspace_profile_manager
+cp target/release/workspace_profile_manager ../
 ```
 
 ### Data Storage

@@ -1,5 +1,5 @@
 [package]
-name = "workspace_profile_manager_src"
+name = "workspace_profile_manager"
 version = "0.1.0"
 edition = "2024"
 
