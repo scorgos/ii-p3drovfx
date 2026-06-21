@@ -27,6 +27,7 @@ Item {
     required property string windowsJson
     required property bool   hasDuplicateClasses
     required property bool   closeOthers
+    required property bool   pinned
 
     // ── internal state ──────────────────────────────────────────────────────
     property bool isRestoring:   WorkspaceProfileService.restoring && WorkspaceProfileService.restoringSlug === root.slug
@@ -51,6 +52,7 @@ Item {
     signal renameRequested(string newName)
     signal updateEmojiRequested(string newEmoji)
     signal toggleExpandedRequested()
+    signal togglePinRequested()
 
     function requestDeleteAction() {
         if (root.showDeleteConfirm) {
@@ -290,6 +292,22 @@ Item {
                 RowLayout {
                     spacing: 4
                     visible: !root.isEditing
+
+                    RippleButton {
+                        implicitWidth: 36; implicitHeight: 36
+                        buttonRadius: Appearance.rounding.full
+                        colBackground: root.pinned ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSecondaryContainer
+                        colBackgroundHover: root.pinned ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colSecondaryContainerHover
+                        onClicked: root.togglePinRequested()
+                        StyledToolTip { text: root.pinned ? "Unpin profile" : "Pin profile" }
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "push_pin"
+                            fill: root.pinned
+                            iconSize: Appearance.font.pixelSize.small
+                            color: root.pinned ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnSecondaryContainer
+                        }
+                    }
 
                     RippleButton {
                         implicitWidth: 36; implicitHeight: 36

@@ -29,7 +29,6 @@ Singleton {
     signal restoreFinished(bool success, int errors)
     signal renameFinished(bool success, string newSlug)
     signal deleteFinished(bool success)
-    signal modelReordered()
 
     // ── paths ────────────────────────────────────────────────────────────────
     readonly property string scriptPath: `${Directories.scriptPath}/hyprland/workspace_profile_manager`
@@ -170,7 +169,6 @@ Singleton {
                             }
                             root.profilesModel.set(i, arr[i]);
                         }
-                        root.modelReordered();
                     } else {
                         root.profilesModel.clear();
                         for (const p of arr) {

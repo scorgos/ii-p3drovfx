@@ -454,14 +454,6 @@ Item {
                         }
                     }
 
-                    // ── layout trigger for reordering ─────────────────────────
-                    Connections {
-                        target: WorkspaceProfileService
-                        function onModelReordered() {
-                            gridArea.triggerLayout()
-                        }
-                    }
-
                     // ── profile card repeater ─────────────────────────────────
                     Repeater {
                         id: profileRepeater
@@ -469,6 +461,8 @@ Item {
 
                         delegate: ProfileCard {
                             id: card
+
+                            onPinnedChanged: gridArea.triggerLayout()
 
                             // ── filter ──────────────────────────────────────
                             visible: {

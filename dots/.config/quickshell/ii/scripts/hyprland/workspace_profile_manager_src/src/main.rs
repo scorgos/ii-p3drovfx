@@ -54,6 +54,8 @@ struct Profile {
     #[serde(default)]
     close_others: bool,
     #[serde(default)]
+    pinned: bool,
+    #[serde(default)]
     windows: Vec<SavedWindow>,
 }
 
@@ -200,6 +202,7 @@ fn cmd_list() {
                             "description": profile.description,
                             "createdAt": profile.created_at,
                             "closeOthers": profile.close_others,
+                            "pinned": profile.pinned,
                             "windowCount": profile.windows.len(),
                             "workspaceIdsJson": serde_json::to_string(&ws_ids).unwrap(),
                             "windowsJson": serde_json::to_string(&profile.windows).unwrap(),
@@ -210,6 +213,19 @@ fn cmd_list() {
             }
         }
     }
+    
+    results.sort_by(|a, b| {
+        let a_pinned = a.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+        let b_pinned = b.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+        if a_pinned != b_pinned {
+            b_pinned.cmp(&a_pinned) // true before false
+        } else {
+            let a_time = a.get("createdAt").and_then(|v| v.as_u64()).unwrap_or(0);
+            let b_time = b.get("createdAt").and_then(|v| v.as_u64()).unwrap_or(0);
+            b_time.cmp(&a_time) // newer first
+        }
+    });
+
     println!("{}", serde_json::to_string(&results).unwrap());
 }
 
@@ -295,6 +311,7 @@ fn cmd_snapshot(meta_json: &str) {
         description: meta.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
         created_at: now,
         close_others: meta.get("closeOthers").and_then(|v| v.as_bool()).unwrap_or(false),
+        pinned: false,
         windows,
     };
     
@@ -612,6 +629,14 @@ fn cmd_update_emoji(slug: &str, new_emoji: &str) {
     }
 }
 
+fn cmd_toggle_pin(slug: &str) {
+    if let Some(mut profile) = load_profile(slug) {
+        profile.pinned = !profile.pinned;
+        write_profile(&profile, slug);
+        println!("ok");
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 { std::process::exit(1); }
@@ -628,6 +653,7 @@ fn main() {
         "add_window" if args.len() >= 7 => cmd_add_window(&args[2], &args[3], &args[4], &args[5], &args[6]),
         "delete_window" if args.len() >= 4 => cmd_delete_window(&args[2], &args[3]),
         "update_window_workspace" if args.len() >= 5 => cmd_update_window_workspace(&args[2], &args[3], &args[4]),
+        "toggle_pin" if args.len() >= 3 => cmd_toggle_pin(&args[2]),
         _ => std::process::exit(1),
     }
 }
