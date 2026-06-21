@@ -2,24 +2,19 @@
 
 ## Workspace Profile Manager
 
-The `workspace_profile_manager` is a high-performance backend written in Rust that manages saved Hyprland workspace layouts and profiles for the Cheatsheet. It communicates with `hyprctl` to capture live clients, save them as JSON profiles, and restore them upon request.
+A high-performance Rust backend that captures live Hyprland clients via `hyprctl`, saves them as JSON profiles, and restores layouts on demand. Used by the Cheatsheet.
 
-- We ship both the source code at `~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager_src` and the compiled binary at `~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager`.
+**Binary:** `~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager`
+**Source:** `~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager_src/`
 
-### Building from Source
+**Data:** Profiles are saved as JSON to `~/.config/illogical-impulse/workspace_profiles/` — safe to back up or sync across machines, and will survive dots updates.
 
-If you want to build or update the binary yourself, ensure you have Rust installed (`cargo`), then run the following commands:
+### Rebuilding from Source
+
+Only needed if you've modified the Rust source. Requires Rust/`cargo` ([install via rustup](https://rustup.rs)).
 
 ```bash
-# Navigate to the source directory
 cd ~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager_src
-
-# Build the release binary
 cargo build --release
-
-# Replace the shipped binary with your newly compiled version
 cp target/release/workspace_profile_manager ../
 ```
-
-### Data Storage
-Workspace profiles and snapshots are automatically saved to `~/.config/illogical-impulse/workspace_profiles/` as lightweight JSON files. You can safely back up or sync this folder between your machines.
