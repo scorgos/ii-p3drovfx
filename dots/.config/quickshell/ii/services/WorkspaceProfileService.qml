@@ -84,19 +84,8 @@ Singleton {
     }
 
     function updateDescription(slug, newDescription) {
-        let updateDescProc = Qt.createQmlObject('import Quickshell.Io; Process {}', root, "updateDescProc");
         updateDescProc.command = [scriptPath, "update_description", slug, newDescription];
-        let ok = false;
-        updateDescProc.stdout = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', updateDescProc);
-        updateDescProc.stdout.onStreamFinished.connect(() => {
-            if (updateDescProc.stdout.text.trim() === "ok") {
-                ok = true;
-                refresh(); // refresh UI
-            }
-            root.updateDescriptionFinished(ok);
-            updateDescProc.destroy();
-        });
-        updateDescProc.start();
+        updateDescProc.running = true;
     }
 
     function updateWindowOptions(slug, index, autolaunch, launchCmd) {
@@ -272,6 +261,21 @@ Singleton {
                 if (out === "ok") {
                     root.refresh();
                 }
+            }
+        }
+    }
+
+    Process {
+        id: updateDescProc
+        stdout: StdioCollector {
+            id: updateDescCollector
+            onStreamFinished: {
+                const out = updateDescCollector.text.trim();
+                const ok = (out === "ok");
+                if (ok) {
+                    root.refresh();
+                }
+                root.updateDescriptionFinished(ok);
             }
         }
     }

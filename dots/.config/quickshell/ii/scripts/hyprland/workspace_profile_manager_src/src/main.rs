@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::os::unix::net::UnixStream;
+use std::io::{Write, Read};
 use which::which;
 
 fn profiles_dir() -> PathBuf {
@@ -148,15 +150,44 @@ fn write_profile(profile: &Profile, slug: &str) {
 }
 
 fn hyprctl(args: &[&str]) -> (i32, String, String) {
-    let mut cmd = Command::new("hyprctl");
-    cmd.args(args);
-    if let Ok(output) = cmd.output() {
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        (output.status.code().unwrap_or(1), stdout, stderr)
+    let command = if args.len() == 2 && args[0] == "clients" && args[1] == "-j" {
+        "j/clients".to_string()
+    } else if args.len() == 2 && args[0] == "activeworkspace" && args[1] == "-j" {
+        "j/activeworkspace".to_string()
+    } else if args[0] == "dispatch" {
+        format!("/dispatch {}", args[1..].join(" "))
+    } else if args[0] == "--batch" {
+        format!("[[BATCH]]{}", args[1..].join(" "))
     } else {
-        (1, "".to_string(), "Failed to execute hyprctl".to_string())
+        args.join(" ")
+    };
+    
+    let xdg_runtime = match env::var("XDG_RUNTIME_DIR") {
+        Ok(s) => s,
+        Err(_) => return (1, "".to_string(), "XDG_RUNTIME_DIR not set".to_string()),
+    };
+    let sig = match env::var("HYPRLAND_INSTANCE_SIGNATURE") {
+        Ok(s) => s,
+        Err(_) => return (1, "".to_string(), "HYPRLAND_INSTANCE_SIGNATURE not set".to_string()),
+    };
+    
+    let path = format!("{}/hypr/{}/.socket.sock", xdg_runtime, sig);
+    
+    let mut stream = match UnixStream::connect(&path) {
+        Ok(s) => s,
+        Err(e) => return (1, "".to_string(), format!("Failed to connect to socket at {}: {}", path, e)),
+    };
+    
+    if let Err(e) = stream.write_all(command.as_bytes()) {
+        return (1, "".to_string(), e.to_string());
     }
+    
+    let mut response = String::new();
+    if let Err(e) = stream.read_to_string(&mut response) {
+        return (1, "".to_string(), e.to_string());
+    }
+    
+    (0, response, "".to_string())
 }
 
 fn live_clients() -> Vec<Value> {
@@ -233,7 +264,15 @@ fn cmd_list() {
 }
 
 fn cmd_snapshot(meta_json: &str) {
-    let meta: Value = serde_json::from_str(meta_json).expect("Invalid JSON");
+    let meta: Value = match serde_json::from_str(meta_json) {
+        Ok(v) => v,
+        Err(e) => panic!("Invalid JSON from args. Raw: '{}'. Error: {}", meta_json, e),
+    };
+    let (rc, stdout, _) = hyprctl(&["activeworkspace", "-j"]);
+    let active_ws = match serde_json::from_str::<Value>(&stdout) {
+        Ok(v) => v,
+        Err(e) => panic!("Invalid JSON from j/activeworkspace. Raw: '{}'. Error: {}", stdout, e),
+    };
     let clients = live_clients();
     let default_map = serde_json::Map::new();
     let overrides = meta.get("windowOverrides").and_then(|v| v.as_object()).unwrap_or(&default_map);
@@ -547,29 +586,22 @@ fn cmd_restore(slug: &str) {
     }
     
     let clients = live_clients();
-    let mut errors = 0;
     
+    let mut batch_commands = Vec::new();
     for (sw, addr) in pairs {
         let addr_clean = if addr.starts_with("0x") { addr.clone() } else { format!("0x{}", addr) };
         let addr_sel = format!("address:{}", addr_clean);
         let ws_param = get_dispatcher_workspace(&sw.workspace_id, &clients);
         
-        let (rc, _, _) = hyprctl(&["dispatch", &format!("hl.dsp.window.move({{ workspace = {}, window = \"{}\", follow = false }})", ws_param, addr_sel)]);
-        if rc != 0 { errors += 1; continue; }
-        thread::sleep(Duration::from_millis(40));
+        batch_commands.push(format!("dispatch hl.dsp.window.move({{ workspace = {}, window = \"{}\", follow = false }})", ws_param, addr_sel));
         
         let float_action = if sw.floating { "set" } else { "disable" };
-        let (rc, _, _) = hyprctl(&["dispatch", &format!("hl.dsp.window.float({{ action = \"{}\", window = \"{}\" }})", float_action, addr_sel)]);
-        if rc != 0 { errors += 1; continue; }
-        thread::sleep(Duration::from_millis(40));
+        batch_commands.push(format!("dispatch hl.dsp.window.float({{ action = \"{}\", window = \"{}\" }})", float_action, addr_sel));
         
-        let (rc, _, _) = hyprctl(&["dispatch", &format!("hl.dsp.window.resize({{ x = {}, y = {}, relative = false, window = \"{}\" }})", sw.width, sw.height, addr_sel)]);
-        if rc != 0 { errors += 1; continue; }
-        thread::sleep(Duration::from_millis(40));
+        batch_commands.push(format!("dispatch hl.dsp.window.resize({{ x = {}, y = {}, relative = false, window = \"{}\" }})", sw.width, sw.height, addr_sel));
         
         if sw.floating {
-            let (rc, _, _) = hyprctl(&["dispatch", &format!("hl.dsp.window.move({{ x = {}, y = {}, relative = false, window = \"{}\" }})", sw.x, sw.y, addr_sel)]);
-            if rc != 0 { errors += 1; continue; }
+            batch_commands.push(format!("dispatch hl.dsp.window.move({{ x = {}, y = {}, relative = false, window = \"{}\" }})", sw.x, sw.y, addr_sel));
         }
     }
     
@@ -589,9 +621,8 @@ fn cmd_restore(slug: &str) {
                                     Command::new("sh").arg("-c").arg(kill_cmd).spawn().ok();
                                 }
                             } else {
-                                hyprctl(&["dispatch", &format!("hl.dsp.window.close({{ window = \"address:{}\" }})", addr_clean)]);
+                                batch_commands.push(format!("dispatch hl.dsp.window.close({{ window = \"address:{}\" }})", addr_clean));
                             }
-                            thread::sleep(Duration::from_millis(20));
                         }
                     }
                 }
@@ -599,6 +630,12 @@ fn cmd_restore(slug: &str) {
         }
     }
     
+    if !batch_commands.is_empty() {
+        let batch_str = batch_commands.join(";");
+        hyprctl(&["--batch", &batch_str]);
+    }
+    
+    let errors = 0;
     if errors == 0 { println!("ok"); } else { println!("partial:{}", errors); }
 }
 
