@@ -21,7 +21,7 @@ It aims to provide a state-of-the-art Linux desktop experience by strictly adher
 
 1. Clone this repository with submodules:
 ```bash
-git clone --recurse-submodules https://github.com/P3DROVFX/ii-vynx.git
+git clone --recurse-submodules https://github.com/P3DROVFX/ii-p3drovfx.git
 ```
 
 2. Run the setup script and follow the instructions:
