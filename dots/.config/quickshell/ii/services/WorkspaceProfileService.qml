@@ -29,6 +29,7 @@ Singleton {
     signal restoreFinished(bool success, int errors)
     signal renameFinished(bool success, string newSlug)
     signal deleteFinished(bool success)
+    signal modelReordered()
 
     // ── paths ────────────────────────────────────────────────────────────────
     readonly property string scriptPath: `${Directories.scriptPath}/hyprland/workspace_profile_manager`
@@ -122,6 +123,14 @@ Singleton {
         updateWindowWorkspaceProc.running = true;
     }
 
+    function togglePin(slug) {
+        togglePinProc.command = [
+            root.scriptPath, "toggle_pin",
+            slug
+        ];
+        togglePinProc.running = true;
+    }
+
     // ── internal processes ───────────────────────────────────────────────────
 
     // list
@@ -134,9 +143,39 @@ Singleton {
                 root.loading = false;
                 try {
                     const arr = JSON.parse(listCollector.text);
-                    root.profilesModel.clear();
-                    for (const p of arr) {
-                        root.profilesModel.append(p);
+                    let oldSlugs = [];
+                    for (let i = 0; i < root.profilesModel.count; i++) {
+                        oldSlugs.push(root.profilesModel.get(i).slug);
+                    }
+                    
+                    let identicalSet = false;
+                    if (arr.length === oldSlugs.length) {
+                        let newSlugsArr = arr.map(p => p.slug);
+                        identicalSet = oldSlugs.every(s => newSlugsArr.indexOf(s) !== -1);
+                    }
+                    
+                    if (identicalSet) {
+                        let newSlugsArr = arr.map(p => p.slug);
+                        for (let i = 0; i < newSlugsArr.length; i++) {
+                            let targetSlug = newSlugsArr[i];
+                            let currentIndex = -1;
+                            for (let j = i; j < root.profilesModel.count; j++) {
+                                if (root.profilesModel.get(j).slug === targetSlug) {
+                                    currentIndex = j;
+                                    break;
+                                }
+                            }
+                            if (currentIndex > i) {
+                                root.profilesModel.move(currentIndex, i, 1);
+                            }
+                            root.profilesModel.set(i, arr[i]);
+                        }
+                        root.modelReordered();
+                    } else {
+                        root.profilesModel.clear();
+                        for (const p of arr) {
+                            root.profilesModel.append(p);
+                        }
                     }
                 } catch (e) {
                     console.warn("[WorkspaceProfileService] list parse error:", e,
@@ -280,6 +319,18 @@ Singleton {
             id: updateWindowWorkspaceCollector
             onStreamFinished: {
                 const out = updateWindowWorkspaceCollector.text.trim();
+                if (out === "ok") {
+                    root.refresh();
+                }
+            }
+        }
+    }
+    Process {
+        id: togglePinProc
+        stdout: StdioCollector {
+            id: togglePinCollector
+            onStreamFinished: {
+                const out = togglePinCollector.text.trim();
                 if (out === "ok") {
                     root.refresh();
                 }

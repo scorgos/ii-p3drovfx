@@ -454,6 +454,14 @@ Item {
                         }
                     }
 
+                    // ── layout trigger for reordering ─────────────────────────
+                    Connections {
+                        target: WorkspaceProfileService
+                        function onModelReordered() {
+                            gridArea.triggerLayout()
+                        }
+                    }
+
                     // ── profile card repeater ─────────────────────────────────
                     Repeater {
                         id: profileRepeater
@@ -530,6 +538,8 @@ Item {
                                 WorkspaceProfileService.renameProfile(slug, newName)
                             onUpdateEmojiRequested: (newEmoji) =>
                                 WorkspaceProfileService.updateEmoji(slug, newEmoji)
+                            onTogglePinRequested:
+                                WorkspaceProfileService.togglePin(slug)
                         }
                     }
 
