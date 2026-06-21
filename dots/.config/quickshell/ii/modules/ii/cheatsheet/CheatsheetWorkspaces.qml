@@ -144,7 +144,7 @@ Item {
                 id: newSnapshotBtn
                 materialIcon: root.showNewForm ? "close" : "add_a_photo"
                 materialIconFill: !root.showNewForm
-                mainText: root.showNewForm ? "Cancel" : "New snapshot"
+                mainText: root.showNewForm ? "Cancel" : "New snapshot (Ctrl+N)"
                 colText: root.showNewForm
                     ? Appearance.colors.colOnSurfaceVariant
                     : Appearance.colors.colOnPrimary
@@ -559,6 +559,23 @@ Item {
                         onTriggered: gridArea.triggerLayout()
                     }
                 }
+            }
+        }
+
+        // ── global shortcut hints ─────────────────────────────────────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: hintText.implicitHeight + 8
+            Layout.bottomMargin: 8
+            visible: WorkspaceProfileService.profilesModel.count > 0
+
+            StyledText {
+                id: hintText
+                anchors.centerIn: parent
+                text: "<b>Ctrl+[1-9]</b>: Restore  •  <b>Ctrl+Alt+[1-9]</b>: Delete"
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                color: Appearance.colors.colOnSurfaceVariant
+                textFormat: Text.RichText
             }
         }
     }
