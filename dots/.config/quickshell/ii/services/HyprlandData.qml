@@ -131,6 +131,7 @@ Singleton {
 
                 case "activewindow":
                 case "activewindowv2":
+                    root.updateWindowList();
                     root.updateWorkspaces();
                     break;
 
