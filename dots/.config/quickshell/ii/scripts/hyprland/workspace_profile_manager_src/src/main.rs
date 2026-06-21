@@ -411,7 +411,14 @@ fn cmd_restore(slug: &str) {
     }
     
     if !missing_to_launch.is_empty() {
-        for _ in 0..15 {
+        let has_slow_app = missing_to_launch.iter().any(|cmd| {
+            let lower = cmd.to_lowercase();
+            lower.contains("steam") || lower.contains("discord") || lower.contains("spotify") || lower.contains("slack")
+        });
+        
+        let iterations = if has_slow_app { 35 } else { 15 }; // 7s or 3s
+        
+        for _ in 0..iterations {
             thread::sleep(Duration::from_millis(200));
             let fresh = live_clients();
             live_by_class.clear();
@@ -426,7 +433,7 @@ fn cmd_restore(slug: &str) {
                     break;
                 }
             }
-            if all_found { break; }
+            if all_found && !has_slow_app { break; }
         }
     }
     
