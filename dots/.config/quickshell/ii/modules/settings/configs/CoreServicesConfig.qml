@@ -18,6 +18,24 @@ Item {
         root.activeSubPage = "";
     }
 
+    Component.onCompleted: {
+        checkPendingSubPage();
+    }
+
+    function checkPendingSubPage() {
+        if (GlobalStates.settingsPendingSubPage !== "") {
+            root.openSubPage(GlobalStates.settingsPendingSubPage);
+            GlobalStates.settingsPendingSubPage = "";
+        }
+    }
+
+    Connections {
+        target: GlobalStates
+        function onSettingsPendingSubPageChanged() {
+            root.checkPendingSubPage();
+        }
+    }
+
     ContentPage {
         id: page
         anchors.fill: parent
@@ -63,7 +81,9 @@ Item {
                 }
             }
 
-            Item { Layout.preferredHeight: 16 }
+            Item {
+                Layout.preferredHeight: 16
+            }
 
             // Group 2: Power & System
             ColumnLayout {
@@ -89,7 +109,9 @@ Item {
                 }
             }
 
-            Item { Layout.preferredHeight: 16 }
+            Item {
+                Layout.preferredHeight: 16
+            }
 
             // Group 3: Media & Communication
             ColumnLayout {
@@ -113,9 +135,20 @@ Item {
                     description: qsTr("Interface language, translator and AI")
                     onOpenCard: root.openSubPage("widgets/CoreLanguageConfig.qml")
                 }
+
+                ServiceCard {
+                    cardIcon: "checklist"
+                    cardHue: 312
+                    cardShape: "Cookie7Sided"
+                    title: qsTr("TickTick Sync")
+                    description: qsTr("Credentials and token configuration")
+                    onOpenCard: root.openSubPage("widgets/CoreTickTickConfig.qml")
+                }
             }
 
-            Item { Layout.preferredHeight: 16 }
+            Item {
+                Layout.preferredHeight: 16
+            }
 
             // Group 4: Environment
             ColumnLayout {
@@ -141,7 +174,9 @@ Item {
                 }
             }
 
-            Item { Layout.preferredHeight: 16 }
+            Item {
+                Layout.preferredHeight: 16
+            }
 
             // Group 5: Personalization
             ColumnLayout {
@@ -167,7 +202,9 @@ Item {
                 }
             }
 
-            Item { Layout.preferredHeight: 16 }
+            Item {
+                Layout.preferredHeight: 16
+            }
 
             // Group 6: Devices & Files
             ColumnLayout {
@@ -193,7 +230,9 @@ Item {
                 }
             }
 
-            Item { Layout.preferredHeight: 16 }
+            Item {
+                Layout.preferredHeight: 16
+            }
 
             // Group 7: Privacy
             ColumnLayout {

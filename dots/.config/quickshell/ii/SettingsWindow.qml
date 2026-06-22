@@ -192,8 +192,13 @@ FloatingWindow {
         target: GlobalStates
         function onSettingsOpenChanged() {
             root.visible = GlobalStates.settingsOpen;
-            if (GlobalStates.settingsOpen)
+            if (GlobalStates.settingsOpen) {
                 settingsSearchBar.forceFocus();
+                if (GlobalStates.settingsPendingPage >= 0) {
+                    root.currentPage = GlobalStates.settingsPendingPage;
+                    GlobalStates.settingsPendingPage = -1;
+                }
+            }
         }
     }
 

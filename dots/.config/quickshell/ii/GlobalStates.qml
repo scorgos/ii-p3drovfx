@@ -46,6 +46,8 @@ Singleton {
     property bool videoEditorOpen: false
     property string videoEditorPath: ""
     property bool settingsOpen: false
+    property int settingsPendingPage: -1
+    property string settingsPendingSubPage: ""
     property string activeLeftSidebarMonitor: ""
     property string activeRightSidebarMonitor: ""
     property bool policiesExtended: false
