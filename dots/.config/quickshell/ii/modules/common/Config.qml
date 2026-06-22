@@ -1007,6 +1007,13 @@ Singleton {
             property JsonObject resources: JsonObject {
                 property int updateInterval: 3000
                 property int historyLength: 60
+                // New keys (zero-cost on AMD; only NVIDIA/Intel invoke nvidia-smi one-shot)
+                property int diskInterval: 5000
+                property int gpuInterval: 3000
+                // Toggle for Docker section popup. When false, all Docker
+                // polls (docker stats, docker ps) are suppressed and the
+                // events stream is not subscribed.
+                property bool enableDocker: true
             }
 
             property JsonObject lyricsService: JsonObject {
@@ -1021,6 +1028,15 @@ Singleton {
                 property bool invertPinnedItems: true // Makes the below a whitelist for the tray and blacklist for the pinned area
                 property list<var> pinnedItems: ["Fcitx"]
                 property bool filterPassive: true
+            }
+
+            // Settings app memory management. After the user closes the
+            // settings window, we wait `unloadAfterSeconds` and then drop
+            // the SettingsWindow component from memory. The next open
+            // rebuilds it (one-time cold-boot cost). Set to 0 to keep it
+            // permanently warm (old behavior, ~70 MB of resident QML).
+            property JsonObject settingsApp: JsonObject {
+                property int unloadAfterSeconds: 300
             }
 
             property JsonObject update: JsonObject {
@@ -1103,6 +1119,12 @@ Singleton {
                 property JsonObject ai: JsonObject {
                     property bool textFadeIn: false
                     property bool showProviderAndModelButtons: true
+                    // When false, the Ai service never spawns its index
+                    // probe at boot (saves one Python fork + ollama
+                    // listing). The panel itself still loads on demand
+                    // via policies.ai; this only gates the proactive
+                    // model listing.
+                    property bool enable: true
                 }
                 property JsonObject booru: JsonObject {
                     property bool allowNsfw: false

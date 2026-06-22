@@ -42,13 +42,17 @@ Item { // Bar content region
     }
 
     ////// Definning places of center modules //////
-    property var fullModel: Config.options?.bar?.layouts?.center
-
-    property int centerIdx: (fullModel || []).findIndex(item => item.centered)
-
-    property var leftList: centerIdx === -1 ? [] : fullModel.slice(0, centerIdx)
-    property var centerList: centerIdx === -1 ? fullModel : [fullModel[centerIdx]]
-    property var rightList: centerIdx === -1 ? [] : fullModel.slice(centerIdx + 1)
+    // Use a single stable empty array reference so the binding tracker
+    // doesn't see a "new" array on every re-evaluation when Config.options
+    // transiently reloads. A fresh `[]` literal each frame creates a
+    // chain reaction through leftList/centerList/rightList, which the
+    // QML binding tracker reports as a binding loop.
+    readonly property var _emptyLayout: ([])
+    readonly property var fullModel: Config.options.bar.layouts.center || root._emptyLayout
+    readonly property int centerIdx: fullModel.findIndex(item => item.centered)
+    readonly property var leftList: centerIdx === -1 ? root._emptyLayout : fullModel.slice(0, centerIdx)
+    readonly property var centerList: centerIdx === -1 ? fullModel.slice() : [fullModel[centerIdx]]
+    readonly property var rightList: centerIdx === -1 ? root._emptyLayout : fullModel.slice(centerIdx + 1)
 
     // Background shadow
     Loader {

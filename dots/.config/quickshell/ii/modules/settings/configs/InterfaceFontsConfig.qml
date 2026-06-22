@@ -101,6 +101,15 @@ ContentPage {
                 Config.options.sidebar.ai.showProviderAndModelButtons = checked;
             }
         }
+
+        ConfigSwitch {
+            buttonIcon: "power_settings_new"
+            text: Translation.tr("Probe for local Ollama models at boot")
+            checked: Config.options.ai.enable
+            onCheckedChanged: {
+                Config.options.ai.enable = checked
+            }
+        }
     }
 
     ContentSection {
