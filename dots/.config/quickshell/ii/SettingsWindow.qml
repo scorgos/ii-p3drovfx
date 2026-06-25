@@ -174,7 +174,7 @@ FloatingWindow {
         },
         {
             name: Translation.tr("System & Services"),
-            pages: [15, 16, 17, 18, 19].map(i => ({
+            pages: [15, 16, 17, 18].map(i => ({
                         name: pages[i].name,
                         icon: pages[i].icon,
                         pageIndex: i
@@ -271,8 +271,8 @@ FloatingWindow {
                 id: userHeader
                 Layout.preferredWidth: 230
                 Layout.fillHeight: true
-                isActive: root.currentPage === 20
-                onClicked: root.currentPage = 20
+                isActive: root.currentPage === 19
+                onClicked: root.currentPage = 19
             }
 
             SearchBar {
