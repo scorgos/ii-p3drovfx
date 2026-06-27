@@ -270,12 +270,18 @@ fn cmd_list() {
 fn cmd_snapshot(meta_json: &str) {
     let meta: Value = match serde_json::from_str(meta_json) {
         Ok(v) => v,
-        Err(e) => panic!("Invalid JSON from args. Raw: '{}'. Error: {}", meta_json, e),
+        Err(e) => {
+            eprintln!("[error] Invalid JSON from args. Raw: '{}'. Error: {}", meta_json, e);
+            std::process::exit(1);
+        }
     };
-    let (rc, stdout, _) = hyprctl(&["activeworkspace", "-j"]);
-    let active_ws = match serde_json::from_str::<Value>(&stdout) {
+    let (_rc, stdout, _) = hyprctl(&["activeworkspace", "-j"]);
+    let _active_ws = match serde_json::from_str::<Value>(&stdout) {
         Ok(v) => v,
-        Err(e) => panic!("Invalid JSON from j/activeworkspace. Raw: '{}'. Error: {}", stdout, e),
+        Err(e) => {
+            eprintln!("[error] Invalid JSON from j/activeworkspace. Raw: '{}'. Error: {}", stdout, e);
+            std::process::exit(1);
+        }
     };
     let clients = live_clients();
     let default_map = serde_json::Map::new();
@@ -459,6 +465,7 @@ fn cmd_watch(class: &str, target_ws_str: &str, width: i32, height: i32, x: i32, 
         }
         thread::sleep(Duration::from_millis(200));
     }
+    eprintln!("[error] Timeout waiting for window class '{}'", class);
 }
 
 fn cmd_restore(slug: &str) {
@@ -471,6 +478,7 @@ fn cmd_restore(slug: &str) {
         return;
     }
     
+    let mut errors = 0;
     let clients = live_clients();
     let mut live_by_class: HashMap<String, Vec<Value>> = HashMap::new();
     for c in clients.clone() {
@@ -575,6 +583,7 @@ fn cmd_restore(slug: &str) {
         
         for sw in saved_list {
             if available.is_empty() {
+                errors += 1;
                 let exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("workspace_profile_manager"));
                 Command::new(exe)
                     .arg("watch")
@@ -676,8 +685,11 @@ fn cmd_restore(slug: &str) {
                             if profile.kill_others {
                                 if let Some(pid) = c.get("pid").and_then(|v| v.as_i64()) {
                                     let top_pid = get_app_root_pid(pid);
-                                    let kill_cmd = format!("kill -9 {} 2>/dev/null; for p in $(pstree -p {} | grep -o '([0-9]*)' | tr -d '()'); do kill -9 $p 2>/dev/null; done", top_pid, top_pid);
-                                    Command::new("sh").arg("-c").arg(kill_cmd).spawn().ok();
+                                    let kill_cmd = format!(
+                                        "kill -15 {0} 2>/dev/null; for p in $(pstree -p {0} | grep -o '([0-9]*)' | tr -d '()'); do kill -15 $p 2>/dev/null; done; sleep 0.1; kill -9 {0} 2>/dev/null; for p in $(pstree -p {0} | grep -o '([0-9]*)' | tr -d '()'); do kill -9 $p 2>/dev/null; done",
+                                        top_pid
+                                    );
+                                    Command::new("sh").arg("-c").arg(&kill_cmd).spawn().ok();
                                 }
                             } else {
                                 batch_commands.push(format!("dispatch hl.dsp.window.close({{ window = \"address:{}\" }})", addr_clean));
@@ -694,7 +706,6 @@ fn cmd_restore(slug: &str) {
         hyprctl(&["--batch", &batch_str]);
     }
     
-    let errors = 0;
     if errors == 0 { println!("ok"); } else { println!("partial:{}", errors); }
 }
 
