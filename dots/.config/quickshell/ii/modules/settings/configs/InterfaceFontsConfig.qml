@@ -11,6 +11,25 @@ ContentPage {
     forceWidth: false
 
     ContentSection {
+        title: Translation.tr("Animations")
+        icon: "animation"
+
+        ConfigSlider {
+            buttonIcon: "speed"
+            text: Translation.tr("Animation Duration")
+            usePercentTooltip: false
+            from: 0.1
+            to: 3.0
+            stepSize: 0.05
+            value: Config.options.appearance.animationMultiplier ?? 1.0
+            onValueChanged: Config.options.appearance.animationMultiplier = value
+            StyledToolTip {
+                text: Translation.tr("Controls the duration of all UI animations.\n0.1 = ultra fast  |  1.0 = default  |  3.0 = very slow")
+            }
+        }
+    }
+
+    ContentSection {
         title: Translation.tr("System Rounding")
         icon: "rounded_corner"
 
@@ -104,6 +123,42 @@ ContentPage {
     }
 
     ContentSection {
+        icon: "phone_android"
+        title: Translation.tr("ii Mode")
+
+        ContentSubsection {
+            title: Translation.tr("Style")
+            icon: "style"
+            Layout.fillWidth: true
+
+            ConfigSelectionArray {
+                currentValue: Config.options.sidebar.sidebarStyle
+                onSelected: newValue => {
+                    Config.options.sidebar.sidebarStyle = newValue;
+                }
+                options: [
+                    {
+                        displayName: Translation.tr("Default"),
+                        icon: "view_sidebar",
+                        value: "default"
+                    },
+                    {
+                        displayName: Translation.tr("Connect"),
+                        icon: "phone_android",
+                        value: "connect"
+                    }
+                ]
+            }
+        }
+
+        NoticeBox {
+            Layout.fillWidth: true
+            visible: Config.options.bar.autoHide.enable
+            text: Translation.tr("Bar auto-hide is not supported by Search Connect Mode yet. Disable auto-hide to use the drop search.")
+        }
+    }
+
+    ContentSection {
         title: Translation.tr("Base Icon Themes")
         icon: "category"
 
@@ -170,51 +225,25 @@ ContentPage {
             }
         }
 
-        HelperLinkBox {
-            Layout.fillWidth: true
-            title: Translation.tr("Themed icons configuration")
-            text: Translation.tr("You can configure specific tint settings for different interface elements below:")
-            
-            ConfigSwitch {
-                Layout.fillWidth: true
-                enabled: Config.options.dock.enable
-                buttonIcon: "palette"
-                text: Translation.tr("Tint dock icons")
-                checked: Config.options.dock.monochromeIcons
-                onCheckedChanged: {
-                    Config.options.dock.monochromeIcons = checked;
-                }
-                StyledToolTip {
-                    text: Translation.tr("Applies monochrome tint to dock icons")
-                }
+        ConfigSwitch {
+            buttonIcon: "palette"
+            text: Translation.tr("Tint workspaces icons")
+            checked: Config.options.bar.workspaces.monochromeIcons
+            onCheckedChanged: {
+                Config.options.bar.workspaces.monochromeIcons = checked;
             }
+            StyledToolTip {
+                text: Translation.tr("Applies monochrome tint to workspaces icons. Turn on show workspace icons to see this")
+            }
+        }
 
-            ConfigSwitch {
-                Layout.fillWidth: true
-                enabled: Config.options.dock.enable && !Config.options.dock.monochromeIcons
-                buttonIcon: "tonality"
-                text: Translation.tr("Dim inactive dock icons")
-                checked: Config.options.dock.dimInactiveIcons
-                onCheckedChanged: {
-                    Config.options.dock.dimInactiveIcons = checked;
-                }
-                StyledToolTip {
-                    text: Translation.tr("Dims icons of inactive applications in the dock")
-                }
-            }
-
-            ConfigSwitch {
-                Layout.fillWidth: true
-                buttonIcon: "palette"
-                text: Translation.tr("Tint workspaces icons")
-                checked: Config.options.bar.workspaces.monochromeIcons
-                onCheckedChanged: {
-                    Config.options.bar.workspaces.monochromeIcons = checked;
-                }
-                StyledToolTip {
-                    text: Translation.tr("Applies monochrome tint to workspaces icons. Turn on show workspace icons to see this")
-                }
-            }
+        ConfigSlider {
+            buttonIcon: "humidity_percentage"
+            text: Translation.tr("Tint percentage")
+            value: Config.options.appearance.iconTintPercentage ?? 0.6
+            onValueChanged: Config.options.appearance.iconTintPercentage = value;
+            enabled: Config.options.bar.workspaces.monochromeIcons
+            opacity: enabled ? 1.0 : 0.5
         }
     }
 

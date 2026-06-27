@@ -15,6 +15,7 @@ import qs.modules.common
 Singleton {
     id: root
 
+    readonly property string homePath: String(StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]).replace("file://", "")
     property bool khalAvailable: false
     property var events: []
     property var weekdays: [Translation.tr("Sunday"), Translation.tr("Monday"), Translation.tr("Tuesday"), Translation.tr("Wednesday"), Translation.tr("Thursday"), Translation.tr("Friday"), Translation.tr("Saturday"),]
@@ -98,7 +99,11 @@ Singleton {
 
         for (let i = 0; i < root.weekdays.length; i++) {
             const d = new Date(now);
-            d.setDate(d.getDate() - currentConfiguredDayIndex + i);
+            if (Config.options.cheatsheet.timetableTodayFirst) {
+                d.setDate(d.getDate() + i);
+            } else {
+                d.setDate(d.getDate() - currentConfiguredDayIndex + i);
+            }
             const events = this.getTasksByDate(d);
             const name_weekday = root.weekdays[d.getDay()];
             let obj = {
@@ -254,6 +259,20 @@ Singleton {
     Process {
         id: khalRemoveProcess
         running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim()) {
+                    console.log("[CalendarService] remove stdout:", this.text.trim());
+                }
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim()) {
+                    console.error("[CalendarService] remove stderr:", this.text.trim());
+                }
+            }
+        }
         onExited: exitCode => {
             if (exitCode === 0) {
                 console.log("[CalendarService] Event removed successfully");
@@ -267,9 +286,10 @@ Singleton {
 
     function removeItem(item) {
         let taskToDelete = item['content'];
+        let dbPath = root.homePath + "/.local/share/khal/khal.db";
 
         khalRemoveProcess.command = [ // currently only this hack is possible to delte without interactive shell issue:https://github.com/pimutils/khal/issues/603
-            "sqlite3", String(StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]).replace("file://", "") + "/.local/share/khal/khal.db", "DELETE FROM events WHERE item LIKE '%SUMMARY:" + taskToDelete + "%';"];
+            "sqlite3", dbPath, "DELETE FROM events WHERE item LIKE '%SUMMARY:" + taskToDelete.replace(/'/g, "''") + "%';"];
 
         khalRemoveProcess.running = true;
         console.log(khalRemoveProcess.command);
@@ -280,7 +300,9 @@ Singleton {
         if (!uid || uid.length === 0)
             return;
 
-        khalRemoveProcess.command = ["bash", "-c", "find ~/.calendars -type f -name '*.ics' -exec grep -l 'UID:" + uid + "' {} + | xargs -r rm -f; sqlite3 ~/.local/share/khal/khal.db \"DELETE FROM events WHERE item LIKE '%UID:" + uid + "%';\""];
+        let dbPath = root.homePath + "/.local/share/khal/khal.db";
+        let calendarsPath = root.homePath + "/.calendars";
+        khalRemoveProcess.command = ["bash", "-c", "find '" + calendarsPath + "' -type f -name '*.ics' -exec grep -l 'UID:" + uid + "' {} + | xargs -r rm -f; sqlite3 '" + dbPath + "' \"DELETE FROM events WHERE item LIKE '%UID:" + uid + "%';\""];
         console.log("[CalendarService] Removing event by UID:", uid);
         khalRemoveProcess.running = true;
     }
@@ -289,7 +311,9 @@ Singleton {
         if (!title || title.length === 0)
             return;
 
-        khalRemoveProcess.command = ["bash", "-c", "find ~/.calendars -type f -name '*.ics' -exec grep -l 'SUMMARY:" + title + "' {} + | xargs -r rm -f; sqlite3 ~/.local/share/khal/khal.db \"DELETE FROM events WHERE item LIKE '%SUMMARY:" + title + "%';\""];
+        let dbPath = root.homePath + "/.local/share/khal/khal.db";
+        let calendarsPath = root.homePath + "/.calendars";
+        khalRemoveProcess.command = ["bash", "-c", "find '" + calendarsPath + "' -type f -name '*.ics' -exec grep -l 'SUMMARY:" + title.replace(/'/g, "'\\''") + "' {} + | xargs -r rm -f; sqlite3 '" + dbPath + "' \"DELETE FROM events WHERE item LIKE '%SUMMARY:" + title.replace(/'/g, "''") + "%';\""];
         console.log("[CalendarService] Removing event:", title);
         khalRemoveProcess.running = true;
     }
@@ -331,5 +355,12 @@ Singleton {
         console.log("[CalendarService] Importing ICS:", path, "autoDelete:", !!autoDelete);
         icsImportProcess.command = ["python3", Directories.scriptPath + "/email/import_ics.py", path, autoDelete ? "true" : "false"];
         icsImportProcess.running = true;
+    }
+
+    Connections {
+        target: Config.options.cheatsheet
+        function onTimetableTodayFirstChanged() {
+            root.eventsInWeek = root.getEventsInWeek();
+        }
     }
 }

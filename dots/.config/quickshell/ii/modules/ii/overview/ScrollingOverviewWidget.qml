@@ -17,10 +17,10 @@ Item {
     required property var panelWindow
 
     readonly property bool hyprscrollingEnabled: true //FIXME
-    readonly property list<int> workspaceMap: Config.options.overview.workspaceMap
+    readonly property list<int> workspaceMap: Config.options.bar.workspaces.workspaceMap
     readonly property string backgroundStyle: Config.options.overview.scrollingStyle.backgroundStyle
 
-    readonly property bool useWorkspaceMap: Config.options.overview.useWorkspaceMap
+    readonly property bool useWorkspaceMap: Config.options.bar.workspaces.useWorkspaceMap
     readonly property var extendedWorkspaceMap: root.extendWorkspaceMap(workspaceMap)
     property int workspaceOffset: useWorkspaceMap ? extendedWorkspaceMap[root.monitorIndex] : 0
 
@@ -54,8 +54,8 @@ Item {
 
     property real normalWindowOffset: root.hyprscrollingEnabled ? 0 : root.workspaceImplicitWidth / 2 // if someone uses default layout with this scrolling overview, we have to add this offset to center the windows
 
-    property real workspaceImplicitWidth: (monitorData?.transform % 2 === 1) ? ((monitor.height - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scaleRatio / monitor.scale) : ((monitor.width - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scaleRatio / monitor.scale)
-    property real workspaceImplicitHeight: (monitorData?.transform % 2 === 1) ? ((monitor.width - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scaleRatio / monitor.scale) : ((monitor.height - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scaleRatio / monitor.scale)
+    property real workspaceImplicitWidth: (monitorData?.transform % 2 === 1) ? ((monitor.height - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scaleRatio) : ((monitor.width - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scaleRatio)
+    property real workspaceImplicitHeight: (monitorData?.transform % 2 === 1) ? ((monitor.width - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scaleRatio) : ((monitor.height - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scaleRatio)
 
     implicitWidth: monitor.width
     implicitHeight: monitor.height

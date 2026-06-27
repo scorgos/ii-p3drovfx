@@ -13,6 +13,24 @@ Singleton {
     property bool ready: false
     property int readWriteDelay: 75 // milliseconds
     property bool blockWrites: false
+    // Wall-clock time (ms) at singleton init. Used to detect legitimately missing
+    // config.json (after the singleton has been alive long enough) vs. transient
+    // inaccessibility (git pull, hot-reload timing, FS race) where we must NOT
+    // overwrite the user's real config.json with the in-memory QML defaults.
+    property real initTimestamp: Date.now()
+    // Grace window during which a missing file is assumed transient and a
+    // reload is retried before we ever dare to write defaults.
+    // Increased from 2000 to 5000 to match writeGuardDelay — prevents
+    // config.json from being clobbered with defaults during hot-reload.
+    property int missingFileGracePeriod: 5000
+    property int missingFileRetryInterval: 1500
+    // Minimum time (ms) since singleton creation before ANY write is allowed,
+    // even after `onLoaded` sets `ready = true`. This catches hot-reload races
+    // where the file loads from page cache almost instantly but the
+    // JsonAdapter hasn't fully merged values into all nested JsonObjects yet.
+    // Increased from 3000 to 5000 to prevent config.json resets during
+    // shell hot-reload while Phone services are initializing.
+    property int writeGuardDelay: 5000
 
     function setNestedValue(nestedKey, value) {
         let keys = nestedKey.split(".");
@@ -58,7 +76,44 @@ Singleton {
         interval: root.readWriteDelay
         repeat: false
         onTriggered: {
+            // Never overwrite the user's config.json with the in-memory
+            // JsonAdapter state (which is mostly QML defaults until the file
+            // is loaded). If the file has not loaded yet, defer the write and
+            // keep retrying — once `onLoaded` flips `root.ready` the pending
+            // write will fire with the file's real values merged in.
+            if (root.blockWrites) {
+                return;
+            }
+            if (!root.ready) {
+                fileWriteTimer.restart();
+                return;
+            }
+            // Extra guard: even after `ready`, if the singleton was created
+            // less than `writeGuardDelay` ms ago, defer. This catches the
+            // hot-reload race where `onLoaded` fires very fast (file is in
+            // page cache) but the JsonAdapter hasn't fully merged the file's
+            // values into all nested JsonObjects yet.
+            const elapsed = Date.now() - root.initTimestamp;
+            if (elapsed < root.writeGuardDelay) {
+                fileWriteTimer.restart();
+                return;
+            }
             configFileView.writeAdapter();
+        }
+    }
+
+    // If `onLoadFailed(FileNotFound)` fires, do NOT immediately call
+    // `writeAdapter()` — during a git pull, hot-reload, or PC restart the file
+    // can be briefly inaccessible and the QML defaults would clobber the user's
+    // real config.json. Instead, retry `reload()` after the grace period; only
+    // if the file is still genuinely missing after the singleton has been alive
+    // for a while do we create defaults.
+    Timer {
+        id: missingFileRetryTimer
+        interval: root.missingFileRetryInterval
+        repeat: false
+        onTriggered: {
+            configFileView.reload();
         }
     }
 
@@ -67,12 +122,31 @@ Singleton {
         path: root.filePath
         watchChanges: true
         blockWrites: root.blockWrites
+        // Atomic writes: write to a temp file then rename. Prevents mid-write
+        // corruption if the process is killed mid-save (e.g. PC power loss,
+        // SIGKILL during shell update).
+        atomicWrites: true
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
         onLoaded: root.ready = true
         onLoadFailed: error => {
-            if (error == FileViewError.FileNotFound) {
+            if (error != FileViewError.FileNotFound) {
+                return;
+            }
+            const elapsed = Date.now() - root.initTimestamp;
+            if (elapsed > root.missingFileGracePeriod) {
+                // Singleton has been alive past the grace window and the file
+                // is still gone — legitimately missing (first-run install or
+                // user manually deleted it). Safe to seed defaults.
                 writeAdapter();
+                // Mark ready so subsequent user-triggered writes go through
+                // (fileWriteTimer guards on `root.ready`).
+                root.ready = true;
+            } else {
+                // Likely transient: schedule a reload. If it succeeds,
+                // `onLoaded` flips `root.ready` and nothing is overwritten. If
+                // it still fails past the grace window, defaults are written.
+                missingFileRetryTimer.restart();
             }
         }
 
@@ -85,9 +159,52 @@ Singleton {
                 property int ai: 1 // 0: No | 1: Yes | 2: Local
                 property int weeb: 0 // 0: No | 1: Open | 2: Closet
                 property int wallpapers: 1 // 0: No | 1: Yes
-                property int translator: 1 // 0: No | 1: Default (illogical-impulse) | 2: Expressive (reworked)
+                property int translator: 0 // 0: No | 1: Default (illogical-impulse) | 2: Expressive (reworked)
                 property int player: 1 // 0: No | 1: Yes
-                property int androidConnect: 0 // 0: No | 1: Yes
+                property int phone: 0 // 0: No | 1: Yes — Phone tab (future KDE Connect + scrcpy external)
+            }
+
+            property JsonObject phone: JsonObject {
+                property JsonObject scrcpy: JsonObject {
+                    property bool stayAwake: false  // bare scrcpy default — don't add overhead
+                    property bool turnScreenOff: false  // turning screen off causes input delay on Samsung (touch sampling rate drops)
+                    property bool noPowerOn: false  // bare scrcpy default
+                    property bool noAudio: false
+                    property bool showTouches: false
+                    property bool fullscreen: false
+                    property bool alwaysOnTop: false
+                    property int maxFps: 0  // 0 = use device's native frame rate (matches bare `scrcpy`)
+                    property string bitRate: "8M"
+                    property int maxSize: 0
+                    property int videoBuffer: 0  // scrcpy 4.0 default is 0ms — 80ms adds visible latency
+                    property bool useWireless: false
+                    property string wirelessIp: ""
+                    property string wirelessPort: "5555"
+                    property bool showTerminal: false
+                }
+                property JsonObject webcam: JsonObject {
+                    property bool enabled: false
+                    property string cameraFacing: "front" // "front" | "back"
+                    property string resolution: "1280x720" // "640x480" | "1280x720" | "1920x1080"
+                    property int fps: 30
+                    property string bitrate: "4M"
+                    property bool mirrorHorizontally: false
+                    property int rotateDegrees: 0 // 0 | 90 | 180 | 270
+                    property string connection: "wifi" // "wifi" | "usb"
+                    property string wifiIp: ""
+                    property int port: 4747
+                }
+                property JsonObject microphone: JsonObject {
+                    property bool enabled: false
+                    property string connection: "wifi"
+                    property string wifiIp: ""
+                    property int port: 4748
+                    property bool noiseSuppression: false
+                    property bool echoCancellation: false
+                    property bool autoGainControl: false
+                    property int micGain: 100
+                    property bool setAsDefault: false
+                }
             }
 
             property JsonObject localsend: JsonObject {
@@ -137,6 +254,7 @@ Singleton {
                 property string globalRounding: "large" // Options: "sharp", "normal", "large", "verylarge"
                 property int defaultBorderRadius: 18
                 property bool toggleWindowRounding: true // Changes Hyprland window rounding to 0 if sharpMode is true
+                property real iconTintPercentage: 0.6
                 property JsonObject fonts: JsonObject {
                     property bool enableCustom: false
                     property string main: "Google Sans Flex"
@@ -186,6 +304,7 @@ Singleton {
                     property string accentColor: ""
                 }
                 property list<string> customColorSchemes: []
+                property real animationMultiplier: 1.0 // 0.25 = fast, 1.0 = default, 2.0 = slow
                 property bool colorfulScrollbar: false
                 property bool scrollAnimations: true
                 property bool scrollFadeMask: false
@@ -306,11 +425,20 @@ Singleton {
                     }
                     property JsonObject weather: JsonObject {
                         property bool enable: false
+                        property string style: "default" // default, expressive
+                        property string backgroundShape: "Cookie9Sided"
                         property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
                         property real x: 400
                         property real y: 100
                     }
+                    property JsonObject date: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
+                        property real x: 100
+                        property real y: 100
+                    }
                 }
+                property bool scaleLargeWallpapers: true
                 property bool animateWallpaperChanges: true
                 property bool zoomOutEnabled: true  // master toggle for zoom-out animations
                 property bool windowZoomOnOverview: false // fake window scale-out during overview (GNOME-like)
@@ -330,6 +458,10 @@ Singleton {
                     property real workspaceZoom: 1.05 // Relative to wallpaper size
                     property bool enableSidebar: true
                     property real widgetsFactor: 1.2
+                    property bool loop: false
+                    property bool invertHorizontal: false
+                    property bool invertVertical: false
+                    property int intensity: 4
                 }
                 property JsonObject mediaMode: JsonObject {
                     property bool togglePerMonitor: false
@@ -667,6 +799,7 @@ Singleton {
                 property bool filterUnbinds: false
                 property bool enableGmail: true
                 property bool enableTimetable: true
+                property bool timetableTodayFirst: false
                 property bool enablePeriodicTable: false
                 property bool enableCommands: true
                 property bool commandsTagsSidebar: false
@@ -849,8 +982,6 @@ Singleton {
                 property bool orderBottomUp: false
                 property bool showIcons: true
                 property bool centerIcons: true
-                property bool useWorkspaceMap: false
-                property list<var> workspaceMap: [0, 10]
                 property bool showOpeningAnimation: true
 
                 property JsonObject scrollingStyle: JsonObject {
@@ -888,6 +1019,13 @@ Singleton {
             property JsonObject resources: JsonObject {
                 property int updateInterval: 3000
                 property int historyLength: 60
+                // New keys (zero-cost on AMD; only NVIDIA/Intel invoke nvidia-smi one-shot)
+                property int diskInterval: 5000
+                property int gpuInterval: 3000
+                // Toggle for Docker section popup. When false, all Docker
+                // polls (docker stats, docker ps) are suppressed and the
+                // events stream is not subscribed.
+                property bool enableDocker: true
             }
 
             property JsonObject lyricsService: JsonObject {
@@ -902,6 +1040,15 @@ Singleton {
                 property bool invertPinnedItems: true // Makes the below a whitelist for the tray and blacklist for the pinned area
                 property list<var> pinnedItems: ["Fcitx"]
                 property bool filterPassive: true
+            }
+
+            // Settings app memory management. After the user closes the
+            // settings window, we wait `unloadAfterSeconds` and then drop
+            // the SettingsWindow component from memory. The next open
+            // rebuilds it (one-time cold-boot cost). Set to 0 to keep it
+            // permanently warm (old behavior, ~70 MB of resident QML).
+            property JsonObject settingsApp: JsonObject {
+                property int unloadAfterSeconds: 300
             }
 
             property JsonObject update: JsonObject {
@@ -941,6 +1088,7 @@ Singleton {
                     property string windowSearch: "#"
                     property string fileBrowser: "~"
                     property string translator: "@"
+                    property string mediaDownloader: "!"
                 }
                 property JsonObject imageSearch: JsonObject {
                     property string imageSearchEngineBaseUrl: "https://lens.google.com/uploadbyurl?url="
@@ -965,6 +1113,32 @@ Singleton {
                         property bool multiline: true
                     }
                 }
+                property bool showNowPlayingBubble: true
+                property string connectStyle: "connect"  // Search rendered as embedded drop in Connect Mode
+                property int baseWidth: 500
+            }
+
+            property JsonObject mediaDownloader: JsonObject {
+                property bool enabled: true
+                property string downloadPath: FileUtils.trimFileProtocol(`${Directories.home}/Downloads`)
+                property int maxConcurrent: 2
+                property string defaultFormat: "best"
+                property bool embedMetadata: true
+                property bool writeThumbnail: false
+                property bool addChapters: true
+                property string proxy: ""
+                property int rateLimit: 0
+                property bool throttleBypass: false
+                property bool useAria2c: false
+                property string extraArgs: ""
+                property bool keepHistory: false
+                property string lastUsedFormat: "best"
+                property string videoResolution: "best"
+                property string videoCodec: "any"
+                property int audioBitrate: 0
+                property string audioCodec: "any"
+                property string lastUsedResolution: "best"
+                property bool showAdvancedArgs: false
             }
 
             property JsonObject sidebar: JsonObject {
@@ -984,6 +1158,12 @@ Singleton {
                 property JsonObject ai: JsonObject {
                     property bool textFadeIn: false
                     property bool showProviderAndModelButtons: true
+                    // When false, the Ai service never spawns its index
+                    // probe at boot (saves one Python fork + ollama
+                    // listing). The panel itself still loads on demand
+                    // via policies.ai; this only gates the proactive
+                    // model listing.
+                    property bool enable: true
                 }
                 property JsonObject booru: JsonObject {
                     property bool allowNsfw: false
@@ -1055,6 +1235,11 @@ Singleton {
             property JsonObject screenRecord: JsonObject {
                 property string savePath: Directories.videos.replace("file://", "") // strip "file://"
                 property string service: "wf-recorder"
+                property bool useGpu: true
+                property string codec: "auto"
+                property int bitrate: 8
+                property int framerate: 60
+                property bool showNotifications: true
             }
 
             property JsonObject screenSnip: JsonObject {
@@ -1100,11 +1285,7 @@ Singleton {
 
             property JsonObject wallpaperSelector: JsonObject {
                 property bool useSystemFileDialog: false
-                property list<var> directories: [
-                    {
-                        "path": FileUtils.trimFileProtocol(`${Directories.home}/Pictures/Wallpapers`)
-                    }
-                ]
+                property list<var> directories: []
             }
 
             property JsonObject windows: JsonObject {
@@ -1136,14 +1317,6 @@ Singleton {
                     property string download: FileUtils.trimFileProtocol(`${Directories.home}/Pictures/Wallpapers`)
                     property string nsfw: FileUtils.trimFileProtocol(`${Directories.home}/Pictures/Wallpapers/NSFW`)
                 }
-            }
-
-            property JsonObject androidConnect: JsonObject {
-                property bool keepConnectedOnClose: false // Keep scrcpy running when sidebar closes
-                property string videoDevice: "" // V4L2 loopback device for embedded mirror
-                property string scrcpyExtraArgs: "" // Extra args appended to scrcpy command
-                property string wirelessAdbHost: "" // Default wireless ADB host
-                property string wirelessAdbPort: "" // Default wireless ADB port
             }
 
             property JsonObject waffles: JsonObject {

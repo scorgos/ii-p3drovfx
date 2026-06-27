@@ -14,7 +14,7 @@ import Quickshell.Hyprland
 Item {
     id: root
     property bool hyprscrollingEnabled: false //FIXME
-    property int minWorkspaceWidth: (monitorData?.transform % 2 === 1) ? ((monitor.height - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale / monitor.scale) : ((monitor.width - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale / monitor.scale)
+    property int minWorkspaceWidth: (monitorData?.transform % 2 === 1) ? ((monitor.height - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale) : ((monitor.width - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale)
     required property var panelWindow
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(panelWindow.screen)
     readonly property var toplevels: ToplevelManager.toplevels
@@ -25,8 +25,8 @@ Item {
     // readonly property int effectiveActiveWorkspaceId: Math.max(1, Math.min(100, monitor?.activeWorkspace?.id ?? 1))
     // readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / workspacesShown)
 
-    readonly property bool useWorkspaceMap: Config.options.overview.useWorkspaceMap
-    readonly property list<int> workspaceMap: Config.options.overview.workspaceMap
+    readonly property bool useWorkspaceMap: Config.options.bar.workspaces.useWorkspaceMap
+    readonly property list<int> workspaceMap: Config.options.bar.workspaces.workspaceMap
     property int monitorIndex // to be set by parent
     property int workspaceOffset: useWorkspaceMap ? workspaceMap[monitorIndex] : 0
 
@@ -57,7 +57,7 @@ Item {
     property color activeBorderColor: Appearance.colors.colSecondary
 
     property real workspaceImplicitWidth: minWorkspaceWidth
-    property real workspaceImplicitHeight: (monitorData?.transform % 2 === 1) ? ((monitor.width - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scale / monitor.scale) : ((monitor.height - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scale / monitor.scale)
+    property real workspaceImplicitHeight: (monitorData?.transform % 2 === 1) ? ((monitor.width - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scale) : ((monitor.height - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scale)
     property real largeWorkspaceRadius: Appearance.rounding.large
     property real smallWorkspaceRadius: Appearance.rounding.verysmall
 
@@ -552,7 +552,7 @@ Item {
                 width: root.hyprscrollingEnabled ? root.activeWindowData?.width ?? 0 : root.workspaceImplicitWidth + 4
                 height: root.hyprscrollingEnabled ? root.activeWindowData?.height ?? 0 : root.workspaceImplicitHeight
 
-                radius: Appearance.rounding.normal
+                radius: Appearance.rounding.small
                 color: "transparent"
                 border.width: 2
                 border.color: root.activeBorderColor

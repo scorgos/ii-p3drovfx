@@ -17,6 +17,7 @@ Singleton {
     property bool cheatsheetOpen: false
     property bool crosshairOpen: false
     property bool mediaControlsOpen: false
+    property bool mediaControlsPinned: false
     property bool osdBrightnessOpen: false
     property bool osdVolumeOpen: false
     property bool oskOpen: false
@@ -44,8 +45,21 @@ Singleton {
     property bool videoEditorPopupOpen: false
     property bool videoEditorOpen: false
     property string videoEditorPath: ""
+    property bool settingsOpen: false
+    property int settingsPendingPage: -1
+    property string settingsPendingSubPage: ""
+    property string settingsPendingPageName: ""
     property string activeLeftSidebarMonitor: ""
     property string activeRightSidebarMonitor: ""
+    property string activeSearchMonitor: ""
+    property string activeSearchQuery: ""
+    property bool searchDropActive: false
+    property real searchDropExclusionX: 0
+    property real searchDropExclusionY: 0
+    property real searchDropExclusionWidth: 0
+    property real searchDropExclusionHeight: 0
+    property real searchDropTopRadius: 0
+    property real searchDropBottomRadius: 0
     property bool policiesExtended: false
     property bool policiesPinned: false
     property bool policiesDetached: false
@@ -60,6 +74,23 @@ Singleton {
 
     // Media Popup placement (transient, non-persistent)
     property rect mediaPopupRect: Qt.rect(0, 0, 0, 0)
+    property bool mediaWidgetHovered: false
+    property Timer mediaWidgetHoverTimer: Timer {
+        interval: 100
+        repeat: false
+        onTriggered: {
+            root.mediaWidgetHovered = false;
+        }
+    }
+
+    function setMediaWidgetHovered(hovered) {
+        if (hovered) {
+            mediaWidgetHoverTimer.stop();
+            root.mediaWidgetHovered = true;
+        } else {
+            mediaWidgetHoverTimer.restart();
+        }
+    }
 
     // Color Picker Popup
     property bool colorPickerPopupOpen: false
@@ -100,20 +131,57 @@ Singleton {
         }
     }
 
+    function toggleSettings() {
+        root.settingsOpen = !root.settingsOpen;
+    }
+
+    function openSettings() {
+        root.settingsOpen = true;
+    }
+
+    IpcHandler {
+        target: "settings"
+
+        function toggle(): void {
+            root.toggleSettings();
+        }
+
+        function open(): void {
+            root.openSettings();
+        }
+    }
+
+    GlobalShortcut {
+        name: "settingsToggle"
+        description: "Toggles the settings window"
+        onPressed: root.toggleSettings()
+    }
+
     readonly property bool connectModeActive: {
         if (!Config.ready) return false;
         const style = Config.options.sidebar.sidebarStyle || "default";
         if (style !== "connect") return false;
-        
+
         // Connect style is disabled if the bar background style is Transparent
         if (Config.options.bar.barBackgroundStyle === 0) return false;
-        
+
         // Works in all rounding modes except Edge (4)
         if (Config.options.appearance.fakeScreenRounding === 4) return false;
-        
+
         // Only works with cornerStyle 0 (Hug) or 2 (Rect)
         const cs = Config.options.bar.cornerStyle;
         return cs === 0 || cs === 2;
+    }
+
+    readonly property bool searchConnectActive: {
+        if (!connectModeActive) return false;
+        if (Config.options.search.connectStyle !== "connect") return false;
+
+        // Float mode (cornerStyle 1) excluded — bar disconnected from edges
+        if (Config.options.bar.cornerStyle === 1) return false;
+
+        // All other corner styles (Hug, Rect, Dynamic Island) supported
+        return true;
     }
 
     function enforceSidebarStyle() {
@@ -152,18 +220,16 @@ Singleton {
 
         const p = Config.options.policies;
         let activeCount = 0;
-        if (p.ai !== 0)
-            activeCount++;
-        if (p.translator !== 0)
-            activeCount++;
-        if (p.player !== 0)
-            activeCount++;
-        if (p.wallpapers !== 0)
-            activeCount++;
-        if (p.weeb !== 0 && p.weeb !== 2)
-            activeCount++;
+        if (p.ai !== 0) activeCount++;
+        if (p.translator !== 0) activeCount++;
+        if (p.player !== 0) activeCount++;
+        if (p.wallpapers !== 0) activeCount++;
+        if (p.weeb !== 0 && p.weeb !== 2) activeCount++;
+        if (p.phone !== 0) activeCount++;
 
-        return activeCount >= 4 ? Appearance.sizes.sidebarWidthExpanded : Appearance.sizes.sidebarWidth;
+        const minTabs = 3;
+        const perTabWidth = 100;
+        return Appearance.sizes.sidebarWidth + Math.max(0, activeCount - minTabs) * perTabWidth;
     }
 
     readonly property real dashboardWidth: Appearance.sizes.sidebarWidth
@@ -208,6 +274,15 @@ Singleton {
 
     property real animatedLeftSidebarWidth: 0
     property real animatedRightSidebarWidth: 0
+
+    // Exposed for TopLayerPanel/WrappedFrameVisuals to gate `layer.enabled`
+    // so the FBO layer is only active during the open/close animation, NOT
+    // while the sidebar is statically open. Keeping the layer enabled while
+    // open caused massive CPU usage (380%+) because every minor visual
+    // change (timer ticks, notification syncs, infinite pulse animations)
+    // forced a full FBO re-render of the entire sidebar subtree.
+    readonly property bool leftSidebarAnimating: leftSidebarAnimation.running
+    readonly property bool rightSidebarAnimating: rightSidebarAnimation.running
 
     NumberAnimation {
         id: leftSidebarAnimation
@@ -313,6 +388,32 @@ Singleton {
     function openRightSidebar(monitorName) {
         root.activeRightSidebarMonitor = monitorName || Hyprland.focusedMonitor?.name || "";
         root.dashboardPanelOpen = true;
+    }
+
+    function toggleSearch(monitorName) {
+        if (root.overviewOpen) {
+            root.overviewOpen = false;
+        } else {
+            root.activeSearchMonitor = monitorName || Hyprland.focusedMonitor?.name || "";
+            root.overviewOpen = true;
+        }
+    }
+
+    function openSearch(monitorName) {
+        root.activeSearchMonitor = monitorName || Hyprland.focusedMonitor?.name || "";
+        root.overviewOpen = true;
+    }
+
+    onOverviewOpenChanged: {
+        if (root.overviewOpen && root.searchConnectActive && root.activeSearchMonitor === "") {
+            root.activeSearchMonitor = Hyprland.focusedMonitor?.name ?? ""
+        }
+        if (!root.overviewOpen && root.searchConnectActive) {
+            root.activeSearchMonitor = ""
+            // Overview.qml's PanelWindow (which resets searchOnlyMode) is inactive in
+            // connect mode — reset it here so the next SUPER press opens the full overview.
+            root.searchOnlyMode = false
+        }
     }
 
     onAnimatedLeftSidebarWidthChanged: {

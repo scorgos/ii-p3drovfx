@@ -13,8 +13,6 @@ ContentPage {
         title: Translation.tr("Parallax Engine")
         icon: "sync_alt"
 
-
-
         ConfigSwitch {
             buttonIcon: "unfold_more_double"
             text: Translation.tr("Vertical movement")
@@ -35,11 +33,52 @@ ContentPage {
         }
 
         ConfigSwitch {
+            buttonIcon: "loop"
+            text: Translation.tr("Loop wallpaper")
+            checked: Config.options.background.parallax.loop
+            onCheckedChanged: {
+                Config.options.background.parallax.loop = checked;
+            }
+        }
+
+        ConfigSwitch {
+            buttonIcon: "swap_horiz"
+            text: Translation.tr("Invert horizontal movement")
+            checked: Config.options.background.parallax.invertHorizontal
+            onCheckedChanged: {
+                Config.options.background.parallax.invertHorizontal = checked;
+            }
+        }
+
+        ConfigSwitch {
+            buttonIcon: "swap_vert"
+            text: Translation.tr("Invert vertical movement")
+            checked: Config.options.background.parallax.invertVertical
+            onCheckedChanged: {
+                Config.options.background.parallax.invertVertical = checked;
+            }
+        }
+
+        ConfigSwitch {
             buttonIcon: "side_navigation"
             text: Translation.tr("Depends on sidebars")
             checked: Config.options.background.parallax.enableSidebar
             onCheckedChanged: {
                 Config.options.background.parallax.enableSidebar = checked;
+            }
+        }
+
+        ConfigSlider {
+            buttonIcon: "speed"
+            text: Translation.tr("Parallax movement intensity")
+            visible: Config.options.background.parallax.enableWorkspace
+            usePercentTooltip: false
+            from: 1
+            to: 10
+            stepSize: 1
+            value: Config.options.background.parallax.intensity ?? 4
+            onValueChanged: {
+                Config.options.background.parallax.intensity = value;
             }
         }
 
@@ -150,8 +189,23 @@ ContentPage {
                 text: Translation.tr("Shows scaled ScreencopyView of windows zooming out with the wallpaper when the overview opens.\nWindows on the active workspace follow the wallpaper zoom animation.\nWorkspace switching slides the window previews alongside the workspace animation.")
             }
         }
+    }
 
+    ContentSection {
+        title: Translation.tr("Wallpaper settings")
+        icon: "wallpaper"
 
+        ConfigSwitch {
+            buttonIcon: "photo_size_select_large"
+            text: Translation.tr("Smooth wallpapers")
+            checked: Config.options.background.scaleLargeWallpapers
+            onCheckedChanged: {
+                Config.options.background.scaleLargeWallpapers = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Reduces the resolution of wallpapers larger than the screen to save memory. Disabling i you can have some jagged edges on the wallpaper.")
+            }
+        }
     }
 
     ContentSection {
@@ -179,8 +233,8 @@ ContentPage {
                 Config.options.background.mediaMode.backgroundAnimation.speedScale = value;
             }
             MouseArea {
-                z: -1
                 id: spinBoxMouseArea
+                z: -1
                 anchors.fill: parent
                 hoverEnabled: true
             }
@@ -212,17 +266,12 @@ ContentPage {
                 onSelected: newValue => {
                     Config.options.background.mediaMode.backgroundShape = newValue;
                 }
-                options: ([ 
-                    "Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle",
-                    "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided", 
-                    "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst", 
-                    "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart" 
-                ]).map(icon => { 
-                    return { 
-                        displayName: "", 
-                        shape: icon, 
-                        value: icon 
-                    } 
+                options: (["Circle", "Square", "Slanted", "Arch", "Arrow", "SemiCircle", "Oval", "Pill", "Triangle", "Diamond", "ClamShell", "Pentagon", "Gem", "Sunny", "VerySunny", "Cookie4Sided", "Cookie6Sided", "Cookie7Sided", "Cookie9Sided", "Cookie12Sided", "Ghostish", "Clover4Leaf", "Clover8Leaf", "Burst", "SoftBurst", "Flower", "Puffy", "PuffyDiamond", "PixelCircle", "Bun", "Heart"]).map(icon => {
+                    return {
+                        displayName: "",
+                        shape: icon,
+                        value: icon
+                    };
                 })
             }
         }
@@ -247,7 +296,7 @@ ContentPage {
                     Config.options.background.mediaMode.syllable.textHighlightStyle = newValue;
                 }
                 options: [
-                    {   
+                    {
                         displayName: Translation.tr("Vertical"),
                         icon: "vertical_distribute",
                         value: 0
@@ -269,5 +318,12 @@ ContentPage {
                 Config.options.background.mediaMode.togglePerMonitor = checked;
             }
         }
+    }
+
+    ShortcutBox {
+        Layout.fillWidth: true
+        value: Translation.tr("Desktop Clock Widget settings")
+        targetPageIndex: 9
+        targetSectionTitle: Translation.tr("Widget Manager")
     }
 }
