@@ -52,6 +52,18 @@ Item {
     property string editDescriptionValue: root.description
     property bool expanded: false
     property bool showAddAppForm: false
+
+    readonly property bool mutating: WorkspaceProfileService.busy && WorkspaceProfileService.activeMutationSlug === root.slug
+
+    onExpandedChanged: {
+        if (!expanded) {
+            root.showAddAppForm = false;
+            root.newAppClass = "";
+            root.newAppWorkspace = "1";
+            root.newAppAutolaunch = true;
+            root.newAppLaunchCmd = "";
+        }
+    }
     property string newAppClass: ""
     property string newAppWorkspace: "1"
     property bool newAppAutolaunch: true
@@ -180,9 +192,14 @@ Item {
         border.color: root.colBorder
         implicitHeight: cardLayout.implicitHeight + 36
         clip: true
+        opacity: root.mutating ? 0.85 : 1.0
 
         Behavior on color {
             ColorAnimation { duration: Appearance.animation.elementMoveFast.duration }
+        }
+
+        Behavior on opacity {
+            NumberAnimation { duration: Appearance.animation.elementMoveFast.duration }
         }
 
         // ── left accent bar ──────────────────────────────────────────────────
@@ -246,16 +263,31 @@ Item {
                     Layout.fillWidth: true
                     spacing: 1
 
-                    StyledText {
-                        text: root.name
-                        font {
-                            pixelSize: Appearance.font.pixelSize.large
-                            weight: Font.Bold
-                        }
-                        color: root.colOnSurface
-                        elide: Text.ElideRight
+                    RowLayout {
+                        spacing: 6
                         Layout.fillWidth: true
+
+                        StyledText {
+                            text: root.name
+                            font {
+                                pixelSize: Appearance.font.pixelSize.large
+                                weight: Font.Bold
+                            }
+                            color: root.colOnSurface
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+
+                        MaterialSymbol {
+                            visible: root.pinned
+                            text: "push_pin"
+                            iconSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colPrimary
+                            fill: 1
+                            Layout.alignment: Qt.AlignVCenter
+                        }
                     }
+
                     StyledText {
                         visible: root.createdAt > 0
                         text: root.createdAt > 0 ? _dateString(root.createdAt) : ""
@@ -750,7 +782,7 @@ Item {
                 }
 
                 MaterialLoadingIndicator {
-                    visible: WorkspaceProfileService.restoringSlug === root.slug
+                    visible: root.isRestoring || root.mutating
                     implicitWidth: 24; implicitHeight: 24
                 }
 
@@ -778,11 +810,12 @@ Item {
             Item {
                 id: expandWrapper
                 Layout.fillWidth: true
-                implicitHeight: root.expanded ? expandedContent.implicitHeight : 0
+                height: root.expanded ? expandedContent.implicitHeight : 0
+                implicitHeight: height
                 opacity: root.expanded ? 1.0 : 0.0
                 clip: true
 
-                Behavior on implicitHeight {
+                Behavior on height {
                     NumberAnimation {
                         duration: Appearance.animation.elementResize.duration
                         easing.type: Appearance.animation.elementResize.type
@@ -891,10 +924,10 @@ Item {
 
                                 // class name + floating label
                                 ColumnLayout {
-                                    Layout.alignment: Qt.AlignVCenter
-                                    spacing: 2
-                                    Layout.preferredWidth: 110
-                                    Layout.fillWidth: true
+                                     Layout.alignment: Qt.AlignVCenter
+                                     spacing: 2
+                                     Layout.minimumWidth: 110
+                                     Layout.fillWidth: true
 
                                     StyledText {
                                         text: windowRowItem.modelData.class || "unknown"
@@ -936,9 +969,6 @@ Item {
                                             if (typeof ws === "number" && ws < 0) return "sp";
                                             return ws.toString();
                                         }
-                                        validator: RegularExpressionValidator {
-                                            regularExpression: /^(SP|sp|[1-9]|1[0-9]|20)$/
-                                        }
                                         onEditingFinished: {
                                             let val = text.trim();
                                             if (val.toLowerCase() === "sp" || val.toLowerCase() === "special") {
@@ -975,7 +1005,7 @@ Item {
                                                     root.slug,
                                                     windowRowItem.index,
                                                     checked,
-                                                    cmdField.text
+                                                    cmdField.text || (windowRowItem.modelData.launchCmd || "")
                                                 )
                                             }
                                         }
@@ -1101,9 +1131,6 @@ Item {
                                     topPadding: 0; bottomPadding: 0
                                     text: root.newAppWorkspace
                                     onTextChanged: root.newAppWorkspace = text
-                                    validator: RegularExpressionValidator {
-                                        regularExpression: /^(SP|sp|[1-9]|1[0-9]|20)$/
-                                    }
                                 }
                             }
 

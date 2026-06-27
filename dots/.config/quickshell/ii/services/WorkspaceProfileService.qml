@@ -22,6 +22,8 @@ Singleton {
     property bool loading:  false
     property bool restoring: false
     property string restoringSlug: ""
+    property string activeMutationSlug: ""
+    onBusyChanged: if (!busy) activeMutationSlug = ""
 
     // Expose a public busy state when any process is active
     readonly property bool busy: (
@@ -94,30 +96,35 @@ Singleton {
 
     function deleteProfile(slug) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         deleteProc.command = [root.scriptPath, "delete", slug];
         deleteProc.running = true;
     }
 
     function renameProfile(oldSlug, newName) {
         if (root.busy) return;
+        root.activeMutationSlug = oldSlug;
         renameProc.command = [root.scriptPath, "rename", oldSlug, newName];
         renameProc.running = true;
     }
 
     function updateEmoji(slug, newEmoji) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         updateEmojiProc.command = [root.scriptPath, "update_emoji", slug, newEmoji];
         updateEmojiProc.running = true;
     }
 
     function updateDescription(slug, newDescription) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         updateDescProc.command = [root.scriptPath, "update_description", slug, newDescription];
         updateDescProc.running = true;
     }
 
     function updateWindowOptions(slug, index, autolaunch, launchCmd) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         updateWindowProc.command = [
             root.scriptPath, "update_window",
             slug, index.toString(), autolaunch ? "true" : "false", launchCmd || ""
@@ -127,6 +134,7 @@ Singleton {
 
     function updateProfileOptions(slug, closeOthers, killOthers) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         updateProfileProc.command = [
             root.scriptPath, "update_profile",
             slug, closeOthers ? "true" : "false", killOthers ? "true" : "false"
@@ -137,6 +145,7 @@ Singleton {
     // addWindow handles inserting a new window config helper
     function addWindow(slug, className, workspace, autolaunch, launchCmd) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         addWindowProc.command = [
             root.scriptPath, "add_window",
             slug, className, workspace.toString(), autolaunch ? "true" : "false", launchCmd || ""
@@ -147,6 +156,7 @@ Singleton {
     // deleteWindow deletes a specific window config helper
     function deleteWindow(slug, index) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         deleteWindowProc.command = [
             root.scriptPath, "delete_window",
             slug, index.toString()
@@ -157,6 +167,7 @@ Singleton {
     // updateWindowWorkspace updates a window's workspace destination
     function updateWindowWorkspace(slug, index, workspace) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         updateWindowWorkspaceProc.command = [
             root.scriptPath, "update_window_workspace",
             slug, index.toString(), workspace.toString()
@@ -167,6 +178,7 @@ Singleton {
     // togglePin toggles pinned state for the profile
     function togglePin(slug) {
         if (root.busy) return;
+        root.activeMutationSlug = slug;
         togglePinProc.command = [
             root.scriptPath, "toggle_pin",
             slug
