@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Controls
+import Quickshell
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -236,14 +237,6 @@ Item {
                 description: "Try a different search term."
             }
 
-            // binary missing empty state
-            PagePlaceholder {
-                shown: !WorkspaceProfileService.loading
-                    && !WorkspaceProfileService.binaryExists
-                icon: "error"
-                title: "Backend not compiled"
-                description: "The workspace manager binary is missing. Please compile it by running 'cargo build --release' in the script directory."
-            }
 
             // loading indicator
             MaterialLoadingIndicator {
@@ -585,6 +578,122 @@ Item {
                     // initial layout trigger
                     Component.onCompleted: {
                         gridArea.triggerLayout()
+                    }
+                }
+            }
+
+            // binary missing empty state with copyable command
+            ColumnLayout {
+                visible: opacity > 0.0
+                opacity: (!WorkspaceProfileService.loading && !WorkspaceProfileService.binaryExists) ? 1.0 : 0.0
+                anchors.centerIn: parent
+                width: parent.width
+                spacing: 12
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Appearance.animation.elementMoveEnter.duration
+                        easing.type: Appearance.animation.elementMoveEnter.type
+                        easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
+                    }
+                }
+
+                MaterialShapeWrappedMaterialSymbol {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "terminal"
+                    padding: 12
+                    iconSize: 56
+                }
+
+                StyledText {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "Backend Not Compiled"
+                    font {
+                        family: Appearance.font.family.title
+                        pixelSize: Appearance.font.pixelSize.larger
+                        variableAxes: Appearance.font.variableAxes.title
+                    }
+                    color: Appearance.m3colors.m3outline
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "The workspace manager binary is missing. Please compile it from source to enable workspace profiles:"
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    color: Appearance.m3colors.m3outline
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                }
+
+                // Command box with Copy button
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: Math.min(parent.width - 40, 520)
+                    implicitHeight: 80
+                    radius: Appearance.rounding.normal
+                    color: Appearance.colors.colLayer2
+                    border.width: 1
+                    border.color: Appearance.colors.colOutline
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 6
+                        spacing: 8
+
+                        // Monospace terminal-like code area
+                        StyledText {
+                            id: commandText
+                            Layout.fillWidth: true
+                            text: "cd ~/.config/quickshell/ii/scripts/hyprland/workspace_profile_manager_src && cargo build --release && cp target/release/workspace_profile_manager ../"
+                            font {
+                                family: Appearance.font.family.monospace
+                                pixelSize: Appearance.font.pixelSize.smaller
+                            }
+                            color: Appearance.colors.colOnSurface
+                            wrapMode: Text.Wrap
+                        }
+
+                        // Copy button
+                        RippleButton {
+                            id: copyBtn
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            buttonRadius: Appearance.rounding.full
+                            colBackground: Appearance.colors.colLayer3
+                            colBackgroundHover: Appearance.colors.colLayer3Hover
+
+                            property bool copied: false
+
+                            onClicked: {
+                                Quickshell.clipboardText = commandText.text;
+                                copied = true;
+                                restoreTimer.restart();
+                            }
+
+                            MaterialSymbol {
+                                anchors.centerIn: parent
+                                text: copyBtn.copied ? "check" : "content_copy"
+                                iconSize: Appearance.font.pixelSize.small
+                                color: copyBtn.copied ? Appearance.colors.colPrimary : Appearance.colors.colOnSurface
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+                            }
+
+                            StyledToolTip {
+                                text: copyBtn.copied ? "Copied!" : "Copy build command"
+                            }
+
+                            Timer {
+                                id: restoreTimer
+                                interval: 2000
+                                onTriggered: copyBtn.copied = false
+                            }
+                        }
                     }
                 }
             }

@@ -63,6 +63,7 @@ Singleton {
     // ── public API ───────────────────────────────────────────────────────────
 
     function refresh() {
+        checkBinaryProc.running = true;
         listProc.command = [root.scriptPath, "list"];
         listProc.running = true;
     }
@@ -199,6 +200,7 @@ Singleton {
                 root.loading = false;
                 try {
                     const arr = JSON.parse(listCollector.text);
+                    root.binaryExists = true;
                     let oldSlugs = [];
                     for (let i = 0; i < root.profilesModel.count; i++) {
                         oldSlugs.push(root.profilesModel.get(i).slug);
