@@ -34,6 +34,36 @@ Item {
     property bool   snapError:     false
     property var    expandedSlugs: ({})
 
+    property var    filteredProfiles: []
+    property int    loadedProfilesCount: 10
+    readonly property var slicedProfiles: root.filteredProfiles.slice(0, root.loadedProfilesCount)
+
+    function updateFiltered() {
+        let list = [];
+        let q = root.filter.toLowerCase().trim();
+        for (let i = 0; i < WorkspaceProfileService.profilesModel.count; i++) {
+            let item = WorkspaceProfileService.profilesModel.get(i);
+            if (!item) continue;
+            let nameMatch = (item.name || "").toLowerCase().includes(q);
+            let descMatch = (item.description || "").toLowerCase().includes(q);
+            if (!q || nameMatch || descMatch) {
+                list.push(item);
+            }
+        }
+        root.filteredProfiles = list;
+    }
+
+    function loadMore() {
+        if (root.loadedProfilesCount < root.filteredProfiles.length) {
+            root.loadedProfilesCount = Math.min(root.loadedProfilesCount + 10, root.filteredProfiles.length);
+        }
+    }
+
+    onFilterChanged: {
+        root.loadedProfilesCount = 10;
+        root.updateFiltered();
+    }
+
     function isProfileExpanded(slug) {
         return !!root.expandedSlugs[slug];
     }
@@ -54,7 +84,10 @@ Item {
         "☕","🌙","🚀","🏠","🌊","🔧","📊","✉️","🎓","🧠"
     ]
 
-    Component.onCompleted: WorkspaceProfileService.refresh()
+    Component.onCompleted: {
+        WorkspaceProfileService.refresh();
+        root.updateFiltered();
+    }
 
     // ── service connections ──────────────────────────────────────────────────
     Connections {
@@ -74,6 +107,14 @@ Item {
                 snapFeedbackTimer.restart();
             }
         }
+    }
+
+    Connections {
+        target: WorkspaceProfileService.profilesModel
+        function onModelReset() { root.updateFiltered() }
+        function onRowsInserted() { root.updateFiltered() }
+        function onRowsRemoved() { root.updateFiltered() }
+        function onDataChanged() { root.updateFiltered() }
     }
 
     Timer {
@@ -199,6 +240,11 @@ Item {
                 anchors.fill: parent
                 contentHeight: gridArea.implicitHeight
                 clip: true
+                onContentYChanged: {
+                    if (contentHeight > height && contentY + height >= contentHeight - 150) {
+                        root.loadMore();
+                    }
+                }
 
                 // ── 2-column masonry grid ─────────────────────────────────────
                 Item {
@@ -208,7 +254,7 @@ Item {
                     readonly property real cardSpacing: 12
                     readonly property real cardWidth: (width - cardSpacing) / 2
                     property int layoutRevision: 0
-                    property int visibleProfileCount: 0
+                    property int visibleProfileCount: root.filteredProfiles.length
 
                     implicitHeight: {
                         var _rev = layoutRevision
@@ -457,20 +503,12 @@ Item {
                     // ── profile card repeater ─────────────────────────────────
                     Repeater {
                         id: profileRepeater
-                        model: WorkspaceProfileService.profilesModel
+                        model: root.slicedProfiles
 
                         delegate: ProfileCard {
                             id: card
 
                             onPinnedChanged: gridArea.triggerLayout()
-
-                            // ── filter ──────────────────────────────────────
-                            visible: {
-                                const q = root.filter.toLowerCase().trim()
-                                if (!q) return true
-                                return name.toLowerCase().includes(q) ||
-                                       description.toLowerCase().includes(q)
-                            }
 
                             shortcutHint: {
                                 var _trigger = gridArea.visibleProfileCount;
