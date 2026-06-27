@@ -319,7 +319,7 @@ Item {
                     visible: root.isEditing
                     Layout.fillWidth: true
                     text: root.editNameValue
-                    hint: "Profile name…"
+                    placeholderText: "Profile name…"
                     onTextChanged: root.editNameValue = text
                     font.pixelSize: Appearance.font.pixelSize.normal
                     onVisibleChanged: { if (visible) forceActiveFocus(); }
@@ -492,7 +492,7 @@ Item {
                 visible: root.isEditing
                 Layout.fillWidth: true
                 text: root.editDescriptionValue
-                hint: "Add a description... (optional)"
+                placeholderText: "Add a description... (optional)"
                 onTextChanged: root.editDescriptionValue = text
                 font.pixelSize: Appearance.font.pixelSize.small
             }
@@ -1020,7 +1020,7 @@ Item {
                                     Layout.preferredWidth: 180
                                     font.pixelSize: Appearance.font.pixelSize.small
                                     text: windowRowItem.modelData.launchCmd || ""
-                                    hint: "Add arguments..."
+                                    placeholderText: "Add arguments..."
                                     enabled: windowRowItem.modelData.autolaunch || false
 
                                     StyledText {
@@ -1110,7 +1110,7 @@ Item {
                                 font.pixelSize: Appearance.font.pixelSize.small
                                 verticalAlignment: TextInput.AlignVCenter
                                 topPadding: 0; bottomPadding: 0
-                                hint: "App class (e.g. kitty)"
+                                placeholderText: "App class (e.g. kitty)"
                                 text: root.newAppClass
                                 onTextChanged: root.newAppClass = text
                             }
@@ -1154,7 +1154,7 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredWidth: 150
                                 font.pixelSize: Appearance.font.pixelSize.small
-                                hint: "(Optional)"
+                                placeholderText: "(Optional)"
                                 text: root.newAppLaunchCmd
                                 onTextChanged: root.newAppLaunchCmd = text
                                 enabled: root.newAppAutolaunch

@@ -447,7 +447,7 @@ Item {
                                     MaterialTextField {
                                         id: nameField
                                         Layout.fillWidth: true
-                                        hint: "Profile name (required)…"
+                                        placeholderText: "Profile name (required)…"
                                         text: root.newName
                                         onTextChanged: root.newName = text
                                         Keys.onReturnPressed: if (root.newName.trim().length > 0) _doSnapshot()
@@ -456,7 +456,7 @@ Item {
 
                                     MaterialTextField {
                                         Layout.fillWidth: true
-                                        hint: "Description (optional)…"
+                                        placeholderText: "Description (optional)…"
                                         text: root.newDesc
                                         onTextChanged: root.newDesc = text
                                     }

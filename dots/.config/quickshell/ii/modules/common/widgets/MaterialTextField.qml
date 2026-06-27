@@ -21,8 +21,7 @@ TextField {
     selectedTextColor: Appearance.m3colors.m3onSecondaryContainer
     selectionColor: Appearance.colors.colSecondaryContainer
     placeholderTextColor: Appearance.m3colors.m3outline
-    
-    property string hint: ""
+    clip: true
 
     font {
         family: Appearance.font.family.main
@@ -32,12 +31,8 @@ TextField {
     }
     wrapMode: TextEdit.Wrap
 
-    topPadding: 6
-    bottomPadding: 6
-    verticalAlignment: TextInput.AlignVCenter
-
     background: Rectangle {
-        implicitHeight: 36
+        implicitHeight: 56
         radius: Appearance.rounding.normal
         color: Appearance.m3colors.m3surface
         border.width: root.activeFocus ? 2 : 1
@@ -61,19 +56,5 @@ TextField {
         acceptedButtons: Qt.NoButton
         hoverEnabled: true
         cursorShape: Qt.IBeamCursor
-    }
-
-    Text {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: root.leftPadding
-        anchors.rightMargin: root.rightPadding
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.hint
-        font: root.font
-        color: root.placeholderTextColor
-        verticalAlignment: Text.AlignVCenter
-        visible: !root.length && !root.preeditText
-        elide: Text.ElideRight
     }
 }
