@@ -192,7 +192,6 @@ Button {
         animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
     }
 
-    readonly property real visualScale: scale
     scale: root.down ? 0.96 : (root.hovered ? 1.01 : 1.0)
     Behavior on scale {
         NumberAnimation {
@@ -288,7 +287,6 @@ Button {
 
     background: Rectangle {
         id: buttonBackground
-        scale: root.visualScale
         topLeftRadius: root.topLeftRadius
         topRightRadius: root.topRightRadius
         bottomLeftRadius: root.bottomLeftRadius
@@ -340,6 +338,5 @@ Button {
 
     contentItem: StyledText {
         text: root.buttonText
-        scale: root.visualScale
     }
 }
