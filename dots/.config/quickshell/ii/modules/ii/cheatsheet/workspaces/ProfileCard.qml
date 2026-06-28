@@ -430,12 +430,14 @@ Item {
                                     required property var modelData
                                     radius: Appearance.rounding.full
                                     color: root.colChipBg
-                                    implicitWidth: chipRow.implicitWidth + 24
+                                    implicitWidth: chipRow.implicitWidth + 12 + 2
                                     implicitHeight: 28
 
                                     RowLayout {
                                         id: chipRow
-                                        anchors.centerIn: parent
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 12
+                                        anchors.verticalCenter: parent.verticalCenter
                                         spacing: 6
 
                                         Repeater {
@@ -457,6 +459,31 @@ Item {
                                             text: root.getWorkspaceApps(chipItem.modelData)
                                             font.pixelSize: Appearance.font.pixelSize.small
                                             color: root.colChipText
+                                        }
+
+                                        Rectangle {
+                                            id: workspaceBadge
+                                            implicitWidth: 24
+                                            implicitHeight: 24
+                                            radius: 12
+                                            color: Appearance.colors.colTertiary
+                                            Layout.alignment: Qt.AlignVCenter
+
+                                            StyledText {
+                                                anchors.centerIn: parent
+                                                text: {
+                                                    let val = chipItem.modelData;
+                                                    if (typeof val === "string" && val.startsWith("special:")) {
+                                                        return "S";
+                                                    }
+                                                    return val.toString();
+                                                }
+                                                font.pixelSize: text.length > 1 ? 8 : 10
+                                                font.weight: Font.Light
+                                                color: Appearance.colors.colOnTertiary
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
                                         }
                                     }
                                 }

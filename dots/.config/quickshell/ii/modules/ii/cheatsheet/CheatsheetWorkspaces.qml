@@ -161,14 +161,6 @@ Item {
     onVisibleChanged: if (visible)
         searchField.forceActiveFocus()
 
-    // ── layout ────────────────────────────────────────────────────────────────
-    Rectangle {
-        anchors.fill: parent
-        color: Config.options.appearance.transparency.enable ? Appearance.colors.colLayer0 : Appearance.m3colors.m3surfaceContainerLow
-        radius: Appearance.rounding.windowRounding
-        antialiasing: true
-    }
-
     Item {
         id: inboxContent
         anchors.fill: parent
@@ -180,6 +172,13 @@ Item {
                 duration: 350
                 easing.type: Easing.OutCubic
             }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: Config.options.appearance.transparency.enable ? Appearance.colors.colLayer0 : Appearance.m3colors.m3surfaceContainerLow
+            radius: Appearance.rounding.windowRounding
+            antialiasing: true
         }
 
         ColumnLayout {
