@@ -86,8 +86,40 @@ Item {
         }
     }
 
-    // Height driven by content
-    implicitHeight: cardBg.implicitHeight
+    property bool hasMatches: true
+    property bool entered: false
+
+    visible: hasMatches || opacity > 0.0
+    opacity: entered && hasMatches ? 1.0 : 0.0
+    scale: entered && hasMatches ? 1.0 : 0.97
+
+    // Height driven by content and filter matching
+    height: entered && hasMatches ? implicitHeight : 0
+    implicitHeight: entered && hasMatches ? cardBg.implicitHeight : 0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: 180
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Appearance.animationCurves.emphasized
+        }
+    }
+
+    Behavior on scale {
+        NumberAnimation {
+            duration: 180
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Appearance.animationCurves.emphasized
+        }
+    }
+
+    Behavior on height {
+        NumberAnimation {
+            duration: 180
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Appearance.animationCurves.emphasized
+        }
+    }
 
     function _slugHash() {
         var h = 0;
@@ -147,8 +179,6 @@ Item {
     }
 
     // ── staggered entrance animation ─────────────────────────────────────────
-    opacity: 0.0
-    scale: 0.97
     Component.onCompleted: {
         entranceDelayTimer.start();
         root.updateRestoring();
@@ -158,29 +188,8 @@ Item {
         id: entranceDelayTimer
         interval: root.staggerDelay
         onTriggered: {
-            entranceOpacity.start();
-            entranceScale.start();
+            root.entered = true;
         }
-    }
-    NumberAnimation {
-        id: entranceOpacity
-        target: root
-        property: "opacity"
-        from: 0.0
-        to: 1.0
-        duration: Appearance.animation.elementMoveEnter.duration
-        easing.type: Appearance.animation.elementMoveEnter.type
-        easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
-    }
-    NumberAnimation {
-        id: entranceScale
-        target: root
-        property: "scale"
-        from: 0.97
-        to: 1.0
-        duration: Appearance.animation.elementMoveEnter.duration
-        easing.type: Appearance.animation.elementMoveEnter.type
-        easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
     }
 
     // ── card background ──────────────────────────────────────────────────────

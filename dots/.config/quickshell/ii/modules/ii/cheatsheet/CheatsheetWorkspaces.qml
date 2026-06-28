@@ -31,10 +31,6 @@ Item {
     property bool snapError: false
     property var expandedSlugs: ({})
 
-    property var filteredProfiles: []
-    property int loadedProfilesCount: 10
-    readonly property var slicedProfiles: root.filteredProfiles.slice(0, root.loadedProfilesCount)
-
     readonly property bool isCurrentTab: {
         try {
             return swipeView.currentIndex === index;
@@ -43,45 +39,7 @@ Item {
         }
     }
 
-    function updateFiltered() {
-        let list = [];
-        let q = root.filter.toLowerCase().trim();
-        for (let i = 0; i < WorkspaceProfileService.profilesModel.count; i++) {
-            let item = WorkspaceProfileService.profilesModel.get(i);
-            if (!item)
-                continue;
-            let nameMatch = (item.name || "").toLowerCase().includes(q);
-            let descMatch = (item.description || "").toLowerCase().includes(q);
-            if (!q || nameMatch || descMatch) {
-                list.push({
-                    slug: item.slug,
-                    name: item.name,
-                    emoji: item.emoji,
-                    description: item.description,
-                    createdAt: item.createdAt,
-                    windowCount: item.windowCount,
-                    workspaceIdsJson: item.workspaceIdsJson,
-                    windowsJson: item.windowsJson,
-                    hasDuplicateClasses: item.hasDuplicateClasses,
-                    closeOthers: item.closeOthers,
-                    killOthers: item.killOthers,
-                    pinned: item.pinned
-                });
-            }
-        }
-        root.filteredProfiles = list;
-    }
-
-    function loadMore() {
-        if (root.loadedProfilesCount < root.filteredProfiles.length) {
-            root.loadedProfilesCount = Math.min(root.loadedProfilesCount + 10, root.filteredProfiles.length);
-        }
-    }
-
-    onFilterChanged: {
-        root.loadedProfilesCount = 10;
-        root.updateFiltered();
-    }
+    readonly property bool isTabActive: root.visible && root.isCurrentTab
 
     function isProfileExpanded(slug) {
         return !!root.expandedSlugs[slug];
@@ -102,7 +60,6 @@ Item {
 
     Component.onCompleted: {
         WorkspaceProfileService.refresh();
-        root.updateFiltered();
     }
 
     // ── service connections ──────────────────────────────────────────────────
@@ -124,19 +81,19 @@ Item {
     Connections {
         target: WorkspaceProfileService.profilesModel
         function onModelReset() {
-            root.updateFiltered();
+            gridArea.triggerLayout();
         }
         function onRowsInserted() {
-            root.updateFiltered();
+            gridArea.triggerLayout();
         }
         function onRowsRemoved() {
-            root.updateFiltered();
+            gridArea.triggerLayout();
         }
         function onRowsMoved() {
-            root.updateFiltered();
+            gridArea.triggerLayout();
         }
         function onDataChanged() {
-            root.updateFiltered();
+            gridArea.triggerLayout();
         }
     }
 
@@ -149,11 +106,7 @@ Item {
         }
     }
 
-    Timer {
-        id: searchDebounceTimer
-        interval: 150
-        onTriggered: root.filter = searchField.text
-    }
+
 
     // ── focus ─────────────────────────────────────────────────────────────────
     onFocusChanged: if (focus)
@@ -238,21 +191,35 @@ Item {
 
                         readonly property real cardSpacing: 12
                         readonly property real cardWidth: (width - cardSpacing) / 2
-                        property int visibleProfileCount: root.filteredProfiles.length
+                        property int visibleProfileCount: 0
 
                         // ── masonry helpers ───────────────────────────────────────
 
+                        Connections {
+                            target: root
+                            function onIsTabActiveChanged() {
+                                gridArea.triggerLayout();
+                            }
+                        }
+
                         function recalculateLayout() {
                             var heights = [0, 0];
+                            var isActive = root.isTabActive;
                             for (var i = 0; i < profileRepeater.count; i++) {
                                 var card = profileRepeater.itemAt(i);
                                 if (!card)
                                     continue;
                                 if (card.visible) {
-                                    var minCol = (heights[0] <= heights[1]) ? 0 : 1;
-                                    card.x = minCol * (cardWidth + cardSpacing);
-                                    card.y = heights[minCol];
-                                    heights[minCol] += card.implicitHeight + cardSpacing;
+                                    if (isActive) {
+                                        var minCol = (heights[0] <= heights[1]) ? 0 : 1;
+                                        card.x = minCol * (cardWidth + cardSpacing);
+                                        card.y = heights[minCol];
+                                        heights[minCol] += card.implicitHeight + cardSpacing;
+                                    } else {
+                                        // Stacked at center and staggered slightly downwards
+                                        card.x = (width - cardWidth) / 2;
+                                        card.y = i * 20;
+                                    }
                                 }
                             }
                             var maxH = Math.max(heights[0], heights[1]);
@@ -276,11 +243,19 @@ Item {
                         // ── profile card repeater ─────────────────────────────────
                         Repeater {
                             id: profileRepeater
-                            model: root.slicedProfiles
+                            model: WorkspaceProfileService.profilesModel
                             onCountChanged: gridArea.triggerLayout()
 
                             delegate: ProfileCard {
                                 id: card
+
+                                 hasMatches: {
+                                    let q = root.filter.toLowerCase().trim();
+                                    if (!q) return true;
+                                    let nameMatch = (card.name || "").toLowerCase().includes(q);
+                                    let descMatch = (card.description || "").toLowerCase().includes(q);
+                                    return nameMatch || descMatch;
+                                }
 
                                 onPinnedChanged: gridArea.triggerLayout()
 
@@ -489,7 +464,7 @@ Item {
                 placeholderText: focus ? qsTr("Search profiles") : qsTr("Hit \"/\" to search")
                 clip: true
                 font.pixelSize: Appearance.font.pixelSize.small
-                onTextChanged: searchDebounceTimer.restart()
+                onTextChanged: root.filter = text
 
                 Component.onCompleted: forceActiveFocus()
             }
