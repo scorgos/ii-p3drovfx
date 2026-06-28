@@ -105,7 +105,7 @@ Item {
     readonly property int staggerDelay: (_slugHash() % 4) * 45
 
     // ── colours (from M3 tokens) ─────────────────────────────────────────────
-    readonly property color colBg: Config.options.appearance.transparency.enable ? Appearance.colors.colLayer1 : Appearance.m3colors.m3surfaceContainerLow
+    readonly property color colBg: Config.options.appearance.transparency.enable ? Appearance.colors.colLayer1 : Appearance.m3colors.m3surfaceContainerHigh
     readonly property color colBgHover: Config.options.appearance.transparency.enable ? Appearance.colors.colLayer1Hover : Appearance.m3colors.m3surfaceContainer
     readonly property color colBorder: Appearance.colors.colOutlineVariant
     readonly property color colOnSurface: Appearance.colors.colOnSurface
@@ -211,19 +211,6 @@ Item {
             }
         }
 
-        // ── left accent bar ──────────────────────────────────────────────────
-        Rectangle {
-            anchors {
-                left: parent.left
-                verticalCenter: parent.verticalCenter
-            }
-            width: 4
-            height: parent.height * 0.55
-            radius: Appearance.rounding.full
-            color: root.colPrimary
-            opacity: 0.55
-        }
-
 
         ColumnLayout {
             id: cardLayout
@@ -292,23 +279,7 @@ Item {
                     }
                 }
 
-                // shortcut badge
-                Rectangle {
-                    visible: root.shortcutHint !== ""
-                    color: Appearance.colors.colSurfaceContainerHighest
-                    radius: Appearance.rounding.verysmall
-                    implicitWidth: scText.implicitWidth + 10
-                    implicitHeight: 22
-                    Layout.alignment: Qt.AlignVCenter
-                    StyledText {
-                        id: scText
-                        anchors.centerIn: parent
-                        text: root.shortcutHint
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: Appearance.colors.colOnSurfaceVariant
-                        font.weight: Font.Bold
-                    }
-                }
+
 
                 // action buttons (rename / delete)
                 RowLayout {
@@ -362,7 +333,7 @@ Item {
                                 deleteConfirmResetTimer.restart();
                             }
                         }
-                        StyledToolTip { text: root.showDeleteConfirm ? "Confirm delete" : "Delete profile" }
+                        StyledToolTip { text: root.showDeleteConfirm ? "Confirm delete" : (root.shortcutHint !== "" ? qsTr("Delete profile (" + root.shortcutHint.replace("Ctrl+", "Ctrl+Alt+") + ")") : qsTr("Delete profile")) }
                         MaterialSymbol {
                             anchors.centerIn: parent
                             text: root.showDeleteConfirm ? "warning" : "delete"
@@ -593,6 +564,13 @@ Item {
                     }
                 }
 
+            }
+
+            // ── restore button row ────────────────────────────────────────────
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
                 // window count badge
                 Rectangle {
                     radius: Appearance.rounding.full
@@ -600,6 +578,7 @@ Item {
                     implicitWidth: winCountText.implicitWidth + 12
                     implicitHeight: 24
                     opacity: 0.85
+                    Layout.alignment: Qt.AlignVCenter
 
                     StyledText {
                         id: winCountText
@@ -609,12 +588,6 @@ Item {
                         color: root.colSubtle
                     }
                 }
-            }
-
-            // ── restore button row ────────────────────────────────────────────
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
 
                 Item {
                     Layout.fillWidth: true
@@ -666,6 +639,7 @@ Item {
                     implicitHeight: 40
                     leftPadding: 18
                     rightPadding: 18
+                    StyledToolTip { text: root.shortcutHint !== "" ? qsTr("Restore (" + root.shortcutHint + ")") : qsTr("Restore") }
 
                     onClicked: root.restoreRequested()
                 }

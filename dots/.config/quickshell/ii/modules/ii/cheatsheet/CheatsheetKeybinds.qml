@@ -684,6 +684,8 @@ Item {
     Toolbar {
         id: extraOptions
         z: 2
+        enableShadow: false
+        colBackground: Appearance.colors.colSecondaryContainer
         anchors {
             bottom: parent.bottom
             horizontalCenter: parent.horizontalCenter

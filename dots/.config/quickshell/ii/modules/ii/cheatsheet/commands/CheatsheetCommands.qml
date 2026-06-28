@@ -498,18 +498,11 @@ Item {
         Toolbar {
             id: extraOptions
             z: 5
+            enableShadow: false
             colBackground: Appearance.colors.colSecondaryContainer
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.horizontalCenterOffset: Config.options.cheatsheet.commandsTagsSidebar ? (tagSidebar.width / 2) : 0
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 20
-
-            Behavior on anchors.horizontalCenterOffset {
-                NumberAnimation {
-                    duration: 250
-                    easing.type: Easing.OutCubic
-                }
-            }
+            anchors.bottomMargin: 8
 
             ToolbarTextField {
                 id: filterField
@@ -517,16 +510,12 @@ Item {
                 clip: true
                 font.pixelSize: Appearance.font.pixelSize.small
                 onTextChanged: searchDebounceTimer.restart()
-                colBackground: Qt.alpha(Appearance.colors.colOnSecondaryContainer, 0.05)
-                color: Appearance.colors.colOnSecondaryContainer
-                placeholderTextColor: Qt.alpha(Appearance.colors.colOnSecondaryContainer, 0.6)
             }
 
             IconToolbarButton {
                 implicitWidth: height
                 onClicked: root.searchText = filterField.text = ''
                 text: "close"
-                colText: Appearance.colors.colOnSecondaryContainer
                 StyledToolTip {
                     text: qsTr("Clear filter")
                 }
