@@ -59,9 +59,12 @@ MouseArea { // Notification group area
     function destroyWithAnimation(left = undefined) {
         if (left === undefined) {
             const pos = Config?.options.notifications.position ?? "top_right";
-            if (pos.endsWith("left")) left = true;
-            else if (pos.endsWith("right")) left = false;
-            else left = false; // default left = false -> animate right
+            if (pos.endsWith("left"))
+                left = true;
+            else if (pos.endsWith("right"))
+                left = false;
+            else
+                left = false; // default left = false -> animate right
         }
         // Save current xOffset before breaking binding and resetting drag
         const currentX = root.xOffset;
@@ -73,7 +76,6 @@ MouseArea { // Notification group area
         destroyAnimation.left = left;
         destroyAnimation.running = true;
     }
-
 
     hoverEnabled: true
     onContainsMouseChanged: {
@@ -176,7 +178,8 @@ MouseArea { // Notification group area
         anchors.leftMargin: root.xOffset
 
         opacity: {
-            if (!dragManager.dragging) return 1.0;
+            if (!dragManager.dragging)
+                return 1.0;
             var u = root.width > 0 ? Math.min(1.0, Math.abs(root.xOffset) / root.width) : 0.0;
             return (1.0 - u * u * u) * (1.0 - u * u * u);
         }
