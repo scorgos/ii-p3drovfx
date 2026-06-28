@@ -333,7 +333,7 @@ Item {
                                 deleteConfirmResetTimer.restart();
                             }
                         }
-                        StyledToolTip { text: root.showDeleteConfirm ? "Confirm delete" : (root.shortcutHint !== "" ? qsTr("Delete profile (" + root.shortcutHint.replace("Ctrl+", "Ctrl+Alt+") + ")") : qsTr("Delete profile")) }
+                        StyledToolTip { text: root.showDeleteConfirm ? "Confirm delete" : qsTr("Delete profile") }
                         MaterialSymbol {
                             anchors.centerIn: parent
                             text: root.showDeleteConfirm ? "warning" : "delete"
@@ -652,6 +652,18 @@ Item {
                     implicitHeight: 24
                 }
 
+                StyledText {
+                    visible: root.shortcutHint !== ""
+                    text: `Restore: ${root.shortcutHint} ◦ Delete: ${root.shortcutHint.replace("Ctrl+", "Ctrl+Alt+")}`
+                    font {
+                        pixelSize: Appearance.font.pixelSize.smaller
+                        weight: Font.Bold
+                    }
+                    color: root.colSubtle
+                    opacity: 0.6
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
                 // restore button — larger for prominence
                 RippleButtonWithIcon {
                     id: restoreBtn
@@ -666,7 +678,7 @@ Item {
                     implicitHeight: 40
                     leftPadding: 18
                     rightPadding: 18
-                    StyledToolTip { text: root.shortcutHint !== "" ? qsTr("Restore (" + root.shortcutHint + ")") : qsTr("Restore") }
+                    StyledToolTip { text: qsTr("Restore") }
 
                     onClicked: root.restoreRequested()
                 }
