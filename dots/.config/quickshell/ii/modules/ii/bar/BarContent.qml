@@ -23,6 +23,20 @@ Item { // Bar content region
     property bool hasActiveWindows: false
     property bool showBarBackground: root.hasActiveWindows && Config.options.bar.barBackgroundStyle === 2 || Config.options.bar.barBackgroundStyle === 1
     readonly property bool isDynamicIsland: Config.options.bar.cornerStyle === 3
+    readonly property bool isSearchActiveHere: GlobalStates.overviewOpen && (root.screen ? GlobalStates.activeSearchMonitor === root.screen.name : false)
+    readonly property bool isSearchClipboardMode: LauncherSearch.query.startsWith(Config.options.search.prefix.clipboard)
+    readonly property bool isSearchBluetoothMode: LauncherSearch.query.startsWith(Config.options.search.prefix.bluetooth)
+    readonly property bool isSearchTranslatorMode: LauncherSearch.query.startsWith(Config.options.search.prefix.translator)
+    readonly property bool isSearchMediaDownloaderMode: Config.options.mediaDownloader.enabled && LauncherSearch.query.startsWith(Config.options.search.prefix.mediaDownloader)
+    readonly property bool isSearchSpecialMode: isSearchClipboardMode || isSearchBluetoothMode || isSearchTranslatorMode || isSearchMediaDownloaderMode
+
+    readonly property real expectedSearchWidth: {
+        if (isSearchSpecialMode) {
+            return (Config.options.search.clipboard.panelWidth ?? 860) + 48;
+        } else {
+            return Config.options.search.baseWidth + 48;
+        }
+    }
     readonly property real frameThickness: Config.options.appearance.fakeScreenRounding === 3 ? Config.options.appearance.wrappedFrameThickness : 0
     readonly property real islandWidth: isDynamicIsland ? barBackground.width : 0
 
@@ -87,8 +101,14 @@ Item { // Bar content region
         readonly property bool barAtTop: !Config.options.bar.bottom
         gradient: Gradient {
             orientation: Gradient.Vertical
-            GradientStop { position: transparentGradientLayer.barAtTop ? 0.0 : 1.0; color: ColorUtils.transparentize(Appearance.colors.colLayer0, 0.30) }
-            GradientStop { position: transparentGradientLayer.barAtTop ? 1.0 : 0.0; color: "transparent" }
+            GradientStop {
+                position: transparentGradientLayer.barAtTop ? 0.0 : 1.0
+                color: ColorUtils.transparentize(Appearance.colors.colLayer0, 0.30)
+            }
+            GradientStop {
+                position: transparentGradientLayer.barAtTop ? 1.0 : 0.0
+                color: "transparent"
+            }
         }
     }
 
@@ -119,7 +139,16 @@ Item { // Bar content region
             }
 
             readonly property int islandSectionSpacing: 48 //spacing between the three modules
-            width: root.isDynamicIsland ? (Math.max(islandSections.implicitWidth + 12, 200)) : parent.width
+            width: {
+                if (!root.isDynamicIsland)
+                    return parent.width;
+                const baseWidth = Math.max(islandSections.implicitWidth + 32, 200);
+                if (GlobalStates.connectModeActive && root.isSearchActiveHere) {
+                    const requiredWidth = root.expectedSearchWidth + 100;
+                    return Math.max(baseWidth, requiredWidth);
+                }
+                return baseWidth;
+            }
 
             color: Qt.rgba(backgroundGroup.actualColor.r, backgroundGroup.actualColor.g, backgroundGroup.actualColor.b, 1.0)
             property real baseRadius: root.isDynamicIsland ? height / 2 : (Config.options.bar.cornerStyle === 1 || Config.options.appearance.fakeScreenRounding === 4 ? Appearance.rounding.windowRounding : 0)
@@ -132,7 +161,13 @@ Item { // Bar content region
 
             Behavior on width {
                 NumberAnimation {
-                    duration: 450
+                    duration: {
+                        if (root.isDynamicIsland) {
+                            const multiplier = Appearance.animMultiplier ?? 1.0;
+                            return Math.round((root.isSearchActiveHere ? 450 : 280) * multiplier);
+                        }
+                        return 450;
+                    }
                     easing.type: root.isDynamicIsland ? Easing.OutBack : Easing.OutExpo
                 }
             }
@@ -258,12 +293,13 @@ Item { // Bar content region
     RowLayout { // Combined Island section
         id: islandSections
         visible: root.isDynamicIsland
+        width: root.isDynamicIsland ? barBackground.width - 32 : implicitWidth
         anchors {
             top: backgroundGroup.top
             bottom: backgroundGroup.bottom
             horizontalCenter: backgroundGroup.horizontalCenter
         }
-        spacing: barBackground.islandSectionSpacing
+        spacing: 0
 
         RowLayout { // Left
             spacing: 4
@@ -274,6 +310,11 @@ Item { // Bar content region
                     barSection: 0
                 }
             }
+        }
+
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredWidth: barBackground.islandSectionSpacing
         }
 
         RowLayout { // Center
@@ -302,6 +343,11 @@ Item { // Bar content region
                     originalIndex: Config.options.bar.layouts.center.findIndex(e => e.id === modelData.id)
                 }
             }
+        }
+
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredWidth: barBackground.islandSectionSpacing
         }
 
         RowLayout { // Right

@@ -77,9 +77,8 @@ Scope {
     }
 
     Connections {
-        // Listen to volume changes
-        target: Audio.sink?.audio ?? null
-        function onVolumeChanged() {
+        target: Audio
+        function onValueChanged() {
             if (!Audio.ready || root.isStartup)
                 return;
             root.currentIndicator = "volume";
@@ -116,7 +115,7 @@ Scope {
 
     Loader {
         id: osdLoader
-        active: GlobalStates.osdVolumeOpen
+        active: GlobalStates.osdVolumeOpen && !GlobalStates.osdConnectActive
 
         sourceComponent: PanelWindow {
             id: osdRoot
@@ -255,5 +254,13 @@ Scope {
         onPressed: {
             GlobalStates.osdVolumeOpen = false;
         }
+    }
+
+    onCurrentIndicatorChanged: GlobalStates.osdCurrentIndicator = currentIndicator
+    onProtectionMessageChanged: GlobalStates.osdProtectionMessage = protectionMessage
+
+    Component.onCompleted: {
+        GlobalStates.osdCurrentIndicator = currentIndicator;
+        GlobalStates.osdProtectionMessage = protectionMessage;
     }
 }
