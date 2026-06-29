@@ -138,7 +138,25 @@ Item { // Bar content region
                 margins: Config.options.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0
             }
 
-            readonly property int islandSectionSpacing: 48 //spacing between the three modules
+            readonly property int islandSectionSpacing: {
+                const screenWidth = root.screen ? root.screen.width : 1920;
+                const frameThick = root.frameThickness;
+                const maxAllowedWidth = screenWidth - 2 * frameThick - 64; // 32px padding on each side
+                
+                const leftW = leftSectionLayout.implicitWidth;
+                const centerW = centerSectionLayout.implicitWidth;
+                const rightW = rightSectionLayout.implicitWidth;
+                
+                const remaining = maxAllowedWidth - 32 - leftW - centerW - rightW;
+                
+                if (Config.options.bar.dynamicIslandLoadBalance) {
+                    return Math.min(100, Math.max(16, Math.floor(remaining / 2)));
+                } else {
+                    const preferred = Config.options.bar.dynamicIslandSpacingHorizontal ?? 48;
+                    const maxSpacing = Math.max(16, Math.floor(remaining / 2));
+                    return Math.min(preferred, maxSpacing);
+                }
+            }
             width: {
                 if (!root.isDynamicIsland)
                     return parent.width;
@@ -302,6 +320,7 @@ Item { // Bar content region
         spacing: 0
 
         RowLayout { // Left
+            id: leftSectionLayout
             spacing: 4
             Repeater {
                 model: Config.options.bar.layouts.left
@@ -318,6 +337,7 @@ Item { // Bar content region
         }
 
         RowLayout { // Center
+            id: centerSectionLayout
             spacing: 4
             Repeater {
                 model: root.leftList
@@ -351,6 +371,7 @@ Item { // Bar content region
         }
 
         RowLayout { // Right
+            id: rightSectionLayout
             spacing: 8
             Repeater {
                 model: Config.options.bar.layouts.right
