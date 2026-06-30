@@ -26,7 +26,7 @@ Item {
         const query = LauncherSearch.query;
         if (!query)
             return 15;
-        const isPrefixed = query.startsWith(Config.options.search.prefix.app) || query.startsWith(Config.options.search.prefix.fileBrowser) || query.startsWith(Config.options.search.prefix.emojis) || query.startsWith(Config.options.search.prefix.windowSearch) || query.startsWith(Config.options.search.prefix.fileSearch);
+        const isPrefixed = query.startsWith(Config.options.search.prefix.app) || query.startsWith(Config.options.search.prefix.fileBrowser) || query.startsWith(Config.options.search.prefix.emojis) || query.startsWith(Config.options.search.prefix.windowSearch) || query.startsWith(Config.options.search.prefix.fileSearch) || query.startsWith(Config.options.search.prefix.materialSymbols);
         return isPrefixed ? 500 : 15;
     }
     readonly property bool isSearching: false
@@ -59,7 +59,8 @@ Item {
     readonly property bool isBluetoothMode: root.searchingText.startsWith(Config.options.search.prefix.bluetooth)
     readonly property bool isTranslatorMode: root.searchingText.startsWith(Config.options.search.prefix.translator)
     readonly property bool isMediaDownloaderMode: Config.options.mediaDownloader.enabled && root.searchingText.startsWith(Config.options.search.prefix.mediaDownloader)
-    readonly property bool isAnySpecialMode: root.isClipboardMode || root.isBluetoothMode || root.isTranslatorMode || root.isMediaDownloaderMode
+    readonly property bool isMaterialSymbolsMode: root.searchingText.startsWith(Config.options.search.prefix.materialSymbols)
+    readonly property bool isAnySpecialMode: root.isClipboardMode || root.isBluetoothMode || root.isTranslatorMode || root.isMediaDownloaderMode || root.isMaterialSymbolsMode
     readonly property bool alwaysListAppsMode: Config.options.search.alwaysListApps && !root.isAnySpecialMode
     property bool showResults: searchingText != "" || isAnySpecialMode || alwaysListAppsMode || (searchingText === "" && LauncherSearch.results.length > 0)
     property string overviewPosition: Config.options.overview?.position ?? ""
@@ -103,6 +104,9 @@ Item {
         } else if (root.isMediaDownloaderMode) {
             if (mediaDownloaderPanelLoader.item)
                 mediaDownloaderPanelLoader.item.focusInput();
+        } else if (root.isMaterialSymbolsMode) {
+            if (materialSymbolsPanelLoader.item)
+                materialSymbolsPanelLoader.item.focusInput();
         } else {
             appResults.currentIndex = 0;
         }
@@ -226,6 +230,8 @@ Item {
                 baseW = Config.options.search.clipboard.panelWidth ?? 860;
             else if (root.isMediaDownloaderMode)
                 baseW = Config.options.search.clipboard.panelWidth ?? 860;
+            else if (root.isMaterialSymbolsMode)
+                baseW = materialSymbolsPanelLoader.item ? materialSymbolsPanelLoader.item.implicitWidth : 560;
             else
                 baseW = Math.max(Config.options.search.baseWidth, gridLayout.implicitWidth);
 
@@ -243,6 +249,8 @@ Item {
                 return translatorPanelLoader.item ? translatorPanelLoader.item.implicitHeight + searchBar.height + searchBar.verticalPadding * 2 + bottomMargin : 520;
             if (root.isMediaDownloaderMode)
                 return mediaDownloaderPanelLoader.item ? mediaDownloaderPanelLoader.item.implicitHeight + searchBar.height + searchBar.verticalPadding * 2 + bottomMargin : 560;
+            if (root.isMaterialSymbolsMode)
+                return materialSymbolsPanelLoader.item ? materialSymbolsPanelLoader.item.implicitHeight + searchBar.height + searchBar.verticalPadding * 2 + bottomMargin : 520;
             return gridLayout.implicitHeight;
         }
         radius: Appearance.rounding.windowRounding
@@ -290,11 +298,12 @@ Item {
                     property alias source: root.searchingText
                 }
 
-                clipboardMode: root.isClipboardMode || root.isBluetoothMode || root.isTranslatorMode || root.isMediaDownloaderMode
+                clipboardMode: root.isClipboardMode || root.isBluetoothMode || root.isTranslatorMode || root.isMediaDownloaderMode || root.isMaterialSymbolsMode
                 clipboardWidth: 830
                 currentResultIndex: appResults.currentIndex
                 isTranslatorPanelFocused: root.isTranslatorMode && translatorPanelLoader.item && translatorPanelLoader.item.focusedControlIndex !== -1
                 isMediaDownloaderPanelFocused: root.isMediaDownloaderMode && mediaDownloaderPanelLoader.item && mediaDownloaderPanelLoader.item.focusedControlIndex !== -1
+                isMaterialSymbolsPanelFocused: root.isMaterialSymbolsMode && materialSymbolsPanelLoader.item && materialSymbolsPanelLoader.item.focusedControlIndex !== -1
 
                 onCtrlKPressed: {
                     if (appResults.visible) {
@@ -315,6 +324,9 @@ Item {
                     } else if (root.isMediaDownloaderMode) {
                         if (mediaDownloaderPanelLoader.item)
                             mediaDownloaderPanelLoader.item.navigateUp();
+                    } else if (root.isMaterialSymbolsMode) {
+                        if (materialSymbolsPanelLoader.item)
+                            materialSymbolsPanelLoader.item.navigateUp();
                     } else {
                         if (appResults.count > 0 && appResults.currentIndex > 0)
                             appResults.currentIndex--;
@@ -334,6 +346,9 @@ Item {
                     } else if (root.isMediaDownloaderMode) {
                         if (mediaDownloaderPanelLoader.item)
                             mediaDownloaderPanelLoader.item.navigateDown();
+                    } else if (root.isMaterialSymbolsMode) {
+                        if (materialSymbolsPanelLoader.item)
+                            materialSymbolsPanelLoader.item.navigateDown();
                     } else {
                         if (appResults.count > 0 && appResults.currentIndex < appResults.count - 1)
                             appResults.currentIndex++;
@@ -349,6 +364,8 @@ Item {
                         translatorPanelLoader.item.navigateLeft();
                     else if (root.isMediaDownloaderMode && mediaDownloaderPanelLoader.item)
                         mediaDownloaderPanelLoader.item.navigateLeft();
+                    else if (root.isMaterialSymbolsMode && materialSymbolsPanelLoader.item)
+                        materialSymbolsPanelLoader.item.navigateLeft();
                 }
 
                 onNavigateRight: {
@@ -360,6 +377,8 @@ Item {
                         translatorPanelLoader.item.navigateRight();
                     else if (root.isMediaDownloaderMode && mediaDownloaderPanelLoader.item)
                         mediaDownloaderPanelLoader.item.navigateRight();
+                    else if (root.isMaterialSymbolsMode && materialSymbolsPanelLoader.item)
+                        materialSymbolsPanelLoader.item.navigateRight();
                 }
 
                 onActivate: {
@@ -371,6 +390,8 @@ Item {
                         translatorPanelLoader.item.activateSelected();
                     else if (root.isMediaDownloaderMode && mediaDownloaderPanelLoader.item)
                         mediaDownloaderPanelLoader.item.activateSelected();
+                    else if (root.isMaterialSymbolsMode && materialSymbolsPanelLoader.item)
+                        materialSymbolsPanelLoader.item.activateSelected();
                 }
 
                 onDeleteSelected: {
@@ -382,6 +403,8 @@ Item {
                         translatorPanelLoader.item.activateSelected();
                     } else if (root.isMediaDownloaderMode && mediaDownloaderPanelLoader.item) {
                         mediaDownloaderPanelLoader.item.activateSelected();
+                    } else if (root.isMaterialSymbolsMode && materialSymbolsPanelLoader.item) {
+                        materialSymbolsPanelLoader.item.activateSelected();
                     }
                 }
             }
@@ -843,6 +866,39 @@ Item {
                     property: "searchQuery"
                     value: StringUtils.cleanOnePrefix(root.searchingText, [Config.options.search.prefix.mediaDownloader])
                     when: mediaDownloaderPanelLoader.status === Loader.Ready
+                }
+            }
+
+            Loader {
+                id: materialSymbolsPanelLoader
+                visible: root.isMaterialSymbolsMode
+                active: root.isMaterialSymbolsMode
+                Layout.fillWidth: true
+                source: "MaterialSymbolsPanel.qml"
+                Layout.row: root.overviewPosition == "bottom" ? 0 : 1
+
+                opacity: root.isMaterialSymbolsMode ? 1.0 : 0.0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Appearance.animation.elementMoveFast.duration
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
+                    }
+                }
+
+                Binding {
+                    target: materialSymbolsPanelLoader.item
+                    property: "searchQuery"
+                    value: StringUtils.cleanOnePrefix(root.searchingText, [Config.options.search.prefix.materialSymbols])
+                    when: materialSymbolsPanelLoader.status === Loader.Ready
+                }
+
+                Connections {
+                    target: materialSymbolsPanelLoader.item
+                    ignoreUnknownSignals: true
+                    function onRequestFocusSearchInput() {
+                        root.focusSearchInput();
+                    }
                 }
             }
 

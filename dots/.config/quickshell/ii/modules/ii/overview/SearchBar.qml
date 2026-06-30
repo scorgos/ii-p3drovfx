@@ -21,6 +21,7 @@ RowLayout {
     property int currentResultIndex: 0
     property bool isTranslatorPanelFocused: false
     property bool isMediaDownloaderPanelFocused: false
+    property bool isMaterialSymbolsPanelFocused: false
 
     BarThemes {
         id: barThemes
@@ -57,6 +58,7 @@ RowLayout {
         FileBrowser,
         Translator,
         MediaDownloader,
+        MaterialSymbols,
         DefaultSearch
     }
 
@@ -83,6 +85,8 @@ RowLayout {
             return SearchBar.SearchPrefixType.Translator;
         if (Config.options.mediaDownloader.enabled && root.searchingText.startsWith(Config.options.search.prefix.mediaDownloader))
             return SearchBar.SearchPrefixType.MediaDownloader;
+        if (root.searchingText.startsWith(Config.options.search.prefix.materialSymbols))
+            return SearchBar.SearchPrefixType.MaterialSymbols;
         return SearchBar.SearchPrefixType.DefaultSearch;
     }
 
@@ -122,6 +126,8 @@ RowLayout {
                 return 60;     // Cookie6Sided
             case SearchBar.SearchPrefixType.MediaDownloader:
                 return 40;     // Cookie9Sided
+            case SearchBar.SearchPrefixType.MaterialSymbols:
+                return 45;     // SoftBurst
             default:
                 return 360 / 7;                                   // Cookie7Sided
             }
@@ -234,6 +240,8 @@ RowLayout {
             return MaterialShape.Shape.Cookie6Sided;
         case SearchBar.SearchPrefixType.MediaDownloader:
             return MaterialShape.Shape.Cookie9Sided;
+        case SearchBar.SearchPrefixType.MaterialSymbols:
+            return MaterialShape.Shape.SoftBurst;
         default:
             return MaterialShape.Shape.Cookie7Sided;
         }
@@ -260,6 +268,8 @@ RowLayout {
             return "translate";
         case SearchBar.SearchPrefixType.MediaDownloader:
             return "download";
+        case SearchBar.SearchPrefixType.MaterialSymbols:
+            return "font_download";
         case SearchBar.SearchPrefixType.DefaultSearch:
             return "search";
         default:
@@ -328,8 +338,8 @@ RowLayout {
                 return;
             }
                 if (root.clipboardMode) {
-                    const isPanelFocused = root.isTranslatorPanelFocused || root.isMediaDownloaderPanelFocused;
-                    if ((root.searchPrefixType !== SearchBar.SearchPrefixType.Translator && root.searchPrefixType !== SearchBar.SearchPrefixType.MediaDownloader) || isPanelFocused) {
+                    const isPanelFocused = root.isTranslatorPanelFocused || root.isMediaDownloaderPanelFocused || root.isMaterialSymbolsPanelFocused;
+                    if ((root.searchPrefixType !== SearchBar.SearchPrefixType.Translator && root.searchPrefixType !== SearchBar.SearchPrefixType.MediaDownloader && root.searchPrefixType !== SearchBar.SearchPrefixType.MaterialSymbols) || isPanelFocused) {
                         if (event.key === Qt.Key_Left) {
                             root.navigateLeft();
                             event.accepted = true;

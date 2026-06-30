@@ -457,6 +457,16 @@ Scope {
         GlobalStates.overviewOpen = true;
     }
 
+    function toggleMaterialSymbols() {
+        if (GlobalStates.overviewOpen && overviewScope.dontAutoCancelSearch) {
+            GlobalStates.overviewOpen = false;
+            return;
+        }
+        overviewScope.dontAutoCancelSearch = true;
+        overviewScope.setSearchingTextRequested(Config.options.search.prefix.materialSymbols);
+        GlobalStates.overviewOpen = true;
+    }
+
     IpcHandler {
         target: "search"
 
@@ -483,6 +493,9 @@ Scope {
         }
         function bluetoothToggle() {
             overviewScope.toggleBluetooth();
+        }
+        function materialSymbolsToggle() {
+            overviewScope.toggleMaterialSymbols();
         }
         function searchOnlyToggle() {
             if (GlobalStates.overviewOpen) {
@@ -570,6 +583,15 @@ Scope {
 
         onPressed: {
             overviewScope.toggleEmojis();
+        }
+    }
+
+    GlobalShortcut {
+        name: "overviewMaterialSymbolsToggle"
+        description: "Toggle Material Symbols search on overview widget"
+
+        onPressed: {
+            overviewScope.toggleMaterialSymbols();
         }
     }
 }

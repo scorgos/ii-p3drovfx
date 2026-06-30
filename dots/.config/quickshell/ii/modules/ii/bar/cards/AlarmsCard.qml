@@ -11,7 +11,7 @@ Rectangle {
     Layout.preferredHeight: implicitHeight
     implicitHeight: columnLayout.implicitHeight + 32
     radius: Appearance.rounding.large
-    color: Appearance.colors.colLayer2
+    color: Appearance.colors.colSurfaceContainerHighest
     clip: true
 
     Behavior on implicitHeight {
@@ -52,6 +52,106 @@ Rectangle {
         root.mode = "add";
     }
 
+    function getRemainingTimeText(alarm, now) {
+        if (!alarm || !alarm.enabled) {
+            return Translation.tr("Alarm");
+        }
+
+        let currentDay = now.getDay();
+        let currentHour = now.getHours();
+        let currentMinute = now.getMinutes();
+
+        let parts = alarm.time.split(":");
+        let alarmHour = parseInt(parts[0]);
+        let alarmMin = parseInt(parts[1]);
+
+        let minDiff = alarmMin - currentMinute;
+        let hourDiff = alarmHour - currentHour;
+        if (minDiff < 0) {
+            minDiff += 60;
+            hourDiff--;
+        }
+        if (hourDiff < 0) {
+            hourDiff += 24;
+        }
+
+        let hasRepeat = alarm.days && alarm.days.includes(true);
+        let daysUntil = 0;
+
+        if (hasRepeat) {
+            let targetDay = -1;
+            for (let i = 0; i < 7; i++) {
+                let checkedDay = (currentDay + i) % 7;
+                if (alarm.days[checkedDay]) {
+                    if (i === 0) {
+                        if (alarmHour > currentHour || (alarmHour === currentHour && alarmMin > currentMinute)) {
+                            targetDay = checkedDay;
+                            daysUntil = 0;
+                            break;
+                        }
+                    } else {
+                        targetDay = checkedDay;
+                        daysUntil = i;
+                        break;
+                    }
+                }
+            }
+            if (targetDay === -1) {
+                daysUntil = 7;
+            }
+        } else {
+            if (alarmHour < currentHour || (alarmHour === currentHour && alarmMin <= currentMinute)) {
+                daysUntil = 1;
+            } else {
+                daysUntil = 0;
+            }
+        }
+
+        let totalMinutes = daysUntil * 24 * 60 + hourDiff * 60 + minDiff;
+        if (totalMinutes <= 0) {
+            return Translation.tr("Ringing");
+        }
+
+        let d = Math.floor(totalMinutes / (24 * 60));
+        let h = Math.floor((totalMinutes % (24 * 60)) / 60);
+        let m = totalMinutes % 60;
+
+        let res = "";
+        if (d > 0) {
+            res += d + "d ";
+        }
+        if (h > 0) {
+            res += h + "h ";
+        }
+        if (m > 0 || (d === 0 && h === 0)) {
+            res += m + "m";
+        }
+        return Translation.tr("In") + " " + res.trim();
+    }
+
+    function formatAlarmTime(timeStr) {
+        if (!timeStr) return "";
+        let parts = timeStr.split(":");
+        let h = parseInt(parts[0]);
+        let m = parts[1] || "00";
+
+        let is12Hour = false;
+        let timeFormat = "";
+        if (Config.options && Config.options.time && Config.options.time.format) {
+            timeFormat = Config.options.time.format;
+            is12Hour = timeFormat.toLowerCase().indexOf("ap") !== -1;
+        }
+        if (is12Hour) {
+            let suffix = h >= 12 ? "PM" : "AM";
+            let displayHour = h % 12;
+            if (displayHour === 0) displayHour = 12;
+            let pad = timeFormat.indexOf("hh") !== -1;
+            let displayHourStr = pad ? displayHour.toString().padStart(2, '0') : displayHour.toString();
+            return displayHourStr + ":" + m + " " + suffix;
+        }
+        return timeStr;
+    }
+
     ColumnLayout {
         id: columnLayout
         anchors {
@@ -76,6 +176,7 @@ Rectangle {
                 MaterialSymbol {
                     text: "alarm"
                     iconSize: 24
+                    fill: 1
                     color: AlarmService.ringingAlarmIndex !== -1 ? Appearance.colors.colError : Appearance.colors.colPrimary
                 }
 
@@ -168,7 +269,7 @@ Rectangle {
                     width: listView.count >= 2 ? (listView.width > 0 ? listView.width * 0.85 : 320) : (listView.width > 0 ? listView.width : 380)
                     height: 96
                     radius: Appearance.rounding.large
-                    color: AlarmService.ringingAlarmIndex === index ? Appearance.colors.colErrorContainer : Appearance.colors.colLayer3
+                    color: AlarmService.ringingAlarmIndex === index ? Appearance.colors.colErrorContainer : Appearance.colors.colSurfaceContainerLow
                     clip: true
 
                     opacity: AlarmService.ringingAlarmIndex === index ? 1.0 : (modelData.enabled ? 1.0 : 0.6)
@@ -205,13 +306,17 @@ Rectangle {
                         spacing: 4
 
                         StyledText {
-                            text: alarmCard.modelData.label || Translation.tr("Alarm")
+                            text: {
+                                let label = alarmCard.modelData.label;
+                                let isDefault = !label || label === "Alarm" || label === Translation.tr("Alarm");
+                                return isDefault ? root.getRemainingTimeText(alarmCard.modelData, DateTime.clock.date) : label;
+                            }
                             font.pixelSize: Appearance.font.pixelSize.small
                             color: AlarmService.ringingAlarmIndex === index ? Appearance.colors.colOnErrorContainer : Appearance.colors.colSubtext
                         }
 
                         StyledText {
-                            text: alarmCard.modelData.time
+                            text: root.formatAlarmTime(alarmCard.modelData.time)
                             font.pixelSize: Math.min(36, alarmCard.width * 0.1)
                             font.family: Appearance.font.family.title
                             font.weight: Font.Bold
