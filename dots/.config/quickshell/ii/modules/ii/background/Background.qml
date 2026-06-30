@@ -40,6 +40,35 @@ Scope {
             property bool isFullscreen: activeWorkspaceWithFullscreen != undefined
             property var activeWorkspace: workspacesForMonitor.filter(workspace => workspace.active)[0]
             property bool hasWindowsInActiveWorkspace: activeWorkspace != undefined && HyprlandData.windowList.some(w => w.workspace.id === activeWorkspace.id)
+
+            property bool wpeShouldPause: Config.options.background.useWallpaperEngine && Config.options.background.wpePauseWhenWindowsOpen && hasWindowsInActiveWorkspace
+            onWpeShouldPauseChanged: {
+                if (wpeShouldPause) {
+                    if (Config.options.background.wpeScreenSpan !== "") {
+                        if (bgRoot.monitorIndex === 0) {
+                            wpeSignalProc.runSignal("STOP", "--screen-span");
+                        }
+                    } else {
+                        wpeSignalProc.runSignal("STOP", bgRoot.monitor.name);
+                    }
+                } else {
+                    if (Config.options.background.wpeScreenSpan !== "") {
+                        if (bgRoot.monitorIndex === 0) {
+                            wpeSignalProc.runSignal("CONT", "--screen-span");
+                        }
+                    } else {
+                        wpeSignalProc.runSignal("CONT", bgRoot.monitor.name);
+                    }
+                }
+            }
+
+            Process {
+                id: wpeSignalProc
+                function runSignal(sig, pattern) {
+                    command = ["pkill", "-" + sig, "-f", "linux-wallpaperengine.*" + pattern];
+                    running = true;
+                }
+            }
             // Deferred to avoid Wayland dispatch reentrancy crash in PanelWindow visibility
             property bool deferredFullscreen: false
             Timer {
@@ -102,7 +131,11 @@ Scope {
                 const sensitiveNetwork = (CF.StringUtils.stringListContainsSubstring(Network.networkName.toLowerCase(), Config.options.workSafety.triggerCondition.networkNameKeywords));
                 return enabled && sensitiveWallpaper && sensitiveNetwork;
             }
-            property real wallpaperToScreenRatio: Math.min(wallpaperWidth / screen.width, wallpaperHeight / screen.height)
+            property real wallpaperToScreenRatio: {
+                if (wallpaperWidth <= 0 || wallpaperHeight <= 0 || screen.width <= 0 || screen.height <= 0 || isNaN(wallpaperWidth) || isNaN(wallpaperHeight))
+                    return 1.0;
+                return Math.min(wallpaperWidth / screen.width, wallpaperHeight / screen.height);
+            }
             property real preferredWallpaperScale: Config.options.background.parallax.workspaceZoom
             property real effectiveWallpaperScale: 1 // Some reasonable init value, to be updated
             property int wallpaperWidth: modelData.width // Some reasonable init value, to be updated
@@ -169,7 +202,7 @@ Scope {
                 right: true
             }
             color: {
-                if (!bgRoot.wallpaperSafetyTriggered || bgRoot.wallpaperIsVideo)
+                if (Config.options.background.useWallpaperEngine || !bgRoot.wallpaperSafetyTriggered || bgRoot.wallpaperIsVideo)
                     return "transparent";
                 return CF.ColorUtils.mix(Appearance.colors.colLayer0, Appearance.colors.colPrimary, 0.75);
             }
@@ -194,9 +227,23 @@ Scope {
                 stdout: StdioCollector {
                     id: wallpaperSizeOutputCollector
                     onStreamFinished: {
-                        const output = wallpaperSizeOutputCollector.text;
-                        const [width, height] = output.split(" ").map(Number);
+                        const output = wallpaperSizeOutputCollector.text.trim();
                         const [screenWidth, screenHeight] = [bgRoot.screen.width, bgRoot.screen.height];
+                        let width = screenWidth;
+                        let height = screenHeight;
+
+                        if (output !== "") {
+                            const parts = output.split(" ");
+                            if (parts.length >= 2) {
+                                const w = Number(parts[0]);
+                                const h = Number(parts[1]);
+                                if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+                                    width = w;
+                                    height = h;
+                                }
+                            }
+                        }
+
                         bgRoot.wallpaperWidth = width;
                         bgRoot.wallpaperHeight = height;
 
@@ -239,7 +286,7 @@ Scope {
                     anchors.fill: parent
                     clip: true
                     scale: showOpeningAnimation && overviewOpen && bgRoot.isScrollingLayout ? zoomedRatio : defaultRatio
-                    opacity: mediaModeOpen ? 0 : 1
+                    opacity: (Config.options.background.useWallpaperEngine || mediaModeOpen) ? 0 : 1
 
                     Behavior on opacity {
                         NumberAnimation {
