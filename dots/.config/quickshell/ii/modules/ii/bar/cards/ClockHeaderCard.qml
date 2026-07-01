@@ -251,7 +251,6 @@ Rectangle {
         color: Qt.rgba(0, 0, 0, 0.25) // high opacity, deep shadow
         horizontalOffset: 0
         verticalOffset: 0
-        visible: Config.options.background.widgets.enableInnerShadow ?? true
     }
 
     // Right-side time & date information

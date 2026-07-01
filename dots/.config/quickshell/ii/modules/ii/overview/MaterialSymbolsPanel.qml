@@ -28,6 +28,7 @@ Item {
     property int focusedControlIndex: -1
     property var allIcons: []
     property var filteredIcons: []
+    property var iconMap: ({})
     property bool dataLoaded: false
 
     property color colItemBg: Appearance.colors.colSurfaceContainerHigh
@@ -52,12 +53,21 @@ Item {
     function filterIcons() {
         if (!dataLoaded || allIcons.length === 0) {
             filteredIcons = [];
+            iconMap = ({});
+            updateSlots();
             return;
         }
 
         const query = root.searchQuery.trim().toLowerCase();
         if (query.length === 0) {
             filteredIcons = allIcons.slice(0, maxItems);
+
+            const map = {};
+            for (let i = 0; i < filteredIcons.length; i++) {
+                map[filteredIcons[i].n] = filteredIcons[i];
+            }
+            iconMap = map;
+            updateSlots();
             return;
         }
 
@@ -132,6 +142,14 @@ Item {
 
         scored.sort((a, b) => b.score - a.score);
         filteredIcons = scored.slice(0, maxItems).map(s => s.icon);
+
+        const map = {};
+        for (let i = 0; i < filteredIcons.length; i++) {
+            map[filteredIcons[i].n] = filteredIcons[i];
+        }
+        iconMap = map;
+
+        updateSlots();
     }
 
     function navigateUp() {
@@ -238,33 +256,81 @@ Item {
         GlobalStates.overviewOpen = false;
     }
 
-    function recalculateLayout() {
-        const cols = root.gridColumns;
-        const cw = root.cellWidth;
-        const ch = root.cellHeight;
-        var visibleIndex = 0;
-        for (var i = 0; i < iconRepeater.count; i++) {
-            var item = iconRepeater.itemAt(i);
-            if (!item) continue;
-            if (item.hasData) {
-                var col = visibleIndex % cols;
-                var row = Math.floor(visibleIndex / cols);
-                item.x = col * cw;
-                item.y = row * ch;
-                visibleIndex++;
+    function updateSlots() {
+        const newUids = [];
+        for (let i = 0; i < filteredIcons.length; i++) {
+            newUids.push(filteredIcons[i].n);
+        }
+
+        const slots = [];
+        for (let i = 0; i < iconRepeater.count; i++) {
+            slots.push(iconRepeater.itemAt(i));
+        }
+
+        const oldUids = [];
+        for (let i = 0; i < slots.length; i++) {
+            oldUids.push(slots[i] ? slots[i].uniqueId : "");
+        }
+
+        for (let i = 0; i < slots.length; i++) {
+            if (slots[i]) {
+                slots[i].uniqueId = "";
+                slots[i].hasData = false;
+                slots[i].currentPosition = -1;
             }
         }
-        var totalRows = Math.ceil(visibleIndex / cols);
-        contentContainer.height = Math.max(0, totalRows * ch);
+
+        const slotToNewPos = {};
+        const usedNewPositions = new Set();
+
+        for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+            const oldUid = oldUids[slotIdx];
+            if (!oldUid) continue;
+            const newPos = newUids.indexOf(oldUid);
+            if (newPos >= 0) {
+                slotToNewPos[slotIdx] = newPos;
+                usedNewPositions.add(newPos);
+            }
+        }
+
+        for (let newPos = 0; newPos < newUids.length; newPos++) {
+            if (usedNewPositions.has(newPos)) continue;
+            for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+                if (!(slotIdx in slotToNewPos)) {
+                    slotToNewPos[slotIdx] = newPos;
+                    usedNewPositions.add(newPos);
+                    break;
+                }
+            }
+        }
+
+        for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+            const slot = slots[slotIdx];
+            if (!slot) continue;
+            const newPos = slotToNewPos[slotIdx];
+            if (newPos === undefined) continue;
+            const uid = newUids[newPos];
+            slot.uniqueId = uid;
+            slot.hasData = true;
+            slot.currentPosition = newPos;
+        }
+
+        updatePositions();
     }
 
-    function recountVisible() {
-        var count = 0;
-        for (var i = 0; i < iconRepeater.count; i++) {
-            var item = iconRepeater.itemAt(i);
-            if (item && item.hasData) count++;
+    function updatePositions() {
+        const cols = root.gridColumns;
+        const ch = root.cellHeight;
+        let visibleCount = 0;
+        for (let i = 0; i < iconRepeater.count; i++) {
+            const slot = iconRepeater.itemAt(i);
+            if (!slot) continue;
+            if (slot.hasData && slot.currentPosition >= 0) {
+                visibleCount++;
+            }
         }
-        return count;
+        const totalRows = Math.ceil(visibleCount / cols);
+        contentContainer.height = Math.max(0, totalRows * ch);
     }
 
     property string copyFeedbackIcon: ""
@@ -274,10 +340,6 @@ Item {
     onSearchQueryChanged: {
         root.filterIcons();
         focusedControlIndex = -1;
-    }
-
-    onFilteredIconsChanged: {
-        gridArea.triggerLayout();
     }
 
     Timer {
@@ -439,37 +501,6 @@ Item {
                     width: gridFlickable.width
                     implicitHeight: contentContainer.height
 
-                    function triggerLayout() {
-                        layoutTimer.restart();
-                    }
-
-                    Timer {
-                        id: layoutTimer
-                        interval: 20
-                        repeat: false
-                        onTriggered: gridArea.recalculateLayout()
-                    }
-
-                    function recalculateLayout() {
-                        const cols = root.gridColumns;
-                        const cw = root.cellWidth;
-                        const ch = root.cellHeight;
-                        var visibleIndex = 0;
-                        for (var i = 0; i < iconRepeater.count; i++) {
-                            var item = iconRepeater.itemAt(i);
-                            if (!item) continue;
-                            if (item.hasData) {
-                                var col = visibleIndex % cols;
-                                var row = Math.floor(visibleIndex / cols);
-                                item.x = col * cw;
-                                item.y = row * ch;
-                                visibleIndex++;
-                            }
-                        }
-                        var totalRows = Math.ceil(visibleIndex / cols);
-                        contentContainer.height = Math.max(0, totalRows * ch);
-                    }
-
                     Item {
                         id: contentContainer
                         width: gridArea.width
@@ -483,12 +514,19 @@ Item {
                                 id: delegateItem
                                 required property int index
 
-                                property var iconData: index < root.filteredIcons.length ? root.filteredIcons[index] : null
+                                readonly property int slotIndex: index
+                                property string uniqueId: ""
+                                property int currentPosition: -1
+                                property var iconData: root.iconMap[uniqueId] || null
                                 property bool hasData: iconData !== null
 
-                                readonly property bool isFocused: root.focusedControlIndex === index && hasData
+                                readonly property bool isFocused: root.focusedControlIndex === currentPosition && hasData
                                 readonly property bool isHovered: iconMouseArea.containsMouse
 
+                                readonly property int targetCol: currentPosition >= 0 ? currentPosition % root.gridColumns : 0
+                                readonly property int targetRow: currentPosition >= 0 ? Math.floor(currentPosition / root.gridColumns) : 0
+                                x: targetCol * root.cellWidth
+                                y: targetRow * root.cellHeight
                                 width: root.cellWidth
                                 height: hasData ? root.cellHeight : 0
                                 opacity: hasData ? 1.0 : 0.0
@@ -523,10 +561,6 @@ Item {
                                         easing.bezierCurve: Appearance.animationCurves.emphasized
                                     }
                                 }
-
-                                onImplicitHeightChanged: gridArea.triggerLayout()
-                                onVisibleChanged: gridArea.triggerLayout()
-                                onHasDataChanged: gridArea.triggerLayout()
 
                                 Rectangle {
                                     anchors.centerIn: parent
@@ -593,7 +627,7 @@ Item {
                                         id: iconMouseArea
 
                                         onClicked: {
-                                            root.focusedControlIndex = delegateItem.index;
+                                            root.focusedControlIndex = delegateItem.currentPosition;
                                             root.copyIconName(delegateItem.iconData.n);
                                             GlobalStates.overviewOpen = false;
                                         }
