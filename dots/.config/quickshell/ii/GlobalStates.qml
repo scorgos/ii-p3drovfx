@@ -85,6 +85,8 @@ Singleton {
         }
     }
     property string activeSearchMonitor: ""
+    property real activeSearchHeight: 0
+    property real activeSearchWidth: 0
     property string activeSearchQuery: ""
     property bool searchDropActive: false
     property real searchDropExclusionX: 0

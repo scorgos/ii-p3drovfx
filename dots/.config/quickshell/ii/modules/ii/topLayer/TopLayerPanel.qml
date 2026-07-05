@@ -86,8 +86,11 @@ PanelWindow {
     readonly property bool rightSidebarOpenOnMonitor: GlobalStates.sidebarRightOpen && screen.name === GlobalStates.effectiveRightMonitor
     readonly property bool leftSidebarActiveOnMonitor: GlobalStates.animatedLeftSidebarWidth > 0 && screen.name === GlobalStates.effectiveLeftMonitor && !GlobalStates.policiesDetached
     readonly property bool rightSidebarActiveOnMonitor: GlobalStates.animatedRightSidebarWidth > 0 && screen.name === GlobalStates.effectiveRightMonitor
-    readonly property bool searchOpenOnMonitor: GlobalStates.overviewOpen && GlobalStates.searchConnectActive && screen.name === GlobalStates.activeSearchMonitor
-    readonly property bool osdOpenOnMonitor: GlobalStates.osdVolumeOpen && GlobalStates.osdConnectActive && screen.name === (Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0])?.name
+    readonly property bool searchOpenOnMonitor: GlobalStates.overviewOpen
+        && GlobalStates.searchConnectActive
+        && screen.name === GlobalStates.activeSearchMonitor
+        && !(Config.ready && Config.options.bar.dynamicIsland.notchMode.enable)
+    readonly property bool osdOpenOnMonitor: GlobalStates.osdVolumeOpen && GlobalStates.osdConnectActive && screen.name === (Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0])?.name && !(Config.ready && Config.options.bar.floatingNotch.enable)
 
     readonly property bool hasFullscreenWindowOnMonitor: {
         const monitorData = HyprlandData.monitors.find(m => m.name === topPanel.screen.name);
@@ -763,7 +766,7 @@ PanelWindow {
     Loader {
         id: osdDropLoader
         z: 11
-        active: GlobalStates.osdConnectActive && !GlobalStates.screenLocked && !(Config.ready && Config.options.bar.dynamicIsland.notchMode.enable)
+        active: GlobalStates.osdConnectActive && !GlobalStates.screenLocked && !(Config.ready && Config.options.bar.dynamicIsland.notchMode.enable) && !(Config.ready && Config.options.bar.floatingNotch.enable)
         sourceComponent: Component {
             OsdConnect.OsdDrop {
                 screen: topPanel.screen

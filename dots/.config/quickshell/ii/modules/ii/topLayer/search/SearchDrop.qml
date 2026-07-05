@@ -76,18 +76,22 @@ Item {
 
     property var searchWidgetRef: null
 
-    readonly property bool isOverviewVisible: root.isOpen
-        && (root.searchWidgetRef ? root.searchWidgetRef.searchingText === "" : true)
-        && !GlobalStates.searchOnlyMode
-        && !Config.options.search.alwaysListApps
-        && (Config?.options.overview.enable ?? true)
+    readonly property bool isOverviewVisible: root.isOpen && LauncherSearch.query === "" && !GlobalStates.searchOnlyMode && !Config.options.search.alwaysListApps && (Config?.options.overview.enable ?? true)
 
     readonly property bool isScrollingLayout: Persistent.states.hyprland.layout === "scrolling"
-    readonly property real launcherContentWidth: searchWidgetRef ? searchWidgetRef.implicitWidth : 0
-    readonly property real launcherContentHeight: searchWidgetRef ? searchWidgetRef.implicitHeight : 0
+    readonly property real launcherContentWidth: {
+        if (Config.options.bar.dynamicIsland.notchMode.enable)
+            return GlobalStates.activeSearchWidth;
+        return searchWidgetRef ? searchWidgetRef.implicitWidth : 0;
+    }
+    readonly property real launcherContentHeight: {
+        if (Config.options.bar.dynamicIsland.notchMode.enable)
+            return GlobalStates.activeSearchHeight;
+        return searchWidgetRef ? searchWidgetRef.implicitHeight : 0;
+    }
 
-    property real lastActiveW: 360
-    property real lastActiveH: 120
+    property real lastActiveW: Config.options.bar.dynamicIsland.notchMode.enable ? (Config.options.search.baseWidth + (GlobalStates.searchConnectActive ? 48 : 0)) : 360
+    property real lastActiveH: Config.options.bar.dynamicIsland.notchMode.enable ? (GlobalStates.searchConnectActive ? 68 : 60) : 120
 
     onLauncherContentWidthChanged: {
         if (launcherContentWidth > 0)
@@ -204,8 +208,10 @@ Item {
         x: positioner.anchorX
         y: positioner.anchorY
         width: dropState.targetW
-        height: root.animHeight
-        visible: root.animHeight > 0.001
+        height: Config.options.bar.dynamicIsland.notchMode.enable
+            ? (root.isWidgetActive ? dropState.targetH : 0)
+            : root.animHeight
+        visible: height > 0.001
 
         // Publish drop bounds to GlobalStates for background blur exclusion
         onXChanged: root._updateBlurExclusion()
@@ -216,6 +222,7 @@ Item {
         // ── Notch background (unclipped) ─────────────────────────────────────
         Notch {
             id: dropNotch
+            visible: !Config.options.bar.dynamicIsland.notchMode.enable
             width: dropContainer.width
             height: dropContainer.height   // = animHeight, always matches clip edge
             y: barBottom ? (dropContainer.height - height) : 0
@@ -241,10 +248,7 @@ Item {
         // Corner enum semantics for "drop below bar" layout:
         //   Left side:  BottomRight fills bottom-right quadrant → arc faces inward → concave ✓
         //   Right side: BottomLeft  fills bottom-left  quadrant → arc faces inward → concave ✓
-        readonly property real _cornerRadius: Math.min(
-            Appearance.rounding.windowRounding,
-            root.animHeight
-        )
+        readonly property real _cornerRadius: Math.min(Appearance.rounding.windowRounding, root.animHeight)
         readonly property bool _showCorners: !root.barVertical && root.animHeight > 0.5
 
         RoundCorner {
@@ -270,7 +274,7 @@ Item {
         // barBottom variant: corners at the BOTTOM edge (drop grows upward)
         RoundCorner {
             id: bottomLeftCorner
-            visible: dropContainer._showCorners && root.barBottom
+            visible: dropContainer._showCorners && root.barBottom && !Config.options.bar.dynamicIsland.notchMode.enable
             implicitSize: dropContainer._cornerRadius
             color: Config.options.bar.expressiveColors ? root.activeTheme.barBackground : Appearance.colors.colLayer0
             corner: RoundCorner.CornerEnum.TopRight
@@ -279,10 +283,9 @@ Item {
             anchors.right: parent.left
             anchors.bottom: parent.bottom
         }
-
         RoundCorner {
             id: bottomRightCorner
-            visible: dropContainer._showCorners && root.barBottom
+            visible: dropContainer._showCorners && root.barBottom && !Config.options.bar.dynamicIsland.notchMode.enable
             implicitSize: dropContainer._cornerRadius
             color: Config.options.bar.expressiveColors ? root.activeTheme.barBackground : Appearance.colors.colLayer0
             corner: RoundCorner.CornerEnum.TopLeft
@@ -309,8 +312,9 @@ Item {
 
                 Loader {
                     id: searchWidgetLoader
-                    active: root.isWidgetActive
-                    focus: root.isOpen
+                    active: root.isWidgetActive && !Config.options.bar.dynamicIsland.notchMode.enable
+                    focus: root.isOpen && !Config.options.bar.dynamicIsland.notchMode.enable
+                    asynchronous: true
                     anchors.fill: parent
                     sourceComponent: Component {
                         SearchWidget {
@@ -462,13 +466,7 @@ Item {
 
         const topR = dropNotch.topRadius;
         const bottomR = dropNotch.bottomRadius;
-        if (GlobalStates.searchDropActive !== active
-            || GlobalStates.searchDropExclusionX !== sx
-            || GlobalStates.searchDropExclusionY !== sy
-            || GlobalStates.searchDropExclusionWidth !== sw
-            || GlobalStates.searchDropExclusionHeight !== sh
-            || GlobalStates.searchDropTopRadius !== topR
-            || GlobalStates.searchDropBottomRadius !== bottomR) {
+        if (GlobalStates.searchDropActive !== active || GlobalStates.searchDropExclusionX !== sx || GlobalStates.searchDropExclusionY !== sy || GlobalStates.searchDropExclusionWidth !== sw || GlobalStates.searchDropExclusionHeight !== sh || GlobalStates.searchDropTopRadius !== topR || GlobalStates.searchDropBottomRadius !== bottomR) {
             GlobalStates.searchDropActive = active;
             GlobalStates.searchDropExclusionX = sx;
             GlobalStates.searchDropExclusionY = sy;

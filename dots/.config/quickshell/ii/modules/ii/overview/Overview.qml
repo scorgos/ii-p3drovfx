@@ -194,9 +194,11 @@ Scope {
 
                             Item { // Wrapper for animation
                                 id: searchWidgetWrapper
-                                implicitHeight: searchWidget.implicitHeight
-                                implicitWidth: searchWidget.implicitWidth
+                                readonly property bool isNotchMode: Config.ready && Config.options.bar.dynamicIsland.notchMode.enable
+                                implicitHeight: isNotchMode ? GlobalStates.activeSearchHeight : searchWidget.implicitHeight
+                                implicitWidth: isNotchMode ? GlobalStates.activeSearchWidth : searchWidget.implicitWidth
                                 z: 999
+                                visible: !isNotchMode
 
                                 // Slide from absolute top of screen — offset large enough to hide above top edge
                                 readonly property real slideOffset: -(implicitHeight + root.margin * 2 + Appearance.sizes.elevationMargin + 40)
@@ -205,7 +207,7 @@ Scope {
                                 property real slideY: slideOffset
                                 property real slideOpacity: 0.0
 
-                                opacity: slideOpacity
+                                opacity: isNotchMode ? 0.0 : slideOpacity
                                 transform: Translate {
                                     y: searchWidgetWrapper.slideY
                                 }

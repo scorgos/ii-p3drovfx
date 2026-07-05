@@ -34,19 +34,10 @@ QtObject {
         }
     }
 
-    readonly property bool expanded: !notchModeEnabled || (expandOnHoverEnabled && _hoverExpanded)
+    readonly property bool expanded: !notchModeEnabled || (expandOnHoverEnabled && _hoverExpanded && mode !== "search" && _displayMode !== "search")
 
     onModeChanged: {
-        _modeStable = false;
-        swapTimer.restart();
-    }
-
-    property Timer swapTimer: Timer {
-        id: swapTimer
-        interval: 280 // swap duration
-        onTriggered: {
-            root._displayMode = root.mode;
-            root._modeStable = true;
-        }
+        root._displayMode = root.mode;
+        root._modeStable = true;
     }
 }

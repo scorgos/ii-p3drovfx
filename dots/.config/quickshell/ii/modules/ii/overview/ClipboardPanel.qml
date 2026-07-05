@@ -24,7 +24,7 @@ Item {
     readonly property int detailColumnWidth: panelWidth - listColumnWidth
 
     implicitWidth: panelWidth
-    implicitHeight: Math.min(560, Math.max(320, entriesContentArea.height + 40))
+    implicitHeight: clipboardSlotsInitialized ? Math.min(560, Math.max(320, entriesContentArea.height + 40)) : 560
     property var filteredEntries: {
         const q = root.searchQuery;
         const allEntries = Cliphist.entries;

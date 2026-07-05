@@ -62,6 +62,38 @@ Item {
     }
 
     property string searchingText: LauncherSearch.query
+    property bool inNotchMode: false
+    property bool openStateStable: false
+
+    Timer {
+        id: openStableTimer
+        interval: 250
+        onTriggered: root.openStateStable = true
+    }
+
+    Component.onCompleted: {
+        if (GlobalStates.overviewOpen) {
+            root.openStateStable = false;
+            openStableTimer.restart();
+        }
+    }
+
+    onImplicitHeightChanged: {
+        if (GlobalStates.overviewOpen && (root.screen ? GlobalStates.activeSearchMonitor === root.screen.name : true)) {
+            if (root.visible || root.inNotchMode) {
+                GlobalStates.activeSearchHeight = implicitHeight;
+            }
+        }
+    }
+
+    onImplicitWidthChanged: {
+        if (GlobalStates.overviewOpen && (root.screen ? GlobalStates.activeSearchMonitor === root.screen.name : true)) {
+            if (root.visible || root.inNotchMode) {
+                GlobalStates.activeSearchWidth = implicitWidth;
+            }
+        }
+    }
+
     readonly property bool isClipboardMode: root.searchingText.startsWith(Config.options.search.prefix.clipboard)
     readonly property bool isBluetoothMode: root.searchingText.startsWith(Config.options.search.prefix.bluetooth)
     readonly property bool isTranslatorMode: root.searchingText.startsWith(Config.options.search.prefix.translator)
@@ -75,24 +107,38 @@ Item {
         target: GlobalStates
         function onOverviewOpenChanged() {
             if (GlobalStates.overviewOpen) {
+                root.openStateStable = false;
+                openStableTimer.restart();
+
+                if (root.visible || root.inNotchMode) {
+                    if (root.screen ? GlobalStates.activeSearchMonitor === root.screen.name : true) {
+                        GlobalStates.activeSearchHeight = root.implicitHeight;
+                        GlobalStates.activeSearchWidth = root.implicitWidth;
+                    }
+                }
+
                 root.loadedResultsCount = 50;
-                root.focusSearchInput();
                 Qt.callLater(() => {
                     root.focusSearchInput();
                 });
                 if (root.alwaysListAppsMode) {
                     Qt.callLater(() => {
-                        // Show first 15 immediately for instant response,
-                        // then load the rest after a short delay
                         const allResults = LauncherSearch.results;
                         root.allSearchResults = allResults.slice(0, 15);
                         root.updateSearchSlots();
                         root.focusFirstItem();
                         resultsDebounce.restart();
                     });
+                } else {
+                    Qt.callLater(() => {
+                        root.rebuildSearchResults();
+                    });
                 }
             } else {
+                root.openStateStable = false;
+                openStableTimer.stop();
                 resultsDebounce.stop();
+                root.cancelSearch();
             }
         }
     }
@@ -107,8 +153,8 @@ Item {
             });
         }
     }
-    implicitWidth: searchWidgetContent.implicitWidth + (GlobalStates.searchConnectActive ? 0 : Appearance.sizes.elevationMargin * 2)
-    implicitHeight: searchWidgetContent.implicitHeight + (GlobalStates.searchConnectActive ? 0 : Appearance.sizes.elevationMargin * 2)
+    implicitWidth: searchWidgetContent.implicitWidth + ((GlobalStates.searchConnectActive || root.inNotchMode) ? 0 : Appearance.sizes.elevationMargin * 2)
+    implicitHeight: searchWidgetContent.implicitHeight + ((GlobalStates.searchConnectActive || root.inNotchMode) ? 0 : Appearance.sizes.elevationMargin * 2)
 
     function focusFirstItem() {
         if (root.isBluetoothMode) {} else if (root.isClipboardMode) {} else if (root.isTranslatorMode) {
@@ -322,13 +368,13 @@ Item {
 
     StyledRectangularShadow {
         target: searchWidgetContent
-        visible: !GlobalStates.searchConnectActive
+        visible: !GlobalStates.searchConnectActive && !root.inNotchMode
     }
     Rectangle {
         id: searchWidgetContent
         anchors.centerIn: parent
-        width: GlobalStates.searchConnectActive ? parent.width : implicitWidth
-        height: GlobalStates.searchConnectActive ? parent.height : implicitHeight
+        width: (GlobalStates.searchConnectActive || root.inNotchMode) ? parent.width : implicitWidth
+        height: (GlobalStates.searchConnectActive || root.inNotchMode) ? parent.height : implicitHeight
         clip: true
         layer.enabled: true
         layer.effect: OpacityMask {
@@ -372,10 +418,11 @@ Item {
             return gridLayout.implicitHeight;
         }
         radius: Appearance.rounding.windowRounding
-        color: GlobalStates.searchConnectActive ? "transparent" : Appearance.colors.colBackgroundSurfaceContainer
+        color: (GlobalStates.searchConnectActive || root.inNotchMode) ? "transparent" : Appearance.colors.colBackgroundSurfaceContainer
 
         Behavior on implicitWidth {
             id: searchWidthBehavior
+            enabled: !root.inNotchMode || root.openStateStable
             NumberAnimation {
                 duration: Appearance.animation.elementMove.duration
                 easing.type: Easing.BezierSpline
@@ -385,6 +432,7 @@ Item {
 
         Behavior on implicitHeight {
             id: searchHeightBehavior
+            enabled: !root.inNotchMode || root.openStateStable
             NumberAnimation {
                 duration: Appearance.animation.elementMove.duration
                 easing.type: Easing.BezierSpline

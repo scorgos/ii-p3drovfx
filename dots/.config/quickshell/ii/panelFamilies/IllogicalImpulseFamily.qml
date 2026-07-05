@@ -32,6 +32,7 @@ import qs.modules.ii.scratchpadOverlay
 import qs.modules.ii.keyboardLayoutTransitionPopup
 import qs.modules.ii.topLayer
 import qs.modules.ii.alarmRingingPopup
+import qs.modules.ii.dynamicIsland
 
 Scope {
     property bool barExtraCondition: true
@@ -153,5 +154,9 @@ Scope {
     PanelLoader {
         extraCondition: GlobalStates.connectModeActive
         component: TopLayer {}
+    }
+    PanelLoader {
+        extraCondition: Config.ready && Config.options.bar.floatingNotch.enable
+        component: DynamicIsland {}
     }
 }

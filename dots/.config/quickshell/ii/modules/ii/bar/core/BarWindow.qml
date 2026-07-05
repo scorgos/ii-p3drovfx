@@ -61,6 +61,11 @@ Scope {
 
         property int monitorIndex: root.monitorIndex
         property bool hasActiveWindows: false
+        readonly property bool isSearchActiveHere: {
+            return GlobalStates.overviewOpen
+                && (barRoot.screen ? GlobalStates.activeSearchMonitor === barRoot.screen.name : false)
+                && (Config.ready && Config.options.bar.dynamicIsland.notchMode.enable);
+        }
         property bool showBarBackground: hasActiveWindows && Config.options.bar.barBackgroundStyle === 2
             || Config.options.bar.barBackgroundStyle === 1
 
@@ -130,6 +135,7 @@ Scope {
         exclusionMode: ExclusionMode.Ignore
         exclusiveZone: 0
         WlrLayershell.namespace: "quickshell:bar"
+        WlrLayershell.keyboardFocus: isSearchActiveHere ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         // Mask extends further when transparent to allow glow gradient rendering.
         mask: Region { item: hoverMaskRegion }

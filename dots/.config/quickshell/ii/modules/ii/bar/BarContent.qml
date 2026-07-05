@@ -31,16 +31,11 @@ Item {
     height: implicitHeight
 
     // ── Monitor ───────────────────────────────────────────────────────────────
-    property var screen:         root.QsWindow.window?.screen
+    property var screen: root.QsWindow.window?.screen
     property int monitorIndex
     property var brightnessMonitor: Brightness.getMonitorForScreen(screen)
-    property real useShortenedForm:
-        (Appearance.sizes.barHellaShortenScreenWidthThreshold >= screen?.width) ? 2 :
-        (Appearance.sizes.barShortenScreenWidthThreshold >= screen?.width)      ? 1 : 0
-    readonly property int centerSideModuleWidth:
-        (useShortenedForm == 2) ? Appearance.sizes.barCenterSideModuleWidthHellaShortened :
-        (useShortenedForm == 1) ? Appearance.sizes.barCenterSideModuleWidthShortened :
-                                  Appearance.sizes.barCenterSideModuleWidth
+    property real useShortenedForm: (Appearance.sizes.barHellaShortenScreenWidthThreshold >= screen?.width) ? 2 : (Appearance.sizes.barShortenScreenWidthThreshold >= screen?.width) ? 1 : 0
+    readonly property int centerSideModuleWidth: (useShortenedForm == 2) ? Appearance.sizes.barCenterSideModuleWidthHellaShortened : (useShortenedForm == 1) ? Appearance.sizes.barCenterSideModuleWidthShortened : Appearance.sizes.barCenterSideModuleWidth
 
     // ── Window tracking (Connections owned here, result fed to ctx) ───────────
     property bool hasActiveWindows: false
@@ -49,28 +44,28 @@ Item {
         target: HyprlandData
         function onWindowListChanged() {
             const monitorName = root.screen ? root.screen.name : "";
-            const monitor = monitorName
-                ? HyprlandData.monitors.find(m => m.name === monitorName)
-                : null;
+            const monitor = monitorName ? HyprlandData.monitors.find(m => m.name === monitorName) : null;
             const wsId = monitor?.activeWorkspace?.id;
-            root.hasActiveWindows = wsId
-                ? HyprlandData.windowList.some(w => w.workspace.id === wsId && !w.floating)
-                : false;
+            root.hasActiveWindows = wsId ? HyprlandData.windowList.some(w => w.workspace.id === wsId && !w.floating) : false;
         }
     }
 
     // ── Computed state ────────────────────────────────────────────────────────
     BarContext {
         id: ctx
-        screen:            root.screen
-        hasActiveWindows:  root.hasActiveWindows
+        screen: root.screen
+        hasActiveWindows: root.hasActiveWindows
     }
 
     // ── Layout splitting ──────────────────────────────────────────────────────
-    BarLayout { id: layout }
+    BarLayout {
+        id: layout
+    }
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    BarThemes { id: barThemes }
+    BarThemes {
+        id: barThemes
+    }
     property var activeTheme: barThemes.getTheme(Config.options.bar.expressiveColorTheme)
 
     readonly property real verticalTopOffset: styleLoader.verticalTopOffset
@@ -80,15 +75,15 @@ Item {
     BarStyleLoader {
         id: styleLoader
         anchors.fill: parent
-        isDynamicIsland:     ctx.isDynamicIsland
-        showBarBackground:   ctx.showBarBackground
-        activeTheme:         root.activeTheme
-        screen:              root.screen
-        isSearchActiveHere:  ctx.isSearchActiveHere
+        isDynamicIsland: ctx.isDynamicIsland
+        showBarBackground: ctx.showBarBackground
+        activeTheme: root.activeTheme
+        screen: root.screen
+        isSearchActiveHere: ctx.isSearchActiveHere
         expectedSearchWidth: ctx.expectedSearchWidth
-        frameThickness:      ctx.frameThickness
-        leftList:   layout.leftList
+        frameThickness: ctx.frameThickness
+        leftList: layout.leftList
         centerList: layout.centerList
-        rightList:  layout.rightList
+        rightList: layout.rightList
     }
 }

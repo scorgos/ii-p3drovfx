@@ -22,7 +22,8 @@ QtObject {
             _initialized = true;
             return;
         }
-        if (!Config.ready || !Config.options.bar.dynamicIsland.notchMode.enable) return;
+        if (!Config.ready || !Config.options.bar.dynamicIsland.notchMode.enable)
+            return;
         root.workspaceTriggerActive = true;
         workspaceTriggerTimer.restart();
     }
@@ -47,53 +48,75 @@ QtObject {
     }
 
     function isWidgetInLayout(widgetId) {
-        if (!Config.ready) return false;
+        if (!Config.ready)
+            return false;
         const center = Config.options.bar.layouts.center;
-        if (!center) return false;
+        if (!center)
+            return false;
         for (let i = 0; i < center.length; i++) {
-            if (center[i].id === widgetId) return true;
+            if (center[i].id === widgetId)
+                return true;
         }
         return false;
     }
 
+    readonly property bool isSearchOpenHere: {
+        return GlobalStates.overviewOpen
+            && root.screen
+            && root.screen.name === GlobalStates.activeSearchMonitor;
+    }
+
     readonly property bool isOsdOpenHere: {
-        if (!GlobalStates.osdVolumeOpen) return false;
+        if (!GlobalStates.osdVolumeOpen)
+            return false;
         const focusedScreenName = (Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0])?.name;
         return root.screen && root.screen.name === focusedScreenName;
     }
 
     readonly property bool isNotificationActiveHere: {
-        if (Notifications.popupList.length === 0) return false;
+        if (Notifications.popupList.length === 0)
+            return false;
         const targetScreen = Quickshell.screens.find(s => Config.options.notifications.monitor.enable ? s.name === Config.options.notifications.monitor.name : s.name === Hyprland.focusedMonitor?.name) ?? null;
         return root.screen && targetScreen && root.screen.name === targetScreen.name;
     }
 
     readonly property string _calculatedMode: {
-        if (!Config.ready) return "clock";
-        
-        // 1. OSD is always highest priority
-        if (isOsdOpenHere) return "osd";
+        if (!Config.ready)
+            return "clock";
+
+        // 0. Search mode is highest priority
+        if (isSearchOpenHere)
+            return "search";
+
+        // 1. OSD is always highest priority otherwise
+        if (isOsdOpenHere)
+            return "osd";
 
         // 2. Notifications (if any active popup on this screen)
-        if (isNotificationActiveHere) return "notification";
+        if (isNotificationActiveHere)
+            return "notification";
 
         // 3. Workspaces trigger (transient workspace change)
-        if (root.workspaceTriggerActive) return "workspaces";
+        if (root.workspaceTriggerActive)
+            return "workspaces";
 
         const list = Config.options.bar.dynamicIsland.notchMode.priorityList;
-        if (!list) return "clock";
+        if (!list)
+            return "clock";
 
         for (let i = 0; i < list.length; i++) {
             const modeId = list[i];
             // Skip workspaces here since we handled it above with higher priority
-            if (modeId === "workspaces") continue;
+            if (modeId === "workspaces")
+                continue;
 
             if (isWidgetActive(modeId) && isWidgetInLayout(modeId)) {
                 return modeId;
             }
         }
         // Fallback: clock only if it's in the layout
-        if (isWidgetInLayout("clock")) return "clock";
+        if (isWidgetInLayout("clock"))
+            return "clock";
         return "";
     }
 

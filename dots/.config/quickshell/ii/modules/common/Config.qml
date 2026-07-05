@@ -551,6 +551,11 @@ Singleton {
                         property bool overlapApps: false
                     }
                 }
+                property JsonObject floatingNotch: JsonObject {
+                    property bool enable: false
+                    property bool autoHide: true
+                    property bool dropShadow: true
+                }
                 property int barGroupStyle: 1 // 0: Pills | 1: Island (opaque) | 2: Transparent (or maybe line-separated in the future)
                 property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool useMaterialSymbolForTopLeftIcon: false

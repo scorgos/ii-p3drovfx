@@ -63,26 +63,82 @@ Item {
 
     implicitWidth: targetWidth
     Behavior on implicitWidth {
+        enabled: !rootItem.isNotchActive || rootItem.isNotchExpanded
         NumberAnimation {
-            duration: isNotchActive ? Config.options.bar.dynamicIsland.notchMode.expandAnimDuration : 250
-            easing.type: isNotchActive ? Easing.OutCubic : Easing.OutBack
+            duration: rootItem.isNotchActive ? Config.options.bar.dynamicIsland.notchMode.expandAnimDuration : 250
+            easing.type: rootItem.isNotchActive ? Easing.BezierSpline : Easing.OutBack
+            easing.bezierCurve: rootItem.isNotchActive ? Appearance.animationCurves.emphasizedDecel : null
         }
     }
 
-    opacity: isWidgetVisibleInNotch ? 1.0 : 0.0
-    Behavior on opacity {
-        SequentialAnimation {
-            PauseAnimation {
-                duration: (isWidgetVisibleInNotch && isNotchActive) ? Config.options.bar.dynamicIsland.notchMode.fadeDelay : 0
-            }
-            NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutQuad
-            }
-        }
-    }
-
+    opacity: 1.0
     visible: opacity > 0.01
+
+    readonly property bool isNotchMode: isNotchActive && !isNotchExpanded
+
+    states: [
+        State {
+            name: "visible"
+            when: !rootItem.isNotchMode || rootItem.isWidgetVisibleInNotch
+            PropertyChanges {
+                target: verticalTranslation
+                y: 0
+            }
+            PropertyChanges {
+                target: rootItem
+                opacity: 1.0
+            }
+        },
+        State {
+            name: "hidden"
+            when: rootItem.isNotchMode && !rootItem.isWidgetVisibleInNotch
+            PropertyChanges {
+                target: verticalTranslation
+                y: -20
+            }
+            PropertyChanges {
+                target: rootItem
+                opacity: 0.0
+            }
+        }
+    ]
+
+    transitions: [
+        Transition {
+            from: "hidden"; to: "visible"
+            ParallelAnimation {
+                NumberAnimation {
+                    target: verticalTranslation
+                    property: "y"
+                    duration: rootItem.isNotchMode ? 350 : 0
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: rootItem
+                    property: "opacity"
+                    duration: rootItem.isNotchMode ? 300 : 150
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible"; to: "hidden"
+            ParallelAnimation {
+                NumberAnimation {
+                    target: verticalTranslation
+                    property: "y"
+                    duration: rootItem.isNotchMode ? 300 : 0
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: rootItem
+                    property: "opacity"
+                    duration: rootItem.isNotchMode ? 250 : 150
+                    easing.type: Easing.OutQuad
+                }
+            }
+        }
+    ]
     // ─────────────────────────────────────────────────────────────────────────
 
     implicitHeight: wrapper.implicitHeight
@@ -108,6 +164,7 @@ Item {
                 return workspaceComp;
             case "music_player":
                 if (isExp) return musicPlayerCompExpressive;
+                if (style === "neural") return isVert ? neuralMediaCompVert : neuralMediaComp;
                 return isVert ? musicPlayerCompVert : musicPlayerComp;
             case "system_monitor":
                 if (isExp) return systemMonitorCompExpressive;
@@ -201,7 +258,16 @@ Item {
         vertical: rootItem.vertical
         anchors {
             verticalCenter:   rootItem.vertical ? rootItem.verticalCenter : undefined
-            horizontalCenter: rootItem.vertical ? undefined : rootItem.horizontalCenter
+            horizontalCenter: (rootItem.isNotchMode || rootItem.vertical) ? undefined : rootItem.horizontalCenter
+        }
+
+        x: rootItem.isNotchMode
+            ? (rootItem.parent ? (rootItem.parent.width / 2 - rootItem.x - wrapper.implicitWidth / 2) : 0)
+            : 0
+
+        transform: Translate {
+            id: verticalTranslation
+            y: 0
         }
 
         readonly property bool paddingless: registry.isPaddingless(modelData.id, rootItem.isExpressive)
@@ -240,6 +306,8 @@ Item {
     Component { id: systemMonitorCompVert; Vertical.Resources  {} }
     Component { id: musicPlayerCompVert;   Vertical.VerticalMedia {} }
     Component { id: musicPlayerComp;       Media               {} }
+    Component { id: neuralMediaComp;       NeuralMedia         { vertical: rootItem.vertical } }
+    Component { id: neuralMediaCompVert;   Vertical.VerticalNeuralMedia {} }
     Component { id: utilityButtonsComp;    UtilButtons         { vertical: rootItem.vertical } }
     Component { id: batteryComp;           BatteryIndicator    {} }
     Component { id: batteryCompVert;       Vertical.BatteryIndicator {} }

@@ -198,6 +198,44 @@ Item {
             }
 
             ConfigSwitch {
+                buttonIcon: "water_drop"
+                text: Translation.tr("Floating Dynamic Island")
+                checked: Config.options.bar.floatingNotch.enable
+                onCheckedChanged: {
+                    Config.options.bar.floatingNotch.enable = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Enables an independent, floating Dynamic Island at the top of the screen")
+                }
+            }
+
+            ConfigSwitch {
+                buttonIcon: "visibility_off"
+                text: Translation.tr("Floating Island auto-hide")
+                visible: Config.options.bar.floatingNotch.enable
+                checked: Config.options.bar.floatingNotch.autoHide
+                onCheckedChanged: {
+                    Config.options.bar.floatingNotch.autoHide = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Hides the island at the top of the screen, revealing it on hover")
+                }
+            }
+
+            ConfigSwitch {
+                buttonIcon: "filter_drama"
+                text: Translation.tr("Floating Island drop-shadow")
+                visible: Config.options.bar.floatingNotch.enable
+                checked: Config.options.bar.floatingNotch.dropShadow
+                onCheckedChanged: {
+                    Config.options.bar.floatingNotch.dropShadow = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Shows a drop shadow underneath the floating island")
+                }
+            }
+
+            ConfigSwitch {
                 buttonIcon: "compress"
                 text: Translation.tr("Notch Mode")
                 visible: Config.options.bar.cornerStyle === 3
