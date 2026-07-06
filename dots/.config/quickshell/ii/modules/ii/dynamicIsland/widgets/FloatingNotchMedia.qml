@@ -275,7 +275,7 @@ Item {
                 MaterialSymbol {
                     anchors.centerIn: parent
                     text: "music_note"
-                    iconSize: 16
+                    iconSize: Appearance.font.pixelSize.normal
                     color: Appearance.colors.colOnSurfaceVariant
                     visible: root.artUrl === ""
                 }
@@ -303,7 +303,7 @@ Item {
             Layout.preferredHeight: root.elementHeight
             Layout.alignment: Qt.AlignVCenter
             color: Appearance.colors.colLayer4
-            radius: 12
+            radius: Appearance.rounding.normal
             clip: true
 
             readonly property bool hasLyrics: Config.options.bar.mediaPlayer.lyrics.enable && LyricsService.hasSyncedLines
@@ -345,7 +345,9 @@ Item {
                     elide: Text.ElideRight
                     horizontalAlignment: Text.AlignLeft
                     opacity: root.titleOpacity
-                    transform: Translate { x: root.titleXOffset }
+                    transform: Translate {
+                        x: root.titleXOffset
+                    }
                 }
 
                 StyledText {
@@ -410,8 +412,8 @@ Item {
             return (p && p.activeWidgetsList.length > 1);
         }
 
-        x: - (root.widgetBg.width - root.width) / 2
-        y: - (root.widgetBg.height - root.height) / 2
+        x: -(root.widgetBg.width - root.width) / 2
+        y: -(root.widgetBg.height - root.height) / 2
         width: root.widgetBg.width
         height: root.widgetBg.height
         visible: root.isExpanded
@@ -443,8 +445,8 @@ Item {
             // Dark dimming overlay
             Rectangle {
                 anchors.fill: parent
-                color: "#121212"
-                opacity: 0.25
+                color: Appearance.colors.colScrim
+                opacity: 0.35
             }
         }
     }
@@ -489,7 +491,7 @@ Item {
                     anchors.fill: parent
                     active: root.player && root.player.desktopEntry !== ""
                     sourceComponent: IconImage {
-                        implicitSize: 22
+                        implicitSize: Appearance.font.pixelSize.huge
                         source: Quickshell.iconPath(root.player ? root.player.desktopEntry : "audio-x-generic", "audio-x-generic")
                     }
                 }
@@ -500,21 +502,23 @@ Item {
                     sourceComponent: MaterialSymbol {
                         anchors.centerIn: parent
                         text: "music_note"
-                        iconSize: 14
-                        color: "#ffffff"
+                        iconSize: Appearance.font.pixelSize.smallest
+                        color: Appearance.colors.colOnSurface
                     }
                 }
             }
 
-            Item { Layout.fillWidth: true }
+            Item {
+                Layout.fillWidth: true
+            }
 
             // Audio output device pill (headphones/speaker)
             Rectangle {
                 id: audioPill
                 height: 24
                 implicitWidth: audioPillLayout.implicitWidth + 16
-                radius: 12
-                color: "#c8e6ff" // light blue background
+                radius: Appearance.rounding.full
+                color: Appearance.colors.colPrimaryContainer
                 border.width: 0
 
                 readonly property string activeAudioDeviceName: Audio.sink ? (Audio.sink.description || "") : ""
@@ -533,15 +537,15 @@ Item {
 
                     MaterialSymbol {
                         text: audioPill.audioDeviceIcon
-                        iconSize: 12
-                        color: "#1d2c3f" // dark blue matching the pill
+                        iconSize: Appearance.font.pixelSize.smallest
+                        color: Appearance.colors.colOnPrimaryContainer
                     }
 
                     StyledText {
                         text: audioPill.activeAudioDeviceName !== "" ? audioPill.activeAudioDeviceName : Translation.tr("Wired headphones")
-                        font.pixelSize: 10
+                        font.pixelSize: Appearance.font.pixelSize.smallest
                         font.bold: true
-                        color: "#1d2c3f"
+                        color: Appearance.colors.colOnPrimaryContainer
                         Layout.maximumWidth: 100
                         elide: Text.ElideRight
                     }
@@ -564,12 +568,14 @@ Item {
                 StyledText {
                     Layout.fillWidth: true
                     font.family: Appearance.font.family.main
-                    font.pixelSize: 18
+                    font.pixelSize: Appearance.font.pixelSize.large
                     font.bold: true
-                    color: "#ffffff"
+                    color: Appearance.colors.colOnSurface
                     text: root.activeLyricText
                     opacity: root.lyricOpacity
-                    transform: Translate { x: root.lyricXOffset }
+                    transform: Translate {
+                        x: root.lyricXOffset
+                    }
                     maximumLineCount: 2
                     wrapMode: Text.WordWrap
                     elide: Text.ElideRight
@@ -578,8 +584,8 @@ Item {
                 StyledText {
                     Layout.fillWidth: true
                     font.family: Appearance.font.family.main
-                    font.pixelSize: 12
-                    color: "#b0c4de" // slightly dimmed white/gray
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    color: Appearance.colors.colSubtext
                     text: root.artist
                     maximumLineCount: 1
                     elide: Text.ElideRight
@@ -592,9 +598,9 @@ Item {
                 implicitWidth: 52
                 implicitHeight: 52
                 buttonRadius: 18
-                colBackground: "#c8e6ff"
-                colBackgroundHover: "#d9eeff"
-                colRipple: "#a1d2ff"
+                colBackground: Appearance.colors.colPrimaryContainer
+                colBackgroundHover: Appearance.colors.colPrimaryContainerHover
+                colRipple: Appearance.colors.colPrimaryContainerActive
                 Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
 
                 onClicked: {
@@ -612,8 +618,8 @@ Item {
                     MaterialSymbol {
                         anchors.centerIn: parent
                         text: root.playing ? "pause" : "play_arrow"
-                        iconSize: 28
-                        color: "#1d2c3f"
+                        iconSize: Appearance.font.pixelSize.hugeass
+                        color: Appearance.colors.colOnPrimaryContainer
                         fill: 1
                     }
                 }
@@ -635,7 +641,7 @@ Item {
                 buttonRadius: 12
                 colBackground: "transparent"
                 colBackgroundHover: "transparent"
-                colRipple: "#ffffff"
+                colRipple: Appearance.colors.colPrimaryContainer
 
                 onClicked: {
                     if (root.player)
@@ -648,8 +654,8 @@ Item {
                     MaterialSymbol {
                         anchors.centerIn: parent
                         text: "skip_previous"
-                        iconSize: 20
-                        color: root.player && root.player.canGoPrevious ? "#ffffff" : "#808080"
+                        iconSize: Appearance.font.pixelSize.normal
+                        color: root.player && root.player.canGoPrevious ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSubtext
                         opacity: root.player && root.player.canGoPrevious ? 1.0 : 0.4
                     }
                 }
@@ -668,11 +674,12 @@ Item {
                     active: root.player ? (root.player.canSeek ?? false) : false
                     sourceComponent: StyledSlider {
                         configuration: StyledSlider.Configuration.Wavy
-                        highlightColor: "#ffffff"
-                        trackColor: "#4f5b66"
-                        handleColor: "#ffffff"
+                        highlightColor: Appearance.colors.colPrimaryContainer
+                        trackColor: Appearance.colors.colSurfaceContainer
+                        handleColor: Appearance.colors.colPrimaryContainer
                         value: (root.player && root.player.length > 0) ? (root.player.position / root.player.length) : 0
-                        onMoved: if (root.player) root.player.position = value * root.player.length
+                        onMoved: if (root.player)
+                            root.player.position = value * root.player.length
                     }
                 }
 
@@ -686,8 +693,8 @@ Item {
                     active: root.player ? !(root.player.canSeek ?? false) : false
                     sourceComponent: StyledProgressBar {
                         wavy: root.player ? root.playing : false
-                        highlightColor: "#ffffff"
-                        trackColor: "#4f5b66"
+                        highlightColor: Appearance.colors.colPrimaryContainer
+                        trackColor: colSurfaceContainer
                         value: (root.player && root.player.length > 0) ? (root.player.position / root.player.length) : 0
                     }
                 }
@@ -701,7 +708,7 @@ Item {
                 buttonRadius: 12
                 colBackground: "transparent"
                 colBackgroundHover: "transparent"
-                colRipple: "#ffffff"
+                colRipple: Appearance.colors.colPrimaryContainer
 
                 onClicked: {
                     if (root.player)
@@ -714,8 +721,8 @@ Item {
                     MaterialSymbol {
                         anchors.centerIn: parent
                         text: "skip_next"
-                        iconSize: 20
-                        color: root.player && root.player.canGoNext ? "#ffffff" : "#808080"
+                        iconSize: Appearance.font.pixelSize.normal
+                        color: root.player && root.player.canGoNext ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSubtext
                         opacity: root.player && root.player.canGoNext ? 1.0 : 0.4
                     }
                 }

@@ -34,6 +34,7 @@ Scope {
 
     readonly property bool isOverviewVisible: root.searchActive && LauncherSearch.query === "" && !GlobalStates.searchOnlyMode && !Config.options.search.alwaysListApps && (Config && Config.options && Config.options.overview && Config.options.overview.enable !== undefined ? Config.options.overview.enable : true)
     readonly property bool isScrollingLayout: Persistent.states.hyprland.layout === "scrolling"
+    readonly property bool usingWrappedFrame: Config.options.appearance.fakeScreenRounding === 3 && !(Config.options.bar.cornerStyle === 3 && !Config.options.bar.vertical)
 
     property var searchWidgetRef: null
     property var workspaceWidgetRef: null
@@ -245,8 +246,8 @@ Scope {
                 source: "widgets/FloatingNotchWorkspaces.qml",
                 contractedH: Config.options.bar.floatingNotch.heightWorkspaces,
                 expandedH: 140,
-                contractedW: workspaceWidgetRef ? workspaceWidgetRef.implicitWidth + 24 : 200,
-                expandedW: workspaceWidgetRef ? workspaceWidgetRef.implicitWidth + 24 : 200
+                contractedW: workspaceWidgetRef ? workspaceWidgetRef.implicitWidth : (Config.options.bar.workspaces.shown * 26 + 20),
+                expandedW: workspaceWidgetRef ? workspaceWidgetRef.implicitWidth : ((Config.options.bar.workspaces.shown * 26 * 1.15) + 20)
             };
         }
         if (type === "keyboard") {
@@ -296,7 +297,7 @@ Scope {
                 contractedH: Config.options.bar.floatingNotch.heightRecording,
                 expandedH: 140,
                 contractedW: 125,
-                expandedW: 125
+                expandedW: 200
             };
         }
         if (type === "media") {
@@ -555,7 +556,7 @@ Scope {
             right: true
         }
 
-        implicitHeight: isOverviewVisible ? (win.screen ? win.screen.height : 1080) : (targetH + 60)
+        implicitHeight: isOverviewVisible ? (win.screen ? win.screen.height : 1080) : (targetH + 60 + (root.usingWrappedFrame ? Config.options.appearance.wrappedFrameThickness : 0))
 
         // Dynamic click/hover mask to prevent blocking the screen
         mask: Region {
@@ -621,7 +622,7 @@ Scope {
             }
 
             // Slide vertically out of screen when idleHidden is true
-            y: idleHidden ? -targetH - 10 : 0
+            y: idleHidden ? -targetH - 10 : (root.usingWrappedFrame ? Config.options.appearance.wrappedFrameThickness : 0)
 
             Behavior on y {
                 NumberAnimation {
