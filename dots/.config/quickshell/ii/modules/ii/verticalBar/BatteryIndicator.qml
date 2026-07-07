@@ -38,6 +38,7 @@ MouseArea {
     property color textColor: Appearance.colors.colOnSurface
 
     readonly property bool effectivelyCharging: root.isCharging || root.isPluggedIn
+    readonly property bool chargeLimitReached: Battery.chargeLimitReached
     readonly property bool isPowerSaving: PowerProfiles.profile === PowerProfile.PowerSaver
     readonly property bool isPerformance: PowerProfiles.profile === PowerProfile.Performance
 
@@ -264,7 +265,7 @@ MouseArea {
                                         return "#E53935";
                                     if (root.isLow && !root.effectivelyCharging)
                                         return "#FB8C00";
-                                    if (root.effectivelyCharging)
+                                    if (root.effectivelyCharging || root.chargeLimitReached)
                                         return "#43A047";
                                     if (root.isPowerSaving)
                                         return "#FFC917";
@@ -290,12 +291,12 @@ MouseArea {
                         }
 
                         MaterialSymbol {
-                            visible: root.effectivelyCharging
+                            visible: root.effectivelyCharging || root.chargeLimitReached
                             anchors.top: parent.top
-                            anchors.topMargin: -5
+                            anchors.topMargin: root.chargeLimitReached ? -3 : -5
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.horizontalCenterOffset: -(parent.width * (4 / 28)) / 2
-                            text: "bolt"
+                            text: root.chargeLimitReached ? "check" : "bolt"
                             iconSize: 17
                             fill: 1
                             color: Appearance.colors.colLayer0
@@ -303,12 +304,12 @@ MouseArea {
                         }
 
                         MaterialSymbol {
-                            visible: root.effectivelyCharging
+                            visible: root.effectivelyCharging || root.chargeLimitReached
                             anchors.top: parent.top
-                            anchors.topMargin: -6
+                            anchors.topMargin: root.chargeLimitReached ? -4 : -6
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.horizontalCenterOffset: -(parent.width * (4 / 28)) / 2
-                            text: "bolt"
+                            text: root.chargeLimitReached ? "check" : "bolt"
                             iconSize: 16
                             fill: 1
                             color: root.textColor
