@@ -70,6 +70,158 @@ ContentPage {
     }
 
     ContentSection {
+        icon: "notifications"
+        title: Translation.tr("Notifications")
+
+        ConfigSwitch {
+            buttonIcon: "notifications"
+            text: Translation.tr("Show notifications on lock screen")
+            checked: Config.options.lock.notifications.enable
+            onCheckedChanged: {
+                Config.options.lock.notifications.enable = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Anyone with physical access to the machine will be able to see them.")
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Privacy level")
+            icon: "visibility"
+            Layout.fillWidth: true
+
+            ConfigSelectionArray {
+                currentValue: Config.options.lock.notifications.privacy
+                onSelected: newValue => {
+                    Config.options.lock.notifications.privacy = newValue;
+                }
+                options: [
+                    {
+                        displayName: Translation.tr("Full content"),
+                        icon: "visibility",
+                        value: "full"
+                    },
+                    {
+                        displayName: Translation.tr("Hide content"),
+                        icon: "visibility_off",
+                        value: "redacted"
+                    },
+                    {
+                        displayName: Translation.tr("Count only"),
+                        icon: "numbers",
+                        value: "countOnly"
+                    }
+                ]
+            }
+        }
+
+        ConfigSwitch {
+            buttonIcon: "history"
+            text: Translation.tr("Only notifications received while locked")
+            checked: Config.options.lock.notifications.onlySinceLock
+            onCheckedChanged: {
+                Config.options.lock.notifications.onlySinceLock = checked;
+            }
+        }
+
+        ConfigSpinBox {
+            icon: "format_list_numbered"
+            text: Translation.tr("Maximum notifications shown")
+            value: Config.options.lock.notifications.maxShown
+            from: 1
+            to: 10
+            stepSize: 1
+            onValueChanged: {
+                Config.options.lock.notifications.maxShown = value;
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("App list")
+            icon: "apps"
+            Layout.fillWidth: true
+
+            ConfigSelectionArray {
+                currentValue: Config.options.lock.notifications.appListMode
+                onSelected: newValue => {
+                    Config.options.lock.notifications.appListMode = newValue;
+                }
+                options: [
+                    {
+                        displayName: Translation.tr("Blocklist"),
+                        icon: "block",
+                        value: "blocklist"
+                    },
+                    {
+                        displayName: Translation.tr("Allowlist"),
+                        icon: "check_circle",
+                        value: "allowlist"
+                    }
+                ]
+            }
+
+            MaterialTextArea {
+                Layout.fillWidth: true
+                placeholderText: Translation.tr("App names, one per line")
+                wrapMode: TextEdit.NoWrap
+                Component.onCompleted: text = Config.options.lock.notifications.appList.join("\n")
+                onTextChanged: {
+                    Config.options.lock.notifications.appList = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+                }
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Filters")
+            icon: "filter_alt"
+            Layout.fillWidth: true
+
+            ConfigSwitch {
+                buttonIcon: "hourglass_disabled"
+                text: Translation.tr("Hide transient notifications")
+                checked: Config.options.lock.notifications.filters.skipTransient
+                onCheckedChanged: {
+                    Config.options.lock.notifications.filters.skipTransient = checked;
+                }
+            }
+
+            ConfigSwitch {
+                buttonIcon: "low_priority"
+                text: Translation.tr("Hide low-urgency notifications")
+                checked: Config.options.lock.notifications.filters.skipLowUrgency
+                onCheckedChanged: {
+                    Config.options.lock.notifications.filters.skipLowUrgency = checked;
+                }
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Critical notifications")
+            icon: "priority_high"
+            Layout.fillWidth: true
+
+            ConfigSelectionArray {
+                currentValue: Config.options.lock.notifications.filters.criticalOverride
+                onSelected: newValue => {
+                    Config.options.lock.notifications.filters.criticalOverride = newValue;
+                }
+                options: [
+                    {
+                        displayName: Translation.tr("Always show full"),
+                        icon: "priority_high",
+                        value: "full"
+                    },
+                    {
+                        displayName: Translation.tr("No exception"),
+                        icon: "do_not_disturb_on",
+                        value: "none"
+                    }
+                ]
+            }
+        }
+    }
+
+    ContentSection {
         icon: "style"
         title: Translation.tr("Style: General")
 

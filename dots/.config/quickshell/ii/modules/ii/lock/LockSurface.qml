@@ -96,6 +96,19 @@ MouseArea {
     //     }
     // }
 
+    // Notifications (read-only)
+    Loader {
+        anchors {
+            top: parent.top
+            right: parent.right
+            margins: 20
+        }
+        active: Config.options.lock.notifications.enable
+        scale: root.toolbarScale
+        opacity: root.toolbarOpacity
+        sourceComponent: LockNotifications {}
+    }
+
     // Main toolbar: password box
     Toolbar {
         id: mainIsland

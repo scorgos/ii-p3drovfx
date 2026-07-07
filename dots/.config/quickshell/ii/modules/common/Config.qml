@@ -940,6 +940,19 @@ Singleton {
                     property bool requirePasswordToPower: false
                 }
                 property bool materialShapeChars: true
+                property JsonObject notifications: JsonObject {
+                    property bool enable: false // Off by default: showing notifications on the lock screen is a privacy trade-off
+                    property string privacy: "redacted" // "full" | "redacted" | "countOnly"
+                    property bool onlySinceLock: true // Only show notifications that arrived while locked
+                    property int maxShown: 5
+                    property string appListMode: "blocklist" // "blocklist" | "allowlist"
+                    property list<string> appList: [] // App names, case-insensitive match
+                    property JsonObject filters: JsonObject {
+                        property bool skipTransient: true
+                        property bool skipLowUrgency: false
+                        property string criticalOverride: "full" // "full" | "none" — critical notifications bypass privacy redaction
+                    }
+                }
             }
 
             property JsonObject media: JsonObject {
