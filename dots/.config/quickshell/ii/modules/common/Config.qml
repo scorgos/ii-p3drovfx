@@ -946,8 +946,9 @@ Singleton {
                     property string privacy: "redacted" // "full" | "redacted" | "countOnly"
                     property bool onlySinceLock: true // Only show notifications that arrived while locked
                     property int maxShown: 5
-                    property string appListMode: "blocklist" // "blocklist" | "allowlist"
-                    property list<string> appList: [] // App names, case-insensitive match
+                    property string defaultPolicy: "show" // "show" | "hide" — apps without an explicit rule
+                    property list<string> alwaysShowApps: [] // App names, case-insensitive match
+                    property list<string> neverShowApps: []
                     property JsonObject filters: JsonObject {
                         property bool skipTransient: true
                         property bool skipLowUrgency: false

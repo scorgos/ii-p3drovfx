@@ -31,8 +31,10 @@ ColumnLayout {
             return false;
         if (conf.filters.skipLowUrgency && notif.urgency === NotificationUrgency.Low.toString())
             return false;
-        const listed = conf.appList.some(app => app.toLowerCase() === notif.appName.toLowerCase());
-        if (conf.appListMode === "blocklist" ? listed : !listed)
+        const appName = notif.appName.toLowerCase();
+        if (conf.neverShowApps.some(app => app.toLowerCase() === appName))
+            return false;
+        if (conf.defaultPolicy === "hide" && !conf.alwaysShowApps.some(app => app.toLowerCase() === appName))
             return false;
         return true;
     }).sort((a, b) => b.time - a.time)
