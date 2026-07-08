@@ -85,7 +85,7 @@ Item {
             MaterialShape {
                 visible: layoutVert.is12h && layoutVert.showAMPM
                 Layout.alignment: Qt.AlignHCenter
-                shapeString: "Cookie12Sided"
+                shapeString: "Circle"
                 color: Appearance.colors.colTertiaryContainer
                 implicitSize: Appearance.sizes.verticalBarWidth - 12
                 StyledText {
@@ -190,7 +190,7 @@ Item {
 
             MaterialShape {
                 visible: layoutHoriz.is12h && layoutHoriz.showAMPM
-                shapeString: "Cookie12Sided"
+                shapeString: "Circle"
                 color: Appearance.colors.colTertiaryContainer
                 implicitSize: Appearance.sizes.baseBarHeight - 16
                 StyledText {
