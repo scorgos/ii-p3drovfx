@@ -20,6 +20,7 @@ Item {
     readonly property string artUrl: MprisController.artUrl
     readonly property string title: (MprisController.activeTrack && MprisController.activeTrack.title) ? MprisController.activeTrack.title : "No title"
     readonly property string artist: (MprisController.activeTrack && MprisController.activeTrack.artist) ? MprisController.activeTrack.artist : "Unknown Artist"
+    readonly property string identity: player ? (player.identity ?? "") : ""
 
     property bool isExpanded: false
 
@@ -35,6 +36,7 @@ Item {
     readonly property int barWidth: Math.max(4, Math.min(8, elementHeight / 5))
 
     property string displayTitle: ""
+    property string displayArtist: ""
     property real titleOpacity: 1.0
     property real titleXOffset: 0.0
 
@@ -111,10 +113,19 @@ Item {
         }
     }
 
+    // Trigger animation on title OR identity (player source) change
     onTitleChanged: {
         if (displayTitle === "") {
             displayTitle = root.title;
+            displayArtist = root.artist;
         } else {
+            songSwitchAnimation.stop();
+            songSwitchAnimation.start();
+        }
+    }
+
+    onIdentityChanged: {
+        if (displayTitle !== "") {
             songSwitchAnimation.stop();
             songSwitchAnimation.start();
         }
@@ -122,6 +133,7 @@ Item {
 
     SequentialAnimation {
         id: songSwitchAnimation
+        // Phase 1: slide left + fade out
         ParallelAnimation {
             NumberAnimation {
                 target: root
@@ -133,11 +145,12 @@ Item {
             NumberAnimation {
                 target: root
                 property: "titleXOffset"
-                to: -20
+                to: -24
                 duration: 150
                 easing.type: Easing.OutQuad
             }
         }
+        // Swap values
         PropertyAction {
             target: root
             property: "displayTitle"
@@ -145,22 +158,28 @@ Item {
         }
         PropertyAction {
             target: root
-            property: "titleXOffset"
-            value: 20
+            property: "displayArtist"
+            value: root.artist
         }
+        PropertyAction {
+            target: root
+            property: "titleXOffset"
+            value: 24
+        }
+        // Phase 2: slide in from right + fade in
         ParallelAnimation {
             NumberAnimation {
                 target: root
                 property: "titleOpacity"
                 to: 1.0
-                duration: 200
+                duration: 220
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: root
                 property: "titleXOffset"
                 to: 0.0
-                duration: 200
+                duration: 220
                 easing.type: Easing.OutCubic
             }
         }
@@ -207,7 +226,7 @@ Item {
         else if (index === 3)
             val = bar3Val;
 
-        let norm = Math.min(1.0, Math.max(0.0, val));
+        let norm = Math.min(1.0, Math.max(0.0, val * 2.0));
         let maxH = elementHeight - 10;
         return minH + norm * (maxH - minH);
     }
@@ -224,126 +243,180 @@ Item {
         }
     }
 
-    // Initialize lyrics tracking
     Component.onCompleted: {
         LyricsService.initiliazeLyrics();
         root.displayTitle = root.title;
+        root.displayArtist = root.artist;
         root.activeLyricText = root.displaySongText;
     }
 
     // ==========================================
-    // 1. CONTRACTED MODE (Compact visual layout)
+    // 1. CONTRACTED MODE (album-art full background)
     // ==========================================
-    RowLayout {
+    Item {
         id: contractedLayout
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
-        spacing: 12
         visible: !root.isExpanded
+        clip: true
 
-        // Left side: Album art in a 12-sided material shape
+        // OpacityMask to clip album art to rounded corners
+        Rectangle {
+            id: contractedMaskRect
+            anchors.fill: parent
+            radius: Appearance.rounding.windowRounding
+            visible: false
+        }
+
+        layer.enabled: true
+        layer.effect: OpacityMask {
+            maskSource: contractedMaskRect
+        }
+
+        // ── Cross-fade album art background ─────────────────────────────────
+        // Two layers: when artUrl changes, the back one fades in, then swaps.
+        property string displayedArt: root.artUrl
+        property string previousArt: ""
+
+        onDisplayedArtChanged: {} // binding declared below via Connections
+
+        // Primary (current) art
+        Image {
+            id: artPrimary
+            anchors.fill: parent
+            source: contractedLayout.displayedArt
+            fillMode: Image.PreserveAspectCrop
+            opacity: 1.0
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 320
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // Secondary (previous) art – fades out
+        Image {
+            id: artSecondary
+            anchors.fill: parent
+            source: contractedLayout.previousArt
+            fillMode: Image.PreserveAspectCrop
+            opacity: 0.0
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 320
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // Fallback gradient when no art
+        Rectangle {
+            anchors.fill: parent
+            visible: root.artUrl === ""
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop {
+                    position: 0.0
+                    color: Appearance.colors.colSurfaceContainerHighest
+                }
+                GradientStop {
+                    position: 1.0
+                    color: Appearance.colors.colSurfaceContainer
+                }
+            }
+        }
+
+        // Music note icon centered when no art
+        MaterialSymbol {
+            anchors.centerIn: parent
+            visible: root.artUrl === ""
+            text: "music_note"
+            iconSize: Appearance.font.pixelSize.large
+            color: Appearance.colors.colOnSurfaceVariant
+            opacity: 0.5
+        }
+
+        // ── Radial gradient dimming overlay ──────────────────────────────────
+        // Soft edge-to-center vignette using overlapping horizontal+vertical gradients
         Item {
-            id: compactArtContainer
-            Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: root.elementHeight
-            Layout.preferredHeight: root.elementHeight
+            anchors.fill: parent
+            opacity: root.playing ? 0.82 : 1
 
-            // 12-sided shape mask source
-            MaterialShape {
-                id: compactCookieMask
-                anchors.fill: parent
-                shapeString: "Cookie12Sided"
-                color: Appearance.colors.colSurfaceContainerHighest
-                visible: false
-            }
-
-            Item {
-                anchors.fill: parent
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: compactCookieMask
-                }
-
-                Image {
-                    anchors.fill: parent
-                    source: root.artUrl !== "" ? root.artUrl : ""
-                    fillMode: Image.PreserveAspectCrop
-                    visible: root.artUrl !== ""
-                }
-
-                MaterialSymbol {
-                    anchors.centerIn: parent
-                    text: "music_note"
-                    iconSize: Appearance.font.pixelSize.normal
-                    color: Appearance.colors.colOnSurfaceVariant
-                    visible: root.artUrl === ""
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 400
+                    easing.type: Easing.OutQuad
                 }
             }
 
-            // Click play/pause
-            MouseArea {
+            Rectangle {
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    if (root.player) {
-                        if (root.playing)
-                            root.player.pause();
-                        else
-                            root.player.play();
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop {
+                        position: 0.0
+                        color: Appearance.colors.colScrim
+                    }
+                    GradientStop {
+                        position: 0.4
+                        color: Qt.rgba(0, 0, 0, 0)
+                    }
+                    GradientStop {
+                        position: 0.8
+                        color: Qt.rgba(0, 0, 0, 0)
+                    }
+                    GradientStop {
+                        position: 1.0
+                        color: Appearance.colors.colScrim
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop {
+                        position: 0.0
+                        color: Appearance.colors.colScrim
+                    }
+                    GradientStop {
+                        position: 0.4
+                        color: Qt.rgba(0, 0, 0, 0)
+                    }
+                    GradientStop {
+                        position: 0.8
+                        color: Qt.rgba(0, 0, 0, 0)
+                    }
+                    GradientStop {
+                        position: 1.0
+                        color: Appearance.colors.colScrim
                     }
                 }
             }
         }
 
-        // Center side: Rounded Rectangle containing metadata or 3-line synced lyrics
-        Rectangle {
-            id: compactTextContainer
-            Layout.fillWidth: true
-            Layout.preferredHeight: root.elementHeight
-            Layout.alignment: Qt.AlignVCenter
-            color: Appearance.colors.colLayer4
-            radius: Appearance.rounding.normal
-            clip: true
+        // ── Content row ─────────────────────────────────────────────────────
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 8
 
-            readonly property bool hasLyrics: Config.options.bar.mediaPlayer.lyrics.enable && LyricsService.hasSyncedLines
-
-            // Synced lyrics view (3 lines with edge fade)
-            Loader {
-                id: compactLyricsLoader
-                anchors.fill: parent
-                anchors.margins: 4
-                active: !root.isExpanded && compactTextContainer.hasLyrics
-                visible: active
-                sourceComponent: LyricScroller {
-                    id: lyricScroller
-                    anchors.fill: parent
-                    textAlign: "left"
-                    rowHeight: 16
-                    halfVisibleLines: 1
-                    useGradientMask: true
-                    defaultLyricsSize: Appearance.font.pixelSize.smaller
-                }
-            }
-
-            // Standard metadata display (Song + Artist)
+            // Left: metadata always visible
             ColumnLayout {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 0
-                visible: !compactLyricsLoader.visible
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 1
 
                 StyledText {
                     Layout.fillWidth: true
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     font.bold: true
+                    color: root.artUrl !== "" ? '#f2f2f2' : Appearance.colors.colOnSurface
                     text: root.displayTitle
                     maximumLineCount: 1
                     elide: Text.ElideRight
-                    horizontalAlignment: Text.AlignLeft
                     opacity: root.titleOpacity
                     transform: Translate {
                         x: root.titleXOffset
@@ -353,46 +426,64 @@ Item {
                 StyledText {
                     Layout.fillWidth: true
                     font.pixelSize: Appearance.font.pixelSize.smallest
-                    color: Appearance.colors.colOnSurfaceVariant
-                    text: root.artist
+                    color: root.artUrl !== "" ? "#C0C0C0" : Appearance.colors.colOnSurfaceVariant
+                    text: root.displayArtist
                     maximumLineCount: 1
                     elide: Text.ElideRight
-                    horizontalAlignment: Text.AlignLeft
+                    opacity: root.titleOpacity
+                    transform: Translate {
+                        x: root.titleXOffset
+                    }
                 }
             }
-        }
 
-        // Right side: simulated visualizer inside 12-sided material shape
-        Item {
-            id: compactVisualizerContainer
-            Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: root.elementHeight
-            Layout.preferredHeight: root.elementHeight
+            // Right: visualizer bars
+            Item {
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: root.barWidth * 4 + 2 * 3
+                implicitHeight: root.elementHeight
 
-            // Real Wave lines visualizer (4 thick capsule bars centralizing vertically)
-            RowLayout {
-                id: compactVisualizerRow
-                anchors.centerIn: parent
-                spacing: 1
+                Row {
+                    anchors.centerIn: parent
+                    height: parent.height
+                    spacing: 2
 
-                Repeater {
-                    model: 4
-                    Rectangle {
-                        required property int index
-                        Layout.alignment: Qt.AlignVCenter
-                        Layout.preferredWidth: root.barWidth
-                        Layout.preferredHeight: root.getBarHeight(index)
-                        radius: root.barWidth / 2 // Large radius (half of width) so it rounds perfectly to a circle at minimum height
-                        color: Appearance.colors.colPrimary
+                    Repeater {
+                        model: 4
+                        Rectangle {
+                            required property int index
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: root.barWidth
+                            height: root.getBarHeight(index)
+                            radius: root.barWidth / 2
+                            color: root.artUrl !== "" ? "#FFFFFF" : Appearance.colors.colPrimary
 
-                        Behavior on Layout.preferredHeight {
-                            NumberAnimation {
-                                duration: 85
-                                easing.type: Easing.OutCubic
+                            Behavior on height {
+                                NumberAnimation {
+                                    duration: 85
+                                    easing.type: Easing.OutCubic
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
+
+        // ── Art cross-fade logic ─────────────────────────────────────────────
+        Connections {
+            target: root
+            function onArtUrlChanged() {
+                if (root.artUrl === contractedLayout.displayedArt)
+                    return;
+                // Bring secondary to front with old art visible
+                contractedLayout.previousArt = contractedLayout.displayedArt;
+                artSecondary.opacity = 1.0;
+                artPrimary.opacity = 0.0;
+                contractedLayout.displayedArt = root.artUrl;
+                // Fade: primary (new art) in, secondary out
+                artPrimary.opacity = 1.0;
+                artSecondary.opacity = 0.0;
             }
         }
     }
@@ -442,11 +533,63 @@ Item {
                 visible: root.artUrl !== ""
             }
 
-            // Dark dimming overlay
-            Rectangle {
+            // Radial gradient dimming overlay
+            Item {
                 anchors.fill: parent
-                color: Appearance.colors.colScrim
-                opacity: 0.35
+                opacity: root.playing ? 0.55 : 0.8
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 400
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop {
+                            position: 0.0
+                            color: Appearance.colors.colScrim
+                        }
+                        GradientStop {
+                            position: 0.4
+                            color: Qt.rgba(0, 0, 0, 0)
+                        }
+                        GradientStop {
+                            position: 0.8
+                            color: Qt.rgba(0, 0, 0, 0)
+                        }
+                        GradientStop {
+                            position: 1.0
+                            color: Appearance.colors.colScrim
+                        }
+                    }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        orientation: Gradient.Vertical
+                        GradientStop {
+                            position: 0.0
+                            color: Appearance.colors.colScrim
+                        }
+                        GradientStop {
+                            position: 0.4
+                            color: Qt.rgba(0, 0, 0, 0)
+                        }
+                        GradientStop {
+                            position: 0.8
+                            color: Qt.rgba(0, 0, 0, 0)
+                        }
+                        GradientStop {
+                            position: 1.0
+                            color: Appearance.colors.colScrim
+                        }
+                    }
+                }
             }
         }
     }
@@ -586,9 +729,13 @@ Item {
                     font.family: Appearance.font.family.main
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: root.artUrl !== "" ? "#B0B0B0" : Appearance.colors.colSubtext
-                    text: root.artist
+                    text: root.displayArtist
                     maximumLineCount: 1
                     elide: Text.ElideRight
+                    opacity: root.titleOpacity
+                    transform: Translate {
+                        x: root.titleXOffset
+                    }
                 }
             }
 
