@@ -48,6 +48,7 @@ Item {
     }
 
     function loadMoreResults() {
+        if (!GlobalStates.overviewOpen) return;
         const total = root.getFilteredResultsCount();
         if (loadedResultsCount < total) {
             loadedResultsCount = Math.min(total, loadedResultsCount + 50);
@@ -66,20 +67,24 @@ Item {
     property string overviewPosition: Config.options.overview?.position ?? ""
     
 
+    // Re-enable item transitions after panel open animation completes
+    Timer {
+        id: enableTransitionsTimer
+        interval: 400
+        repeat: false
+        onTriggered: root.suppressItemTransitions = false
+    }
+
     // Suppress item transitions during panel open/close to avoid flicker
     property bool suppressItemTransitions: true
-
-
 
     Connections {
         target: GlobalStates
         function onOverviewOpenChanged() {
             if (GlobalStates.overviewOpen) {
-                // Cancel pending clear — open before timer fired
-                clearModelTimer.stop();
                 // Suppress transitions while panel is animating open
                 root.suppressItemTransitions = true;
-                // Wipe stale results immediately so panel opens empty
+                // Wipe stale results immediately so panel opens empty (no ghost expansion)
                 resultModel.clear();
                 root.loadedResultsCount = 50;
                 if (root.alwaysListAppsMode) {
@@ -96,10 +101,11 @@ Item {
                 enableTransitionsTimer.restart();
             } else {
                 resultsDebounce.stop();
-                // Suppress transitions while panel animates closed
+                // Suppress transitions then clear immediately.
+                // Since suppressItemTransitions=true, remove transitions run at duration:0
+                // (instantaneous/invisible), so no flicker even though model clears now.
                 root.suppressItemTransitions = true;
-                // Delay clear until after close animation to avoid remove-transition flicker
-                clearModelTimer.restart();
+                resultModel.clear();
             }
         }
     }
@@ -280,7 +286,7 @@ Item {
             // In notch mode, DI pill drives sizing — disable internal animation to avoid double-animation
             enabled: !root.inNotchMode
             NumberAnimation {
-                duration: Appearance.animation.elementMove.duration
+                duration: Appearance.animation.elementMoveSmall.duration
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
             }
@@ -291,7 +297,7 @@ Item {
             // In notch mode, DI pill drives sizing — disable internal animation to avoid double-animation
             enabled: !root.inNotchMode
             NumberAnimation {
-                duration: Appearance.animation.elementMove.duration
+                duration: Appearance.animation.elementMoveSmall.duration
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
             }
@@ -440,7 +446,7 @@ Item {
                     // while the user is still typing rapidly
                     enabled: !resultsDebounce.running
                     NumberAnimation {
-                        duration: Appearance.animation.elementMove.duration
+                        duration: Appearance.animation.elementMoveSmall.duration
                         easing.type: Easing.BezierSpline
                         easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
                     }
@@ -679,6 +685,7 @@ Item {
                         interval: 150
                         repeat: false
                         onTriggered: {
+                            if (!GlobalStates.overviewOpen) return;
                             appResults.applyResultDiff(root.processResults(LauncherSearch.results));
                         }
                     }
@@ -686,6 +693,9 @@ Item {
                     Connections {
                         target: LauncherSearch
                         function onResultsChanged() {
+                            // Guard: don't populate while overview is closed/closing
+                            // (stale LauncherSearch.results from previous session would cause ghost expansion)
+                            if (!GlobalStates.overviewOpen) return;
                             root.loadedResultsCount = 50;
                             // Immediately show first 15 results for snappy visual feedback
                             const immediate = root.processResults(LauncherSearch.results);
