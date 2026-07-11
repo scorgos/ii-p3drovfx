@@ -22,8 +22,7 @@ Singleton {
     // reload is retried before we ever dare to write defaults.
     // Increased from 2000 to 5000 to match writeGuardDelay — prevents
     // config.json from being clobbered with defaults during hot-reload.
-    // Increased to 10000 to match the updated writeGuardDelay.
-    property int missingFileGracePeriod: 10000
+    property int missingFileGracePeriod: 5000
     property int missingFileRetryInterval: 1500
     // Minimum time (ms) since singleton creation before ANY write is allowed,
     // even after `onLoaded` sets `ready = true`. This catches hot-reload races
@@ -31,16 +30,7 @@ Singleton {
     // JsonAdapter hasn't fully merged values into all nested JsonObjects yet.
     // Increased from 3000 to 5000 to prevent config.json resets during
     // shell hot-reload while Phone services are initializing.
-    // Increased to 10000 — must exceed constructionSettleReload (8s) so the
-    // late reload fixes any early-materialization corruption before the first
-    // write serializes the adapter state to disk.
-    property int writeGuardDelay: 10000
-    // Backup file for crash recovery — saved before every writeAdapter() call.
-    // If a write corrupts config.json (e.g. 0-byte atomic write during a crash
-    // loop), the next load detects the empty file and restores from this backup.
-    property string backupPath: root.filePath + ".bak"
-    property bool _loadVerified: false
-    property int _loadFailureCount: 0
+    property int writeGuardDelay: 5000
 
     function setNestedValue(nestedKey, value) {
         let keys = nestedKey.split(".");
@@ -108,12 +98,7 @@ Singleton {
                 fileWriteTimer.restart();
                 return;
             }
-            // Save backup before writing. If this write produces a corrupt
-            // file (e.g. 0 bytes during a crash loop), the next load detects
-            // it and restores from the backup. writeAdapter() is called on
-            // backup completion (or on 2s timeout safety fallback).
-            preWriteBackupProc.running = true;
-            preWriteBackupFallback.restart();
+            configFileView.writeAdapter();
         }
     }
 
@@ -132,120 +117,6 @@ Singleton {
         }
     }
 
-    // Before each writeAdapter() call, save a backup of the current config.json.
-    // If the write produces a corrupt file (e.g. 0 bytes during a crash loop),
-    // the next load detects it and restores from this backup automatically.
-    Process {
-        id: preWriteBackupProc
-        running: false
-        command: ["sh", "-c", `[ -s "${root.filePath}" ] && cp "${root.filePath}" "${root.backupPath}" && echo ok || echo skipped`]
-        onRunningChanged: {
-            if (!running) {
-                preWriteBackupFallback.stop();
-                configFileView.writeAdapter();
-            }
-        }
-    }
-    Timer {
-        id: preWriteBackupFallback
-        interval: 2000
-        repeat: false
-        onTriggered: {
-            if (preWriteBackupProc.running) {
-                preWriteBackupProc.running = false;
-            }
-            // onRunningChanged fires on kill → writeAdapter()
-        }
-    }
-
-    // After onLoaded fires, verify the loaded file actually has content.
-    // A 0-byte file loads as "success" (not FileNotFound) but provides no data,
-    // leaving the adapter at QML defaults which would overwrite the real config.
-    Process {
-        id: loadFileSizeCheckProc
-        running: false
-        command: ["sh", "-c", `wc -c < "${root.filePath}" 2>/dev/null | tr -d ' \\n'`]
-        stdout: SplitParser {
-            onRead: line => {
-                // Guard: if ready is already true, this is a stale check from
-                // a previous load cycle. Ignore it to avoid redundant restores.
-                if (root.ready) return;
-                const size = parseInt(line);
-                if (!isNaN(size) && size >= 50) {
-                    root.ready = true;
-                    root._loadVerified = true;
-                    root._loadFailureCount = 0;
-                    // Bootstrap a startup-only backup. Unlike .bak (which is
-                    // rewritten before every write), this persists across the
-                    // session and guarantees we have a known-good copy to
-                    // restore from even if the first write corrupts the file.
-                    startupBakProc.running = true;
-                } else if (root._loadFailureCount < 3) {
-                    root._loadFailureCount++;
-                    restoreBackupProc.running = true;
-                } else {
-                    root.ready = true;
-                    root._loadVerified = true;
-                    root._loadFailureCount = 0;
-                }
-            }
-        }
-        stderr: SplitParser {
-            onRead: line => {
-                // stderr from wc means the check itself failed (not the file).
-                // Don't immediately set ready — let the 3s timeout handle it
-                // to give the restore path a chance if the file is empty.
-            }
-        }
-    }
-    // Safety net: if the size check Process never produces output (e.g. sh
-    // unavailable), set ready anyway after 3s to avoid deadlocking the shell.
-    Timer {
-        id: loadCheckTimeout
-        interval: 3000
-        repeat: false
-        onTriggered: {
-            if (!root.ready) {
-                root.ready = true;
-                root._loadVerified = true;
-            }
-        }
-    }
-
-    // Late reload after construction settles. Other singletons (Appearance.qml
-    // etc.) read Config.options in their property bindings during construction,
-    // which may materialize adapter objects with QML defaults before the file
-    // merge is complete. This forces a clean re-merge of the original file
-    // after the QML object tree has settled, overwriting any stale defaults.
-    Timer {
-        id: constructionSettleReload
-        interval: 8000
-        repeat: false
-        onTriggered: {
-            configFileView.reload();
-        }
-    }
-
-    Process {
-        id: restoreBackupProc
-        running: false
-        command: ["sh", "-c", `([ -s "${root.backupPath}" ] && cp "${root.backupPath}" "${root.filePath}" && echo restored_bak) || ([ -s "${root.filePath}.startupbak" ] && cp "${root.filePath}.startupbak" "${root.filePath}" && echo restored_startup) || echo no_backup`]
-        stdout: SplitParser {
-            onRead: line => {
-                configFileView.reload();
-            }
-        }
-    }
-
-    // Startup backup — saved once when the config is first verified healthy.
-    // Unlike .bak (overwritten before every write), this persists for the
-    // session and survives even if .bak gets overwritten by a corrupt write.
-    Process {
-        id: startupBakProc
-        running: false
-        command: ["sh", "-c", `[ -s "${root.filePath}" ] && cp "${root.filePath}" "${root.filePath}.startupbak" || true`]
-    }
-
     FileView {
         id: configFileView
         path: root.filePath
@@ -257,24 +128,7 @@ Singleton {
         atomicWrites: true
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
-        onLoaded: {
-            // Don't trust the load yet — verify the file actually has content.
-            // A 0-byte (or tiny) file loads as "success" (not FileNotFound)
-            // but provides no data, leaving the adapter at default QML values.
-            // Without this check, writeAdapter() would serialize those defaults
-            // and overwrite the user's real config on the next write cycle.
-            if (loadFileSizeCheckProc.running) {
-                loadFileSizeCheckProc.running = false;
-            }
-            loadFileSizeCheckProc.running = true;
-            loadCheckTimeout.restart();
-            // Schedule a late reload to fix any early-materialization issues.
-            // During construction, other singletons (e.g. Appearance.qml) read
-            // Config.options properties which may materialize adapter objects
-            // with QML defaults before the file merge completes. This forces a
-            // clean re-merge of the file after construction has settled.
-            constructionSettleReload.restart();
-        }
+        onLoaded: root.ready = true
         onLoadFailed: error => {
             if (error != FileViewError.FileNotFound) {
                 return;
@@ -284,8 +138,10 @@ Singleton {
                 // Singleton has been alive past the grace window and the file
                 // is still gone — legitimately missing (first-run install or
                 // user manually deleted it). Safe to seed defaults.
+                writeAdapter();
+                // Mark ready so subsequent user-triggered writes go through
+                // (fileWriteTimer guards on `root.ready`).
                 root.ready = true;
-                preWriteBackupProc.running = true;
             } else {
                 // Likely transient: schedule a reload. If it succeeds,
                 // `onLoaded` flips `root.ready` and nothing is overwritten. If
@@ -362,7 +218,7 @@ Singleton {
             property JsonObject ai: JsonObject {
                 property string systemPrompt: "## Style\n- Use casual tone, don't be formal!\n- Always be brief and to the point, unless asked otherwise\n- Don't repeat the user's question\n- Be approachable: Avoid using overly complicated, domain-specific terms and provide analogies when asked to explain a concept\n\n## Context (ignore when irrelevant)\n- You are a helpful and inspiring sidebar assistant on a {DISTRO} Linux system\n- Desktop environment: {DE}\n- Current date & time: {DATETIME}\n- Focused app: {WINDOWCLASS}\n\n## Presentation\n- Use Markdown features in your response: \n  - **Bold** text to **highlight keywords** in your response\n  - **Split long information into small sections** with h2 headers and a relevant emoji at the start of it (for example `## 🐧 Linux`). Bullet points are preferred over long paragraphs, unless you're offering writing support or instructed otherwise by the user.\n- Asked to compare different options? You should firstly use a table to compare the main aspects, then elaborate or include relevant comments from online forums *after* the table. Make sure to provide a final recommendation for the user's use case!\n- Use LaTeX formatting for mathematical and scientific notations whenever appropriate. Enclose all LaTeX '$$' delimiters. NEVER generate LaTeX code in a latex block unless the user explicitly asks for it. DO NOT use LaTeX for regular documents (resumes, letters, essays, CVs, etc.).\n\nThanks!\n"
                 property string tool: "functions" // search, functions, or none
-                property var models: [
+                property list<var> models: [
                     // Needed entries in the object: title, value, modelProvider (only for openrouter)
                     {
                         "openrouter": [
@@ -377,7 +233,7 @@ Singleton {
                         "google": []
                     }
                 ]
-                property var otherModels: [
+                property list<var> otherModels: [
                     // Available api_format(s): openai, gemini, mistral
                     {
                         "name": "Mistral Medium",
@@ -448,7 +304,7 @@ Singleton {
                     property string type: "scheme-fidelity" // Allowed: auto, scheme-content, scheme-expressive, scheme-fidelity, scheme-fruit-salad, scheme-monochrome, scheme-neutral, scheme-rainbow, scheme-tonal-spot
                     property string accentColor: ""
                 }
-                property var customColorSchemes: []
+                property list<string> customColorSchemes: []
                 property real animationMultiplier: 1.0 // 0.25 = fast, 1.0 = default, 2.0 = slow
                 property bool colorfulScrollbar: false
                 property bool scrollAnimations: true
@@ -458,7 +314,7 @@ Singleton {
                     property bool applyOnStartup: true
                     property real fadeDuration: 0.5
                     property real interpolationSteps: 100
-                    property var devices: []
+                    property list<var> devices: []
                 }
             }
 
@@ -582,7 +438,7 @@ Singleton {
                         property real x: 100
                         property real y: 100
                     }
-                    property bool enableInnerShadow: false
+                    property bool enableInnerShadow: true
                     property bool enableShadows: true
                 }
                 property bool scaleLargeWallpapers: true
@@ -649,7 +505,7 @@ Singleton {
                     property string media: "expressive"
                     property string notification: "default"
                     property string utilButtons: "expressive"
-                    property string workspaces: "minimal" // default, expressive, minimal, dock
+                    property string workspaces: "minimal"
                     property string weather: "expressive"
                     property string dashboard: "expressive"
                     property string resources: "expressive"
@@ -679,24 +535,22 @@ Singleton {
 
                 property bool bottom: false // Instead of top
                 property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle
-                property bool dropShadow: false // Show drop shadow under all bars
                 property bool floatStyleShadow: true // Show shadow behind bar when cornerStyle == 1 (Float)
+                property bool dropShadow: true
                 property int dynamicIslandSpacingHorizontal: 48
                 property int dynamicIslandSpacingVertical: 16
                 property bool dynamicIslandLoadBalance: true
-                // [DEPRECATED] Legacy bar-integrated notchMode settings. Left here for layout compatibility.
+
                 property JsonObject dynamicIsland: JsonObject {
                     property JsonObject notchMode: JsonObject {
-                        property bool enable: false // Disabled permanently
-                        property var priorityList: ["music_player", "workspaces", "clock"]
-                        property var visibleWidgets: ["workspaces", "music_player", "clock"]
-                        property int workspaceSwitchDuration: 2000
-                        property bool expandOnHover: true
-                        property int expandAnimDuration: 350
-                        property int fadeDelay: 150
+                        property bool enable: false
+                        property int expandAnimDuration: 250
+                        property int fadeDelay: 0
+                        property list<string> visibleWidgets: []
                         property bool overlapApps: false
                     }
                 }
+
                 property JsonObject floatingNotch: JsonObject {
                     property bool enable: false
                     property bool autoHide: false
@@ -741,11 +595,11 @@ Singleton {
                     property int heightAudio: 36
                     property int heightProgress: 48
                 }
+
                 property int barGroupStyle: 1 // 0: Pills | 1: Island (opaque) | 2: Transparent (or maybe line-separated in the future)
-                property bool expressiveGroupColor: false
                 property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool useMaterialSymbolForTopLeftIcon: false
-                property int barBackgroundStyle: 1 // 0: Transparent | 1: Visible | 2: Adaptive | 3: Islands
+                property int barBackgroundStyle: 1 // 0: Transparent | 1: Visible | 2: Adaptive
                 property bool expressiveColors: false
                 property string expressiveColorTheme: "content"
                 property bool verbose: true
@@ -754,7 +608,7 @@ Singleton {
                 property bool enableBrightnessScroll: true
 
                 property JsonObject mediaPlayer: JsonObject {
-                    property string popupStyle: "default" // Options: default, expressive, android
+                    property bool expressivePopup: false
                     property bool useFixedSize: true
                     property int customSize: 200
                     property int maxSize: 400
@@ -797,7 +651,7 @@ Singleton {
                     property bool showUEL: false
                     property bool showWC: true
                     property bool showWWC: false
-                    property var monitoredLeagues: [
+                    property list<var> monitoredLeagues: [
                         {
                             "sport": "soccer",
                             "league": "bra.1",
@@ -835,11 +689,9 @@ Singleton {
                     property int showBeforeHours: 12
                     property int showAfterMinutes: 180
                     property string activeGameId: ""
-                    property var customOrder: []
+                    property list<var> customOrder: []
                 }
-                property var screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
-                property bool onlyShowOnSingleMonitor: false
-                property string singleMonitorName: ""
+                property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
 
                 property JsonObject timers: JsonObject {
                     property bool showPomodoro: true
@@ -862,9 +714,9 @@ Singleton {
                     property bool showAppIcons: false
                     property bool alwaysShowNumbers: false
                     property int showNumberDelay: 300 // milliseconds
-                    property var numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
+                    property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
                     property bool useWorkspaceMap: false
-                    property var workspaceMap: [0, 10]
+                    property list<var> workspaceMap: [0, 10]
                     property int maxWindowCount: 1 // Maximum windows to show in one workspace
                     property bool useNerdFont: false
                     property int activeIndicatorOpacity: 100 // 0-100
@@ -898,7 +750,7 @@ Singleton {
                 property JsonObject layouts: JsonObject {
                     // Only storing id and layout-specific flags (visible, centered)
                     // Component display info (icon, title) comes from BarComponentRegistry
-                    property var left: [
+                    property list<var> left: [
                         {
                             centered: false,
                             id: "policies_panel_button",
@@ -925,7 +777,7 @@ Singleton {
                             visible: true
                         }
                     ]
-                    property var center: [
+                    property list<var> center: [
                         {
                             centered: false,
                             id: "music_player",
@@ -947,7 +799,7 @@ Singleton {
                             visible: true
                         }
                     ]
-                    property var right: [
+                    property list<var> right: [
                         {
                             centered: false,
                             id: "system_tray",
@@ -1066,10 +918,10 @@ Singleton {
                 property bool showTrashButton: true
                 property bool showNotificationBadges: true
                 property string position: "auto"
-                property var pinnedApps: ["org.kde.dolphin", "kitty",]
-                property var ignoredAppRegexes: []
-                property var pinnedFiles: []
-                property var order: ["pin", "app:org.kde.dolphin", "app:kitty", "runningApps", "media", "weather", "trash", "overview"]
+                property list<string> pinnedApps: ["org.kde.dolphin", "kitty",]
+                property list<string> ignoredAppRegexes: []
+                property list<string> pinnedFiles: []
+                property list<string> order: ["pin", "app:org.kde.dolphin", "app:kitty", "runningApps", "media", "weather", "trash", "overview"]
             }
 
             property JsonObject hyprland: JsonObject {
@@ -1110,7 +962,7 @@ Singleton {
             }
 
             property JsonObject launcher: JsonObject {
-                property var pinnedApps: ["org.kde.dolphin", "kitty", "cmake-gui"]
+                property list<string> pinnedApps: ["org.kde.dolphin", "kitty", "cmake-gui"]
             }
 
             property JsonObject light: JsonObject {
@@ -1138,9 +990,6 @@ Singleton {
                     property real radius: 100
                     property real extraZoom: 1.1
                 }
-                property JsonObject zoomAnimation: JsonObject {
-                    property bool enabled: true
-                }
                 property bool centerClock: true
                 property bool showLockedText: true
                 property JsonObject security: JsonObject {
@@ -1148,6 +997,9 @@ Singleton {
                     property bool requirePasswordToPower: false
                 }
                 property bool materialShapeChars: true
+                property JsonObject zoomAnimation: JsonObject {
+                    property bool enabled: true
+                }
                 property JsonObject notifications: JsonObject {
                     property bool enable: false // Off by default: showing notifications on the lock screen is a privacy trade-off
                     property string position: "top_right" // "top_left" | "top_right" | "bottom_left" | "bottom_right"
@@ -1284,7 +1136,7 @@ Singleton {
                 property bool monochromeIcons: true
                 property bool showItemId: false
                 property bool invertPinnedItems: true // Makes the below a whitelist for the tray and blacklist for the pinned area
-                property var pinnedItems: ["Fcitx"]
+                property list<var> pinnedItems: ["Fcitx"]
                 property bool filterPassive: true
             }
 
@@ -1313,11 +1165,11 @@ Singleton {
                 property bool alwaysListApps: false
                 property int nonAppResultDelay: 30
                 property string engineBaseUrl: "https://www.google.com/search?q="
-                property var excludedSites: ["quora.com", "facebook.com"]
+                property list<string> excludedSites: ["quora.com", "facebook.com"]
                 property bool sloppy: false
                 property bool levenshtein: false
                 property bool frecency: false
-                property var aliases: []
+                property list<var> aliases: []
                 property string fileSearchDirectory: "/home"
                 property bool blurFileSearchResultPreviews: false
                 property JsonObject prefix: JsonObject {
@@ -1360,7 +1212,7 @@ Singleton {
                         property bool multiline: true
                     }
                 }
-                property bool showNowPlayingBubble: false
+                property bool showNowPlayingBubble: true
                 property string connectStyle: "connect"  // Search rendered as embedded drop in Connect Mode
                 property int baseWidth: 500
             }
@@ -1436,7 +1288,7 @@ Singleton {
                     property string style: "android" // Options: classic, android
                     property JsonObject android: JsonObject {
                         property int columns: 5
-                        property var pages: [[
+                        property list<var> pages: [[
                                 {
                                     "size": 2,
                                     "type": "network"
@@ -1477,7 +1329,6 @@ Singleton {
                     property bool showVolume: true
                     property bool showBrightness: false // gamma setting also works for brightness
                 }
-                property bool volumeDialogMediaWidget: true
             }
 
             property JsonObject screenRecord: JsonObject {
@@ -1520,7 +1371,7 @@ Singleton {
                     property int focus: 1500
                     property int longBreak: 900
                 }
-                property var worldClocks: []
+                property list<var> worldClocks: []
                 property bool secondPrecision: false
 
                 property JsonObject alarms: JsonObject {
@@ -1540,7 +1391,7 @@ Singleton {
 
             property JsonObject wallpaperSelector: JsonObject {
                 property bool useSystemFileDialog: false
-                property var directories: []
+                property list<var> directories: []
                 property bool useCustomDefaultPath: false
                 property string customDefaultPath: FileUtils.trimFileProtocol(`${Directories.pictures}/Wallpapers`)
             }
@@ -1560,9 +1411,9 @@ Singleton {
                     property bool clipboard: false
                 }
                 property JsonObject triggerCondition: JsonObject {
-                    property var networkNameKeywords: ["airport", "cafe", "college", "company", "eduroam", "free", "guest", "public", "school", "university"]
-                    property var fileKeywords: ["anime", "booru", "ecchi", "hentai", "yande.re", "konachan", "breast", "nipples", "pussy", "nsfw", "spoiler", "girl"]
-                    property var linkKeywords: ["hentai", "porn", "sukebei", "hitomi.la", "rule34", "gelbooru", "fanbox", "dlsite"]
+                    property list<string> networkNameKeywords: ["airport", "cafe", "college", "company", "eduroam", "free", "guest", "public", "school", "university"]
+                    property list<string> fileKeywords: ["anime", "booru", "ecchi", "hentai", "yande.re", "konachan", "breast", "nipples", "pussy", "nsfw", "spoiler", "girl"]
+                    property list<string> linkKeywords: ["hentai", "porn", "sukebei", "hitomi.la", "rule34", "gelbooru", "fanbox", "dlsite"]
                 }
             }
 
@@ -1590,7 +1441,7 @@ Singleton {
                     property bool leftAlignApps: false
                 }
                 property JsonObject actionCenter: JsonObject {
-                    property var toggles: ["network", "bluetooth", "easyEffects", "powerProfile", "idleInhibitor", "nightLight", "darkMode", "antiFlashbang", "cloudflareWarp", "mic", "musicRecognition", "notifications", "onScreenKeyboard", "gameMode", "screenSnip", "colorPicker", "videoEditor"]
+                    property list<string> toggles: ["network", "bluetooth", "easyEffects", "powerProfile", "idleInhibitor", "nightLight", "darkMode", "antiFlashbang", "cloudflareWarp", "mic", "musicRecognition", "notifications", "onScreenKeyboard", "gameMode", "screenSnip", "colorPicker", "videoEditor"]
                 }
                 property JsonObject calendar: JsonObject {
                     property bool force2CharDayOfWeek: true

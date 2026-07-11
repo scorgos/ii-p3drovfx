@@ -39,6 +39,18 @@ ContentPage {
                 text: Translation.tr("Start the lock screen daemon when the session begins.")
             }
         }
+
+        ConfigSwitch {
+            buttonIcon: "zoom_out_map"
+            text: Translation.tr("Zoom animation")
+            checked: Config.options.lock.zoomAnimation.enabled
+            onCheckedChanged: {
+                Config.options.lock.zoomAnimation.enabled = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Animate wallpaper zoom on lock and unlock.")
+            }
+        }
     }
 
     ContentSection {
@@ -255,18 +267,6 @@ ContentPage {
             }
             StyledToolTip {
                 text: Translation.tr("Position the clock directly in the center of the screen.")
-            }
-        }
-
-        ConfigSwitch {
-            buttonIcon: "zoom_out_map"
-            text: Translation.tr("Zoom animation")
-            checked: Config.options.lock.zoomAnimation.enabled
-            onCheckedChanged: {
-                Config.options.lock.zoomAnimation.enabled = checked;
-            }
-            StyledToolTip {
-                text: Translation.tr("Animate wallpaper zoom on lock and unlock.")
             }
         }
 
