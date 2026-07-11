@@ -251,12 +251,28 @@ Scope {
                         id: delegateLoader
                         required property MprisPlayer modelData
 
-                        sourceComponent: Config.options.bar.mediaPlayer.expressivePopup ? expressiveComp : standardComp
+                        sourceComponent: {
+                            switch (Config.options.bar.mediaPlayer.popupStyle) {
+                            case "expressive": return expressiveComp;
+                            case "android": return androidComp;
+                            default: return standardComp;
+                            }
+                        }
 
                         Component {
                             id: expressiveComp
                             ExpressiveMediaCard {
                                 player: delegateLoader.modelData
+                            }
+                        }
+
+                        Component {
+                            id: androidComp
+                            AndroidMediaPopup {
+                                player: delegateLoader.modelData
+                                visualizerPoints: root.visualizerPoints
+                                implicitWidth: root.widgetWidth
+                                implicitHeight: root.widgetHeight
                             }
                         }
 
