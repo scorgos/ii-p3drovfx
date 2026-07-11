@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 import Quickshell.Io
@@ -21,6 +22,7 @@ Item {
     readonly property string title: (MprisController.activeTrack && MprisController.activeTrack.title) ? MprisController.activeTrack.title : "No title"
     readonly property string artist: (MprisController.activeTrack && MprisController.activeTrack.artist) ? MprisController.activeTrack.artist : "Unknown Artist"
     readonly property string identity: player ? (player.identity ?? "") : ""
+    readonly property var activeTrackRef: MprisController.activeTrack
 
     property bool isExpanded: false
 
@@ -38,11 +40,109 @@ Item {
     property string displayTitle: ""
     property string displayArtist: ""
     property real titleOpacity: 1.0
-    property real titleXOffset: 0.0
+    property real titleYOffset: 0.0
 
     property string activeLyricText: ""
     property real lyricOpacity: 1.0
-    property real lyricXOffset: 0.0
+    property real lyricYOffset: 0.0
+
+    property string currentArtUrl: ""
+    property string previousArtUrl: ""
+    property string pendingArtUrl: ""
+    property bool awaitingImageLoad: false
+    property bool artTransitioning: false
+    property int artCacheBuster: 0
+    property bool _initialized: false
+
+    property real artOutgoingBlur: 0
+    property real artOutgoingScale: 1.0
+    property real artIncomingBlur: 0
+    property real artIncomingScale: 1.0
+    property real artVignetteBlur: root.playing ? 50 : 90
+    property real artVignetteInner: 0.2
+    property real artVignetteOuter: 0.85
+
+    readonly property color artTextColor: root.currentArtUrl !== "" ? Appearance.colors.colOnSurfaceVariant : Appearance.colors.colOnSurface
+    readonly property color artSubtextColor: Appearance.colors.colOnSurfaceVariant
+
+    Behavior on artVignetteBlur {
+        NumberAnimation {
+            duration: 500
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    onPlayingChanged: {
+        artVignetteBlur = root.playing ? 50 : 90;
+    }
+
+    function effectiveSource(url) {
+        if (!url || url === "")
+            return "";
+        return url + "?v=" + artCacheBuster;
+    }
+
+    function snapToArt(newUrl) {
+        previousArtUrl = "";
+        currentArtUrl = newUrl;
+        pendingArtUrl = "";
+        awaitingImageLoad = false;
+        artTransitioning = false;
+        preloadFallbackTimer.stop();
+        artOutgoingBlur = 0;
+        artOutgoingScale = 1.0;
+        artIncomingBlur = 0;
+        artIncomingScale = 1.0;
+    }
+
+    function requestArtChange(newUrl) {
+        if (newUrl === currentArtUrl && artCacheBuster > 0 && !artTransitioning && !awaitingImageLoad && currentArtUrl !== "") {
+            pendingArtUrl = newUrl;
+            artCacheBuster++;
+            awaitingImageLoad = true;
+            preloadFallbackTimer.restart();
+            return;
+        }
+
+        if (newUrl === "" || currentArtUrl === "") {
+            snapToArt(newUrl);
+            return;
+        }
+
+        if (artTransitioning || awaitingImageLoad) {
+            if (pendingArtUrl !== newUrl)
+                pendingArtUrl = newUrl;
+            return;
+        }
+
+        pendingArtUrl = newUrl;
+        artCacheBuster++;
+        awaitingImageLoad = true;
+        preloadFallbackTimer.restart();
+    }
+
+    function startOutgoingPhase() {
+        if (pendingArtUrl === "")
+            return;
+        awaitingImageLoad = false;
+        preloadFallbackTimer.stop();
+
+        previousArtUrl = currentArtUrl;
+        currentArtUrl = pendingArtUrl;
+        pendingArtUrl = "";
+
+        artOutgoingBlur = 0;
+        artOutgoingScale = 1.0;
+        artOutgoingAnimation.restart();
+    }
+
+    function imageLoadFailed() {
+        if (!awaitingImageLoad)
+            return;
+        awaitingImageLoad = false;
+        preloadFallbackTimer.stop();
+        snapToArt(pendingArtUrl);
+    }
 
     readonly property string displaySongText: {
         if (LyricsService.hasSyncedLines && LyricsService.statusText !== "") {
@@ -69,47 +169,147 @@ Item {
 
     SequentialAnimation {
         id: lyricTransitionAnimation
-        ParallelAnimation {
-            NumberAnimation {
-                target: root
-                property: "lyricOpacity"
-                to: 0.0
-                duration: 120
-                easing.type: Easing.OutQuad
-            }
-            NumberAnimation {
-                target: root
-                property: "lyricXOffset"
-                to: -10
-                duration: 120
-                easing.type: Easing.OutQuad
-            }
+        NumberAnimation {
+            target: root
+            property: "lyricOpacity"
+            to: 0.0
+            duration: 120
+            easing.type: Easing.OutQuad
         }
         PropertyAction {
             target: root
             property: "activeLyricText"
             value: root.displaySongText
         }
-        PropertyAction {
+        NumberAnimation {
             target: root
-            property: "lyricXOffset"
-            value: 10
+            property: "lyricYOffset"
+            from: 15
+            to: 0.0
+            duration: 180
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: root
+            property: "lyricOpacity"
+            to: 1.0
+            duration: 180
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    SequentialAnimation {
+        id: artOutgoingAnimation
+        onFinished: {
+            root.previousArtUrl = "";
+            root.artIncomingBlur = 30;
+            root.artIncomingScale = 0.95;
+            root.artTransitioning = true;
+            artIncomingAnimation.restart();
         }
         ParallelAnimation {
             NumberAnimation {
                 target: root
-                property: "lyricOpacity"
-                to: 1.0
-                duration: 180
+                property: "artOutgoingBlur"
+                to: 30
+                duration: 300
+                easing.type: Easing.OutQuad
+            }
+            NumberAnimation {
+                target: root
+                property: "artOutgoingScale"
+                to: 1.05
+                duration: 300
+                easing.type: Easing.OutQuad
+            }
+        }
+    }
+
+    SequentialAnimation {
+        id: artIncomingAnimation
+        onFinished: {
+            root.artTransitioning = false;
+            if (root.pendingArtUrl !== "" && root.pendingArtUrl !== root.currentArtUrl) {
+                const next = root.pendingArtUrl;
+                root.pendingArtUrl = "";
+                root.requestArtChange(next);
+            }
+        }
+        ParallelAnimation {
+            NumberAnimation {
+                target: root
+                property: "artIncomingBlur"
+                to: 0
+                duration: 400
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: root
-                property: "lyricXOffset"
-                to: 0.0
-                duration: 180
-                easing.type: Easing.OutCubic
+                property: "artIncomingScale"
+                to: 1.0
+                duration: 400
+                easing.type: Easing.OutExpo
             }
+        }
+    }
+
+    Image {
+        id: artPreload
+        source: root.awaitingImageLoad ? root.effectiveSource(root.pendingArtUrl) : ""
+        visible: false
+        asynchronous: true
+        width: 16
+        height: 16
+        smooth: false
+        mipmap: false
+        onStatusChanged: {
+            if (status === Image.Ready) {
+                if (root.awaitingImageLoad)
+                    root.startOutgoingPhase();
+            } else if (status === Image.Error) {
+                if (root.awaitingImageLoad)
+                    root.imageLoadFailed();
+            }
+        }
+    }
+
+    Timer {
+        id: preloadFallbackTimer
+        interval: 200
+        repeat: false
+        onTriggered: {
+            if (root.awaitingImageLoad)
+                root.startOutgoingPhase();
+        }
+    }
+
+    onArtUrlChanged: {
+        if (!root._initialized)
+            return;
+        if (root.artUrl === root.currentArtUrl && root.currentArtUrl !== "")
+            return;
+        root.requestArtChange(root.artUrl);
+    }
+
+    onActiveTrackRefChanged: {
+        if (!root._initialized)
+            return;
+        if (root.activeTrackRef === null || root.activeTrackRef === undefined)
+            return;
+        root.requestArtChange(root.artUrl);
+    }
+
+    Connections {
+        target: MprisController
+        function onTrackChanged(reverse) {
+            root.displayTitle = root.title;
+            root.displayArtist = root.artist;
+            root.activeLyricText = root.displaySongText;
+            if (!root._initialized)
+                return;
+            Qt.callLater(function() {
+                root.requestArtChange(root.artUrl);
+            });
         }
     }
 
@@ -133,7 +333,6 @@ Item {
 
     SequentialAnimation {
         id: songSwitchAnimation
-        // Phase 1: slide left + fade out
         ParallelAnimation {
             NumberAnimation {
                 target: root
@@ -144,13 +343,12 @@ Item {
             }
             NumberAnimation {
                 target: root
-                property: "titleXOffset"
+                property: "titleYOffset"
                 to: -24
                 duration: 150
                 easing.type: Easing.OutQuad
             }
         }
-        // Swap values
         PropertyAction {
             target: root
             property: "displayTitle"
@@ -163,10 +361,9 @@ Item {
         }
         PropertyAction {
             target: root
-            property: "titleXOffset"
+            property: "titleYOffset"
             value: 24
         }
-        // Phase 2: slide in from right + fade in
         ParallelAnimation {
             NumberAnimation {
                 target: root
@@ -177,7 +374,7 @@ Item {
             }
             NumberAnimation {
                 target: root
-                property: "titleXOffset"
+                property: "titleYOffset"
                 to: 0.0
                 duration: 220
                 easing.type: Easing.OutCubic
@@ -248,6 +445,9 @@ Item {
         root.displayTitle = root.title;
         root.displayArtist = root.artist;
         root.activeLyricText = root.displaySongText;
+        if (root.artUrl !== "" && root.currentArtUrl === "")
+            root.snapToArt(root.artUrl);
+        root._initialized = true;
     }
 
     // ==========================================
@@ -257,13 +457,12 @@ Item {
         id: contractedLayout
         anchors.fill: parent
         visible: !root.isExpanded
-        clip: true
 
         // OpacityMask to clip album art to rounded corners
         Rectangle {
             id: contractedMaskRect
             anchors.fill: parent
-            radius: Appearance.rounding.windowRounding
+            radius: Appearance.rounding.small
             visible: false
         }
 
@@ -272,39 +471,128 @@ Item {
             maskSource: contractedMaskRect
         }
 
-        // ── Cross-fade album art background ─────────────────────────────────
-        // Two layers: when artUrl changes, the back one fades in, then swaps.
-        property string displayedArt: root.artUrl
-        property string previousArt: ""
-
-        onDisplayedArtChanged: {} // binding declared below via Connections
-
-        // Primary (current) art
-        Image {
-            id: artPrimary
+        Item {
+            id: contractedVignetteMask
             anchors.fill: parent
-            source: contractedLayout.displayedArt
-            fillMode: Image.PreserveAspectCrop
-            opacity: 1.0
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 320
-                    easing.type: Easing.OutCubic
+            visible: true
+
+            Rectangle {
+                id: contractedHMask
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.15; color: "transparent" }
+                    GradientStop { position: 0.35; color: "white" }
+                    GradientStop { position: 0.65; color: "white" }
+                    GradientStop { position: 0.85; color: "transparent" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.5; color: "white" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: contractedHMask
                 }
             }
         }
 
-        // Secondary (previous) art – fades out
-        Image {
-            id: artSecondary
+        Item {
             anchors.fill: parent
-            source: contractedLayout.previousArt
-            fillMode: Image.PreserveAspectCrop
-            opacity: 0.0
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 320
-                    easing.type: Easing.OutCubic
+
+            Item {
+                anchors.fill: parent
+                visible: root.previousArtUrl !== ""
+
+                Image {
+                    anchors.fill: parent
+                    source: root.previousArtUrl !== "" ? root.effectiveSource(root.previousArtUrl) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    smooth: true
+                    asynchronous: true
+                    layer.enabled: root.artVignetteBlur > 0
+                    layer.effect: MultiEffect {
+                        blurEnabled: root.artVignetteBlur > 0
+                        blurMax: 128
+                        blur: root.artVignetteBlur / 128
+                    }
+                }
+
+                Item {
+                    anchors.fill: parent
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: contractedVignetteMask
+                    }
+
+                    Image {
+                        id: contractedArtOutgoing
+                        anchors.centerIn: parent
+                        width: parent.width * root.artOutgoingScale
+                        height: parent.height * root.artOutgoingScale
+                        source: root.previousArtUrl !== "" ? root.effectiveSource(root.previousArtUrl) : ""
+                        fillMode: Image.PreserveAspectCrop
+                        smooth: true
+                        asynchronous: true
+                        layer.enabled: root.artOutgoingBlur > 0
+                        layer.effect: MultiEffect {
+                            blurEnabled: root.artOutgoingBlur > 0
+                            blurMax: 128
+                            blur: root.artOutgoingBlur / 128
+                        }
+                    }
+                }
+            }
+
+            Item {
+                anchors.fill: parent
+                visible: root.currentArtUrl !== ""
+
+                Image {
+                    anchors.fill: parent
+                    source: root.currentArtUrl !== "" ? root.effectiveSource(root.currentArtUrl) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    smooth: true
+                    asynchronous: true
+                    layer.enabled: root.artVignetteBlur > 0
+                    layer.effect: MultiEffect {
+                        blurEnabled: root.artVignetteBlur > 0
+                        blurMax: 128
+                        blur: root.artVignetteBlur / 128
+                    }
+                }
+
+                Item {
+                    anchors.fill: parent
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: contractedVignetteMask
+                    }
+
+                    Image {
+                        id: contractedArtIncoming
+                        anchors.centerIn: parent
+                        width: parent.width * root.artIncomingScale
+                        height: parent.height * root.artIncomingScale
+                        source: root.currentArtUrl !== "" ? root.effectiveSource(root.currentArtUrl) : ""
+                        fillMode: Image.PreserveAspectCrop
+                        smooth: true
+                        asynchronous: true
+                        layer.enabled: root.artIncomingBlur > 0
+                        layer.effect: MultiEffect {
+                            blurEnabled: root.artIncomingBlur > 0
+                            blurMax: 128
+                            blur: root.artIncomingBlur / 128
+                        }
+                    }
                 }
             }
         }
@@ -312,7 +600,7 @@ Item {
         // Fallback gradient when no art
         Rectangle {
             anchors.fill: parent
-            visible: root.artUrl === ""
+            visible: root.currentArtUrl === ""
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop {
@@ -329,7 +617,7 @@ Item {
         // Music note icon centered when no art
         MaterialSymbol {
             anchors.centerIn: parent
-            visible: root.artUrl === ""
+            visible: root.currentArtUrl === ""
             text: "music_note"
             iconSize: Appearance.font.pixelSize.large
             color: Appearance.colors.colOnSurfaceVariant
@@ -337,10 +625,9 @@ Item {
         }
 
         // ── Radial gradient dimming overlay ──────────────────────────────────
-        // Soft edge-to-center vignette using overlapping horizontal+vertical gradients
         Item {
             anchors.fill: parent
-            opacity: root.playing ? 0.82 : 1
+            opacity: root.playing ? 0.7 : 0.85
 
             Behavior on opacity {
                 NumberAnimation {
@@ -353,22 +640,10 @@ Item {
                 anchors.fill: parent
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop {
-                        position: 0.0
-                        color: Appearance.colors.colScrim
-                    }
-                    GradientStop {
-                        position: 0.4
-                        color: Qt.rgba(0, 0, 0, 0)
-                    }
-                    GradientStop {
-                        position: 0.8
-                        color: Qt.rgba(0, 0, 0, 0)
-                    }
-                    GradientStop {
-                        position: 1.0
-                        color: Appearance.colors.colScrim
-                    }
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.5) }
+                    GradientStop { position: 0.25; color: Qt.rgba(0, 0, 0, 0.15) }
+                    GradientStop { position: 0.75; color: Qt.rgba(0, 0, 0, 0.15) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.5) }
                 }
             }
 
@@ -376,21 +651,23 @@ Item {
                 anchors.fill: parent
                 gradient: Gradient {
                     orientation: Gradient.Vertical
-                    GradientStop {
-                        position: 0.0
-                        color: Appearance.colors.colScrim
-                    }
-                    GradientStop {
-                        position: 0.4
-                        color: Qt.rgba(0, 0, 0, 0)
-                    }
-                    GradientStop {
-                        position: 0.8
-                        color: Qt.rgba(0, 0, 0, 0)
-                    }
-                    GradientStop {
-                        position: 1.0
-                        color: Appearance.colors.colScrim
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.4) }
+                    GradientStop { position: 0.25; color: Qt.rgba(0, 0, 0, 0.1) }
+                    GradientStop { position: 0.75; color: Qt.rgba(0, 0, 0, 0.1) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.4) }
+                }
+            }
+
+            // Extra dim layer when paused
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.3)
+                opacity: root.playing ? 0.0 : 0.5
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 500
+                        easing.type: Easing.OutCubic
                     }
                 }
             }
@@ -412,27 +689,30 @@ Item {
                 StyledText {
                     Layout.fillWidth: true
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    font.bold: true
-                    color: root.artUrl !== "" ? '#f2f2f2' : Appearance.colors.colOnSurface
+                    font.weight: Font.Black
+                    font.styleName: "Rounded"
+                    font.hintingPreference: Font.PreferNoHinting
+                    color: root.artTextColor
                     text: root.displayTitle
                     maximumLineCount: 1
                     elide: Text.ElideRight
                     opacity: root.titleOpacity
                     transform: Translate {
-                        x: root.titleXOffset
+                        y: root.titleYOffset
                     }
+                    verticalAlignment: Text.AlignVCenter
                 }
 
                 StyledText {
                     Layout.fillWidth: true
                     font.pixelSize: Appearance.font.pixelSize.smallest
-                    color: root.artUrl !== "" ? "#C0C0C0" : Appearance.colors.colOnSurfaceVariant
+                    color: root.artSubtextColor
                     text: root.displayArtist
                     maximumLineCount: 1
                     elide: Text.ElideRight
                     opacity: root.titleOpacity
                     transform: Translate {
-                        x: root.titleXOffset
+                        y: root.titleYOffset
                     }
                 }
             }
@@ -456,7 +736,7 @@ Item {
                             width: root.barWidth
                             height: root.getBarHeight(index)
                             radius: root.barWidth / 2
-                            color: root.artUrl !== "" ? "#FFFFFF" : Appearance.colors.colPrimary
+                            color: root.artTextColor
 
                             Behavior on height {
                                 NumberAnimation {
@@ -469,32 +749,16 @@ Item {
                 }
             }
         }
-
-        // ── Art cross-fade logic ─────────────────────────────────────────────
-        Connections {
-            target: root
-            function onArtUrlChanged() {
-                if (root.artUrl === contractedLayout.displayedArt)
-                    return;
-                // Bring secondary to front with old art visible
-                contractedLayout.previousArt = contractedLayout.displayedArt;
-                artSecondary.opacity = 1.0;
-                artPrimary.opacity = 0.0;
-                contractedLayout.displayedArt = root.artUrl;
-                // Fade: primary (new art) in, secondary out
-                artPrimary.opacity = 1.0;
-                artSecondary.opacity = 0.0;
-            }
-        }
     }
 
     // ==========================================
     // 2. EXPANDED MODE (Premium Spotify-like layout)
     // ==========================================
 
-    // Background Album Art Overlay (covers full parent when expanded, masked to rounded corners)
+    // Background Album Art Overlay
     Item {
         id: expandedBg
+
         readonly property bool isMultiWidget: {
             var p = root.parent;
             while (p && !p.hasOwnProperty("activeWidgetsList")) {
@@ -517,77 +781,185 @@ Item {
             visible: false
         }
 
-        // Image container with graphical effect opacity mask to prevent corner bleeding
+        layer.enabled: true
+        layer.effect: OpacityMask {
+            maskSource: maskRect
+        }
+
+        Item {
+            id: expandedVignetteMask
+            anchors.fill: parent
+            visible: true
+
+            Rectangle {
+                id: expandedHMask
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.15; color: "transparent" }
+                    GradientStop { position: 0.35; color: "white" }
+                    GradientStop { position: 0.65; color: "white" }
+                    GradientStop { position: 0.85; color: "transparent" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.5; color: "white" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: expandedHMask
+                }
+            }
+        }
+
         Item {
             anchors.fill: parent
-            layer.enabled: true
-            layer.effect: OpacityMask {
-                maskSource: maskRect
-            }
 
-            Image {
-                anchors.fill: parent
-                source: root.artUrl !== "" ? root.artUrl : ""
-                fillMode: Image.PreserveAspectCrop
-                opacity: 0.85
-                visible: root.artUrl !== ""
-            }
-
-            // Radial gradient dimming overlay
             Item {
                 anchors.fill: parent
-                opacity: root.playing ? 0.55 : 0.8
+                visible: root.previousArtUrl !== ""
+
+                Image {
+                    anchors.fill: parent
+                    source: root.previousArtUrl !== "" ? root.effectiveSource(root.previousArtUrl) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    opacity: 0.85
+                    smooth: true
+                    asynchronous: true
+                    layer.enabled: root.artVignetteBlur > 0
+                    layer.effect: MultiEffect {
+                        blurEnabled: root.artVignetteBlur > 0
+                        blurMax: 128
+                        blur: root.artVignetteBlur / 128
+                    }
+                }
+
+                Item {
+                    anchors.fill: parent
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: expandedVignetteMask
+                    }
+
+                    Image {
+                        id: expandedArtOutgoing
+                        anchors.centerIn: parent
+                        width: parent.width * root.artOutgoingScale
+                        height: parent.height * root.artOutgoingScale
+                        source: root.previousArtUrl !== "" ? root.effectiveSource(root.previousArtUrl) : ""
+                        fillMode: Image.PreserveAspectCrop
+                        opacity: 0.85
+                        smooth: true
+                        asynchronous: true
+                        layer.enabled: root.artOutgoingBlur > 0
+                        layer.effect: MultiEffect {
+                            blurEnabled: root.artOutgoingBlur > 0
+                            blurMax: 128
+                            blur: root.artOutgoingBlur / 128
+                        }
+                    }
+                }
+            }
+
+            Item {
+                anchors.fill: parent
+                visible: root.currentArtUrl !== ""
+
+                Image {
+                    anchors.fill: parent
+                    source: root.currentArtUrl !== "" ? root.effectiveSource(root.currentArtUrl) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    opacity: 0.85
+                    smooth: true
+                    asynchronous: true
+                    layer.enabled: root.artVignetteBlur > 0
+                    layer.effect: MultiEffect {
+                        blurEnabled: root.artVignetteBlur > 0
+                        blurMax: 128
+                        blur: root.artVignetteBlur / 128
+                    }
+                }
+
+                Item {
+                    anchors.fill: parent
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: expandedVignetteMask
+                    }
+
+                    Image {
+                        id: expandedArtIncoming
+                        anchors.centerIn: parent
+                        width: parent.width * root.artIncomingScale
+                        height: parent.height * root.artIncomingScale
+                        source: root.currentArtUrl !== "" ? root.effectiveSource(root.currentArtUrl) : ""
+                        fillMode: Image.PreserveAspectCrop
+                        opacity: 0.85
+                        smooth: true
+                        asynchronous: true
+                        layer.enabled: root.artIncomingBlur > 0
+                        layer.effect: MultiEffect {
+                            blurEnabled: root.artIncomingBlur > 0
+                            blurMax: 128
+                            blur: root.artIncomingBlur / 128
+                        }
+                    }
+                }
+            }
+        }
+
+        // Radial gradient dimming overlay
+        Item {
+            anchors.fill: parent
+            opacity: root.playing ? 0.55 : 0.75
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 400
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.45) }
+                    GradientStop { position: 0.2; color: Qt.rgba(0, 0, 0, 0.1) }
+                    GradientStop { position: 0.8; color: Qt.rgba(0, 0, 0, 0.1) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.45) }
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                    GradientStop { position: 0.2; color: Qt.rgba(0, 0, 0, 0.08) }
+                    GradientStop { position: 0.8; color: Qt.rgba(0, 0, 0, 0.08) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                }
+            }
+
+            // Extra dim layer when paused
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.3)
+                opacity: root.playing ? 0.0 : 0.5
 
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: 400
+                        duration: 500
                         easing.type: Easing.OutCubic
-                    }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop {
-                            position: 0.0
-                            color: Appearance.colors.colScrim
-                        }
-                        GradientStop {
-                            position: 0.4
-                            color: Qt.rgba(0, 0, 0, 0)
-                        }
-                        GradientStop {
-                            position: 0.8
-                            color: Qt.rgba(0, 0, 0, 0)
-                        }
-                        GradientStop {
-                            position: 1.0
-                            color: Appearance.colors.colScrim
-                        }
-                    }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        orientation: Gradient.Vertical
-                        GradientStop {
-                            position: 0.0
-                            color: Appearance.colors.colScrim
-                        }
-                        GradientStop {
-                            position: 0.4
-                            color: Qt.rgba(0, 0, 0, 0)
-                        }
-                        GradientStop {
-                            position: 0.8
-                            color: Qt.rgba(0, 0, 0, 0)
-                        }
-                        GradientStop {
-                            position: 1.0
-                            color: Appearance.colors.colScrim
-                        }
                     }
                 }
             }
@@ -656,13 +1028,16 @@ Item {
             }
 
             // Audio output device pill (headphones/speaker)
-            Rectangle {
+            RippleButton {
                 id: audioPill
-                height: 24
-                implicitWidth: audioPillLayout.implicitWidth + 16
-                radius: Appearance.rounding.full
-                color: Appearance.colors.colPrimaryContainer
-                border.width: 0
+                implicitHeight: 24
+                leftPadding: 8
+                rightPadding: 8
+                Layout.alignment: Qt.AlignTop
+                colBackground: Appearance.colors.colPrimaryContainer
+                colBackgroundHover: Appearance.colors.colPrimaryContainerHover
+                colRipple: Appearance.colors.colOnPrimaryContainer
+                buttonRadius: Appearance.rounding.full
 
                 readonly property string activeAudioDeviceName: Audio.sink ? (Audio.sink.description || "") : ""
                 readonly property string audioDeviceIcon: {
@@ -673,9 +1048,15 @@ Item {
                     return "volume_up";
                 }
 
-                RowLayout {
+                onClicked: {
+                    GlobalStates.openRightSidebar();
+                    Qt.callLater(() => {
+                        GlobalStates.requestVolumeDialog = true;
+                    });
+                }
+
+                contentItem: RowLayout {
                     id: audioPillLayout
-                    anchors.centerIn: parent
                     spacing: 4
 
                     MaterialSymbol {
@@ -708,33 +1089,124 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
                 spacing: 2
 
-                StyledText {
+                Item {
                     Layout.fillWidth: true
-                    font.family: Appearance.font.family.main
-                    font.pixelSize: Appearance.font.pixelSize.large
-                    font.bold: true
-                    color: root.artUrl !== "" ? "#FFFFFF" : Appearance.colors.colOnSurface
-                    text: root.activeLyricText
-                    opacity: root.lyricOpacity
-                    transform: Translate {
-                        x: root.lyricXOffset
+                    Layout.fillHeight: true
+                    clip: true
+
+                    Column {
+                        id: expandedLyricsContainer
+                        width: parent.width
+                        spacing: 0
+                        y: expandedLyricsContainer.baseY - expandedLyricsContainer.rowHeight - expandedLyricsContainer.scrollOffset
+                        visible: LyricsService.hasSyncedLines
+
+                        readonly property int rowHeight: Math.floor(parent.height / 2.5)
+                        readonly property real baseY: (parent.height - rowHeight) / 2
+                        readonly property int targetCurrentIndex: LyricsService.hasSyncedLines ? LyricsService.currentIndex : -1
+                        property int lastIndex: -1
+                        property bool isMovingForward: true
+                        property real scrollOffset: 0
+                        readonly property real animProgress: rowHeight > 0 ? Math.abs(scrollOffset) / rowHeight : 0
+
+                        onTargetCurrentIndexChanged: {
+                            if (targetCurrentIndex !== lastIndex && LyricsService.hasSyncedLines) {
+                                isMovingForward = targetCurrentIndex > lastIndex;
+                                lastIndex = targetCurrentIndex;
+                                expandedScrollAnim.stop();
+                                scrollOffset = isMovingForward ? -rowHeight : rowHeight;
+                                expandedScrollAnim.start();
+                            }
+                        }
+
+                        NumberAnimation {
+                            id: expandedScrollAnim
+                            target: expandedLyricsContainer
+                            property: "scrollOffset"
+                            to: 0
+                            duration: 400
+                            easing.type: Easing.OutQuart
+                        }
+
+                        Repeater {
+                            model: 3
+
+                            Item {
+                                required property int index
+                                property int lineOffset: index - 1
+                                property int actualIndex: expandedLyricsContainer.targetCurrentIndex + lineOffset
+                                property bool isValidLine: LyricsService.hasSyncedLines && actualIndex >= 0 && actualIndex < LyricsService.syncedLines.length
+
+                                width: parent.width
+                                height: expandedLyricsContainer.rowHeight
+
+                                property int oldLineOffset: expandedLyricsContainer.isMovingForward ? lineOffset + 1 : lineOffset - 1
+
+                                    function getOpacityForOffset(offset) {
+                                        let dist = Math.abs(offset);
+                                        if (dist === 0) return 1.0;
+                                        if (dist === 1) return 0.35;
+                                        return 0.1;
+                                    }
+                                property real targetOpacity: getOpacityForOffset(lineOffset)
+                                property real startOpacity: getOpacityForOffset(oldLineOffset)
+                                opacity: startOpacity + (targetOpacity - startOpacity) * (1.0 - expandedLyricsContainer.animProgress)
+
+                                function getScaleForOffset(offset) {
+                                    return Math.abs(offset) === 0 ? 1.0 : 0.9;
+                                }
+                                property real targetScale: getScaleForOffset(lineOffset)
+                                property real startScale: getScaleForOffset(oldLineOffset)
+                                scale: startScale + (targetScale - startScale) * (1.0 - expandedLyricsContainer.animProgress)
+
+                                transformOrigin: Item.Center
+
+                                StyledText {
+                                    anchors.fill: parent
+                                    font.family: Appearance.font.family.main
+                                    font.pixelSize: Appearance.font.pixelSize.large
+                                    font.weight: Math.abs(lineOffset) === 0 ? Font.Black : Font.Medium
+                                    font.styleName: Math.abs(lineOffset) === 0 ? "Rounded" : "Regular"
+                                    font.hintingPreference: Font.PreferNoHinting
+                                    color: root.artTextColor
+                                    text: isValidLine ? LyricsService.syncedLines[actualIndex].text : ""
+                                    horizontalAlignment: Text.AlignLeft
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 2
+                                }
+                            }
+                        }
                     }
-                    maximumLineCount: 2
-                    wrapMode: Text.WordWrap
-                    elide: Text.ElideRight
+
+                    StyledText {
+                        visible: !LyricsService.hasSyncedLines
+                        anchors.fill: parent
+                        font.family: Appearance.font.family.main
+                        font.pixelSize: Appearance.font.pixelSize.large
+                        font.weight: Font.Black
+                        font.styleName: "Rounded"
+                        color: root.artTextColor
+                        text: root.displaySongText
+                        maximumLineCount: 2
+                        wrapMode: Text.WordWrap
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
 
                 StyledText {
                     Layout.fillWidth: true
                     font.family: Appearance.font.family.main
                     font.pixelSize: Appearance.font.pixelSize.small
-                    color: root.artUrl !== "" ? "#B0B0B0" : Appearance.colors.colSubtext
+                    color: root.artSubtextColor
                     text: root.displayArtist
                     maximumLineCount: 1
                     elide: Text.ElideRight
                     opacity: root.titleOpacity
                     transform: Translate {
-                        x: root.titleXOffset
+                        y: root.titleYOffset
                     }
                 }
             }
@@ -802,6 +1274,7 @@ Item {
                         anchors.centerIn: parent
                         text: "skip_previous"
                         iconSize: Appearance.font.pixelSize.normal
+                        fill: 1
                         color: root.player && root.player.canGoPrevious ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSubtext
                         opacity: root.player && root.player.canGoPrevious ? 1.0 : 0.4
                     }
@@ -869,6 +1342,7 @@ Item {
                         anchors.centerIn: parent
                         text: "skip_next"
                         iconSize: Appearance.font.pixelSize.normal
+                        fill: 1
                         color: root.player && root.player.canGoNext ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSubtext
                         opacity: root.player && root.player.canGoNext ? 1.0 : 0.4
                     }

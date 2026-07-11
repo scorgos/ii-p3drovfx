@@ -153,6 +153,11 @@ Singleton {
     property bool bluetoothConnectionPopupOpen: false
     property var bluetoothConnectionPopupDevice: null
 
+    // Floating Notch Bluetooth notification
+    property var floatingNotchBtDevice: null
+    property string floatingNotchBtAction: "connected"
+    property bool floatingNotchBtNotifActive: false
+
     // LocalSend transfer popup
     property bool localSendPopupOpen: false
     property var localSendPopupTransfer: null
@@ -441,6 +446,8 @@ Singleton {
 
     property bool dashboardPanelOpen: false // formerly sidebarRightOpen
     property bool policiesPanelOpen: false  // formerly sidebarLeftOpen
+
+    property bool requestVolumeDialog: false
 
     readonly property bool effectiveLeftOpen: {
         switch (Config.options.sidebar.position) {
