@@ -67,8 +67,10 @@ Singleton {
             const index = root.list.findIndex((notif) => notif.notificationId === notificationId);
             const notifObject = root.list[index];
             print("[Notifications] Notification timer triggered for ID: " + notificationId + ", transient: " + notifObject?.isTransient);
-            if (notifObject.isTransient) root.discardNotification(notificationId);
-            else root.timeoutNotification(notificationId);
+            if (notifObject) {
+                if (notifObject.isTransient) root.discardNotification(notificationId);
+                else root.timeoutNotification(notificationId);
+            }
             destroy()
         }
     }
@@ -136,23 +138,20 @@ Singleton {
     }
     
     onListChanged: {
-        // Update latest time for each app
+        // Update latest time for each app reactively via reassignment
+        const nextLatestTime = Object.assign({}, root.latestTimeForApp);
         root.list.forEach((notif) => {
-            if (!root.latestTimeForApp[notif.appName] || notif.time > root.latestTimeForApp[notif.appName]) {
-                root.latestTimeForApp[notif.appName] = Math.max(root.latestTimeForApp[notif.appName] || 0, notif.time);
+            if (!nextLatestTime[notif.appName] || notif.time > nextLatestTime[notif.appName]) {
+                nextLatestTime[notif.appName] = Math.max(nextLatestTime[notif.appName] || 0, notif.time);
             }
         });
         // Remove apps that no longer have notifications
-        Object.keys(root.latestTimeForApp).forEach((appName) => {
+        Object.keys(nextLatestTime).forEach((appName) => {
             if (!root.list.some((notif) => notif.appName === appName)) {
-                delete root.latestTimeForApp[appName];
+                delete nextLatestTime[appName];
             }
         });
-        // Invalidate group cache when list changes
-        root._cachedGroupsByAppName = null;
-        root._cachedPopupGroupsByAppName = null;
-        root._cachedAppNameList = null;
-        root._cachedPopupAppNameList = null;
+        root.latestTimeForApp = nextLatestTime;
     }
 
     function appNameListForGroups(groups) {
@@ -190,37 +189,11 @@ Singleton {
         return groups;
     }
 
-    // Cached group computations - only recalculate when list changes
-    property var _cachedGroupsByAppName: null
-    property var _cachedPopupGroupsByAppName: null
-    property var _cachedAppNameList: null
-    property var _cachedPopupAppNameList: null
-    property int _lastListLength: 0
-
-    property var groupsByAppName: {
-        if (root._cachedGroupsByAppName === null) {
-            root._cachedGroupsByAppName = groupsForList(root.list);
-        }
-        return root._cachedGroupsByAppName;
-    }
-    property var popupGroupsByAppName: {
-        if (root._cachedPopupGroupsByAppName === null) {
-            root._cachedPopupGroupsByAppName = groupsForList(root.popupList);
-        }
-        return root._cachedPopupGroupsByAppName;
-    }
-    property list<string> appNameList: {
-        if (root._cachedAppNameList === null) {
-            root._cachedAppNameList = appNameListForGroups(root.groupsByAppName);
-        }
-        return root._cachedAppNameList;
-    }
-    property list<string> popupAppNameList: {
-        if (root._cachedPopupAppNameList === null) {
-            root._cachedPopupAppNameList = appNameListForGroups(root.popupGroupsByAppName);
-        }
-        return root._cachedPopupAppNameList;
-    }
+    // Computed group bindings - automatically cached by the QML engine and re-evaluated reactively.
+    property var groupsByAppName: groupsForList(root.list)
+    property var popupGroupsByAppName: groupsForList(root.popupList)
+    property list<string> appNameList: appNameListForGroups(root.groupsByAppName)
+    property list<string> popupAppNameList: appNameListForGroups(root.popupGroupsByAppName)
 
     // Quickshell's notification IDs starts at 1 on each run, while saved notifications
     // can already contain higher IDs. This is for avoiding id collisions
