@@ -84,6 +84,44 @@ Singleton {
     property real initTimestamp: Date.now()
     property int missingFileGracePeriod: 2000
     property int missingFileRetryInterval: 1500
+
+    // Debounced disk write timer - batches rapid notification changes
+    property bool _pendingDiskWrite: false
+    Timer {
+        id: diskWriteTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            notifFileView.setText(stringifyList(root.list));
+            root._pendingDiskWrite = false;
+        }
+    }
+    function scheduleDiskWrite() {
+        root._pendingDiskWrite = true;
+        diskWriteTimer.restart();
+    }
+    function flushDiskWrite() {
+        diskWriteTimer.stop();
+        if (root._pendingDiskWrite) {
+            notifFileView.setText(stringifyList(root.list));
+            root._pendingDiskWrite = false;
+        }
+    }
+
+    // Pending notifications queue for batching
+    property var _pendingNotifications: []
+    Timer {
+        id: batchNotificationTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            if (root._pendingNotifications.length > 0) {
+                const pending = root._pendingNotifications.slice();
+                root._pendingNotifications = [];
+                root.list = root.list.concat(pending);
+            }
+        }
+    }
     Component {
         id: notifComponent
         Notif {}
@@ -110,6 +148,11 @@ Singleton {
                 delete root.latestTimeForApp[appName];
             }
         });
+        // Invalidate group cache when list changes
+        root._cachedGroupsByAppName = null;
+        root._cachedPopupGroupsByAppName = null;
+        root._cachedAppNameList = null;
+        root._cachedPopupAppNameList = null;
     }
 
     function appNameListForGroups(groups) {
@@ -147,10 +190,37 @@ Singleton {
         return groups;
     }
 
-    property var groupsByAppName: groupsForList(root.list)
-    property var popupGroupsByAppName: groupsForList(root.popupList)
-    property list<string> appNameList: appNameListForGroups(root.groupsByAppName)
-    property list<string> popupAppNameList: appNameListForGroups(root.popupGroupsByAppName)
+    // Cached group computations - only recalculate when list changes
+    property var _cachedGroupsByAppName: null
+    property var _cachedPopupGroupsByAppName: null
+    property var _cachedAppNameList: null
+    property var _cachedPopupAppNameList: null
+    property int _lastListLength: 0
+
+    property var groupsByAppName: {
+        if (root._cachedGroupsByAppName === null) {
+            root._cachedGroupsByAppName = groupsForList(root.list);
+        }
+        return root._cachedGroupsByAppName;
+    }
+    property var popupGroupsByAppName: {
+        if (root._cachedPopupGroupsByAppName === null) {
+            root._cachedPopupGroupsByAppName = groupsForList(root.popupList);
+        }
+        return root._cachedPopupGroupsByAppName;
+    }
+    property list<string> appNameList: {
+        if (root._cachedAppNameList === null) {
+            root._cachedAppNameList = appNameListForGroups(root.groupsByAppName);
+        }
+        return root._cachedAppNameList;
+    }
+    property list<string> popupAppNameList: {
+        if (root._cachedPopupAppNameList === null) {
+            root._cachedPopupAppNameList = appNameListForGroups(root.popupGroupsByAppName);
+        }
+        return root._cachedPopupAppNameList;
+    }
 
     // Quickshell's notification IDs starts at 1 on each run, while saved notifications
     // can already contain higher IDs. This is for avoiding id collisions
@@ -191,7 +261,10 @@ Singleton {
                 "notification": notification,
                 "time": Date.now(),
             });
-			root.list = [...root.list, newNotifObject];
+
+            // Batch notifications to avoid rapid list updates
+            root._pendingNotifications.push(newNotifObject);
+            batchNotificationTimer.restart();
 
             // Popup
             if (!root.popupInhibited) {
@@ -205,8 +278,8 @@ Singleton {
                 root.unread++;
             }
             root.notify(newNotifObject);
-            // console.log(notifToString(newNotifObject));
-            notifFileView.setText(stringifyList(root.list));
+            // Schedule disk write instead of immediate write
+            root.scheduleDiskWrite();
         }
     }
 
@@ -220,7 +293,7 @@ Singleton {
         const notifServerIndex = notifServer.trackedNotifications.values.findIndex((notif) => notif.id + root.idOffset === id);
         if (index !== -1) {
             root.list.splice(index, 1);
-            notifFileView.setText(stringifyList(root.list));
+            root.scheduleDiskWrite();
             triggerListChange()
         }
         if (notifServerIndex !== -1) {
@@ -232,7 +305,7 @@ Singleton {
     function discardAllNotifications() {
         root.list = []
         triggerListChange()
-        notifFileView.setText(stringifyList(root.list));
+        root.scheduleDiskWrite();
         notifServer.trackedNotifications.values.forEach((notif) => {
             notif.dismiss()
         })
@@ -320,8 +393,8 @@ Singleton {
         }
         onLoadFailed: (error) => {
             if(error != FileViewError.FileNotFound) {
-                console.log("[Notifications] Error loading file: " + error)
-                return
+                console.log("[Notifications] Error loading file: " + error);
+                return;
             }
             // Lazy-rstoration: a transient missing file (hot-reload / restart /
             // partial disk I/O) should not erase the user's existing
@@ -330,7 +403,7 @@ Singleton {
             if (Date.now() - root.initTimestamp > root.missingFileGracePeriod) {
                 console.log("[Notifications] File genuinely missing, creating new file.")
                 root.list = []
-                notifFileView.setText(stringifyList(root.list));
+                root.scheduleDiskWrite();
             } else {
                 missingFileRetryTimer.restart()
             }

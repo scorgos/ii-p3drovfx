@@ -138,7 +138,8 @@ Scope {
         WlrLayershell.keyboardFocus: isSearchActiveHere ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         // Mask extends further when transparent to allow glow gradient rendering.
-        mask: Region { item: hoverMaskRegion }
+        // In fullscreen, mask becomes empty to allow clicks to pass through to the fullscreen app.
+        mask: Region { item: barRoot.hasFullscreenWindowOnMonitor ? null : hoverMaskRegion }
         color: "transparent"
         anchors { top: true; bottom: true; left: true; right: true }
 
