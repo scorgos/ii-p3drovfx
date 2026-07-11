@@ -169,6 +169,16 @@ Item {
                 }
             }
 
+            ConfigSwitch {
+                buttonIcon: "auto_fix"
+                text: Translation.tr("Auto spacing")
+                visible: Config.options.bar.cornerStyle === 3
+                checked: Config.options.bar.dynamicIslandLoadBalance
+                onCheckedChanged: {
+                    Config.options.bar.dynamicIslandLoadBalance = checked;
+                }
+            }
+
             ConfigSlider {
                 buttonIcon: "space_bar"
                 text: Translation.tr("Dynamic Island spacing")
