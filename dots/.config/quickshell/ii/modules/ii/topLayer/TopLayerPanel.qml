@@ -21,7 +21,7 @@ PanelWindow {
     id: topPanel
     color: "transparent"
     WlrLayershell.namespace: "quickshell:topLayer"
-    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.layer: WlrLayer.Top
     exclusionMode: ExclusionMode.Ignore
 
     anchors {
