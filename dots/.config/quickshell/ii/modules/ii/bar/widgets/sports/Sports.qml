@@ -247,7 +247,11 @@ MouseArea {
         ColumnLayout {
             id: sportsLayoutVert
             visible: root.vertical
-            anchors.centerIn: parent
+            anchors {
+                top: parent.top
+                topMargin: 4
+                horizontalCenter: parent.horizontalCenter
+            }
             spacing: 6
             
             // Translate allows animating Y even when anchors.centerIn is active

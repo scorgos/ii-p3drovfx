@@ -322,6 +322,19 @@ ContentPage {
         }
 
         ConfigSwitch {
+            visible: Config.options.sidebar.quickToggles.style === "android"
+            buttonIcon: "tune"
+            text: Translation.tr("Use 2x1 Capsule Sliders for 3-State Toggles")
+            checked: Config.options.sidebar.quickToggles.useThreeWaySliders
+            onCheckedChanged: {
+                Config.options.sidebar.quickToggles.useThreeWaySliders = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Convert compatible 3-state widgets (ANC, Power Profiles, Keyboard Light) into 2x1 slide/swipe toggles.")
+            }
+        }
+
+        ConfigSwitch {
             buttonIcon: "linear_scale"
             text: Translation.tr("Enable fixed sliders")
             checked: Config.options.sidebar.quickSliders.enable

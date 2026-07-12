@@ -40,16 +40,12 @@ ContentPage {
             }
         }
 
-        ConfigSwitch {
-            buttonIcon: "zoom_out_map"
-            text: Translation.tr("Zoom animation")
-            checked: Config.options.lock.zoomAnimation.enabled
-            onCheckedChanged: {
-                Config.options.lock.zoomAnimation.enabled = checked;
-            }
-            StyledToolTip {
-                text: Translation.tr("Animate wallpaper zoom on lock and unlock.")
-            }
+        ShortcutBox {
+            Layout.fillWidth: true
+            value: Translation.tr("Wallpaper zoom")
+            targetPageIndex: 2
+            targetSectionTitle: Translation.tr("Parallax Engine")
+            materialIcon: "loupe"
         }
     }
 
@@ -258,15 +254,33 @@ ContentPage {
         icon: "style"
         title: Translation.tr("Style: General")
 
-        ConfigSwitch {
-            buttonIcon: "align_horizontal_center"
-            text: Translation.tr("Center clock")
-            checked: Config.options.lock.centerClock
-            onCheckedChanged: {
-                Config.options.lock.centerClock = checked;
-            }
-            StyledToolTip {
-                text: Translation.tr("Position the clock directly in the center of the screen.")
+        ContentSubsection {
+            title: Translation.tr("Lockscreen widget")
+            icon: "widgets"
+            Layout.fillWidth: true
+
+            ConfigSelectionArray {
+                currentValue: Config.options.lock.centerWidget
+                onSelected: newValue => {
+                    Config.options.lock.centerWidget = newValue;
+                }
+                options: [
+                    {
+                        displayName: Translation.tr("Clock"),
+                        icon: "schedule",
+                        value: "clock"
+                    },
+                    {
+                        displayName: Translation.tr("Media"),
+                        icon: "music_note",
+                        value: "media"
+                    },
+                    {
+                        displayName: Translation.tr("None"),
+                        icon: "do_not_disturb",
+                        value: "none"
+                    }
+                ]
             }
         }
 

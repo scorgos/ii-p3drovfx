@@ -12,6 +12,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import qs.modules.common.models
 
 Item {
     id: root
@@ -41,9 +42,9 @@ Item {
             let group = [i];
 
             // Find duplicates by trackTitle prefix
-            for (let j = i + 1; j < playersList.length; ++j) {
+            for (var j = i + 1; j < playersList.length; ++j) {
                 let p2 = playersList[j];
-                if (p1.trackTitle && p2.trackTitle && (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle)) || (p1.position - p2.position <= 2 && p1.length - p2.length <= 2)) {
+                if ((p1.trackTitle && p2.trackTitle && (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle))) || (Math.abs(p1.position - p2.position) <= 2 && Math.abs(p1.length - p2.length) <= 2)) {
                     group.push(j);
                 }
             }
@@ -138,8 +139,30 @@ Item {
 
                 property real artVignetteBlur: cardRoot.playing ? 50 : 90
 
-                readonly property color artTextColor: cardRoot.artSource !== "" ? Appearance.colors.colOnSurfaceVariant : Appearance.colors.colOnSurface
-                readonly property color artSubtextColor: Appearance.colors.colOnSurfaceVariant
+                readonly property bool useDynamicColors: Config.options.media.dynamicAlbumColors && cardRoot.artSource !== ""
+
+                ColorQuantizer {
+                    id: colorQuantizer
+                    source: cardRoot.artSource
+                    depth: 0
+                    rescaleSize: 1
+                }
+
+                property color artDominantColor: ColorUtils.mix(
+                    (colorQuantizer?.colors[0] ?? Appearance.colors.colPrimary),
+                    Appearance.colors.colPrimaryContainer, 0.8
+                ) || Appearance.m3colors.m3secondaryContainer
+
+                property QtObject blendedColors: AdaptedMaterialScheme {
+                    color: cardRoot.artDominantColor
+                }
+
+                readonly property color artTextColor: cardRoot.useDynamicColors
+                    ? cardRoot.blendedColors.colOnPrimary
+                    : (cardRoot.artSource !== "" ? Appearance.colors.colOnSurfaceVariant : Appearance.colors.colOnSurface)
+                readonly property color artSubtextColor: cardRoot.useDynamicColors
+                    ? cardRoot.blendedColors.colOnPrimary
+                    : Appearance.colors.colOnSurfaceVariant
 
                 Behavior on artVignetteBlur {
                     NumberAnimation {
@@ -148,16 +171,11 @@ Item {
                     }
                 }
 
-                // Shadow for premium M3 card appearance
-                StyledRectangularShadow {
-                    target: mainBg
-                }
-
                 Rectangle {
                     id: mainBg
                     anchors.fill: parent
                     color: Appearance.colors.colLayer0
-                    radius: Appearance.rounding.large
+                    radius: Appearance.rounding.normal
                     clip: true
 
                     layer.enabled: true
@@ -230,9 +248,7 @@ Item {
 
                             Image {
                                 id: artExpanded
-                                anchors.centerIn: parent
-                                width: parent.width * 1.0
-                                height: parent.height * 1.0
+                                anchors.fill: parent
                                 source: cardRoot.artSource
                                 fillMode: Image.PreserveAspectCrop
                                 opacity: 0.85
@@ -256,22 +272,10 @@ Item {
                         Rectangle {
                             anchors.fill: parent
                             gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.45) }
-                                GradientStop { position: 0.2; color: Qt.rgba(0, 0, 0, 0.1) }
-                                GradientStop { position: 0.8; color: Qt.rgba(0, 0, 0, 0.1) }
+                                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.0) }
+                                GradientStop { position: 0.5; color: Qt.rgba(0, 0, 0, 0.05) }
+                                GradientStop { position: 0.8; color: Qt.rgba(0, 0, 0, 0.25) }
                                 GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.45) }
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.fill: parent
-                            gradient: Gradient {
-                                orientation: Gradient.Vertical
-                                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.35) }
-                                GradientStop { position: 0.2; color: Qt.rgba(0, 0, 0, 0.08) }
-                                GradientStop { position: 0.8; color: Qt.rgba(0, 0, 0, 0.08) }
-                                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
                             }
                         }
 
@@ -337,7 +341,7 @@ Item {
                                         anchors.centerIn: parent
                                         text: "music_note"
                                         iconSize: Appearance.font.pixelSize.smallest
-                                        color: "#FFFFFF"
+                                        color: cardRoot.useDynamicColors ? cardRoot.blendedColors.colOnLayer0 : "#FFFFFF"
                                     }
                                 }
                             }
@@ -396,9 +400,9 @@ Item {
                                 implicitWidth: 40
                                 implicitHeight: 40
                                 buttonRadius: 14
-                                colBackground: Appearance.colors.colPrimaryContainer
-                                colBackgroundHover: Appearance.colors.colPrimaryContainerHover
-                                colRipple: Appearance.colors.colPrimaryContainerActive
+                                colBackground: cardRoot.useDynamicColors ? cardRoot.blendedColors.colPrimaryContainer : Appearance.colors.colPrimaryContainer
+                                colBackgroundHover: cardRoot.useDynamicColors ? cardRoot.blendedColors.colPrimaryContainerHover : Appearance.colors.colPrimaryContainerHover
+                                colRipple: cardRoot.useDynamicColors ? cardRoot.blendedColors.colPrimaryContainerActive : Appearance.colors.colPrimaryContainerActive
                                 Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
 
                                 onClicked: {
@@ -417,7 +421,7 @@ Item {
                                         anchors.centerIn: parent
                                         text: cardRoot.playing ? "pause" : "play_arrow"
                                         iconSize: Appearance.font.pixelSize.huge
-                                        color: Appearance.colors.colOnPrimaryContainer
+                                        color: cardRoot.useDynamicColors ? cardRoot.blendedColors.colOnPrimary : Appearance.colors.colOnPrimaryContainer
                                         fill: 1
                                     }
                                 }

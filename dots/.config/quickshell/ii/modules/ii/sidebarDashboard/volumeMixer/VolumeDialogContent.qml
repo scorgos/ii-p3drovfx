@@ -142,7 +142,7 @@ StyledFlickable {
             id: mediaWidget
             Layout.fillWidth: true
             Layout.preferredHeight: 100
-            visible: root.isSink && Config.options.sidebar.volumeDialogMediaWidget && MprisController.activePlayer !== null && MprisController.players.length > 0
+            visible: root.isSink && (Config.options.sidebar.volumeDialogMediaWidget ?? true) && MprisController.activePlayer !== null && MprisController.players.length > 0
         }
 
         // Section 1 Group (Title + List)

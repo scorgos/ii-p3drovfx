@@ -117,6 +117,10 @@ Singleton {
         }
     }
 
+    Component.onDestruction: {
+        root.blockWrites = true;
+    }
+
     FileView {
         id: configFileView
         path: root.filePath
@@ -134,7 +138,7 @@ Singleton {
                 return;
             }
             const elapsed = Date.now() - root.initTimestamp;
-            if (elapsed > root.missingFileGracePeriod) {
+            if (elapsed > root.missingFileGracePeriod && !root.ready) {
                 // Singleton has been alive past the grace window and the file
                 // is still gone — legitimately missing (first-run install or
                 // user manually deleted it). Safe to seed defaults.
@@ -148,6 +152,10 @@ Singleton {
                 // it still fails past the grace window, defaults are written.
                 missingFileRetryTimer.restart();
             }
+        }
+
+        Component.onDestruction: {
+            configFileView.blockWrites = true;
         }
 
         JsonAdapter {
@@ -218,7 +226,7 @@ Singleton {
             property JsonObject ai: JsonObject {
                 property string systemPrompt: "## Style\n- Use casual tone, don't be formal!\n- Always be brief and to the point, unless asked otherwise\n- Don't repeat the user's question\n- Be approachable: Avoid using overly complicated, domain-specific terms and provide analogies when asked to explain a concept\n\n## Context (ignore when irrelevant)\n- You are a helpful and inspiring sidebar assistant on a {DISTRO} Linux system\n- Desktop environment: {DE}\n- Current date & time: {DATETIME}\n- Focused app: {WINDOWCLASS}\n\n## Presentation\n- Use Markdown features in your response: \n  - **Bold** text to **highlight keywords** in your response\n  - **Split long information into small sections** with h2 headers and a relevant emoji at the start of it (for example `## 🐧 Linux`). Bullet points are preferred over long paragraphs, unless you're offering writing support or instructed otherwise by the user.\n- Asked to compare different options? You should firstly use a table to compare the main aspects, then elaborate or include relevant comments from online forums *after* the table. Make sure to provide a final recommendation for the user's use case!\n- Use LaTeX formatting for mathematical and scientific notations whenever appropriate. Enclose all LaTeX '$$' delimiters. NEVER generate LaTeX code in a latex block unless the user explicitly asks for it. DO NOT use LaTeX for regular documents (resumes, letters, essays, CVs, etc.).\n\nThanks!\n"
                 property string tool: "functions" // search, functions, or none
-                property list<var> models: [
+                property var models: [
                     // Needed entries in the object: title, value, modelProvider (only for openrouter)
                     {
                         "openrouter": [
@@ -233,7 +241,7 @@ Singleton {
                         "google": []
                     }
                 ]
-                property list<var> otherModels: [
+                property var otherModels: [
                     // Available api_format(s): openai, gemini, mistral
                     {
                         "name": "Mistral Medium",
@@ -304,7 +312,7 @@ Singleton {
                     property string type: "scheme-fidelity" // Allowed: auto, scheme-content, scheme-expressive, scheme-fidelity, scheme-fruit-salad, scheme-monochrome, scheme-neutral, scheme-rainbow, scheme-tonal-spot
                     property string accentColor: ""
                 }
-                property list<string> customColorSchemes: []
+                property var customColorSchemes: []
                 property real animationMultiplier: 1.0 // 0.25 = fast, 1.0 = default, 2.0 = slow
                 property bool colorfulScrollbar: false
                 property bool scrollAnimations: true
@@ -314,7 +322,7 @@ Singleton {
                     property bool applyOnStartup: true
                     property real fadeDuration: 0.5
                     property real interpolationSteps: 100
-                    property list<var> devices: []
+                    property var devices: []
                 }
             }
 
@@ -340,20 +348,7 @@ Singleton {
                 property string volumeMixer: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "pavucontrol-qt" "pavucontrol"`
             }
 
-            property var bluetoothDeviceImages: [
-                {
-                    "mac": "E8:EE:CC:96:31:3A",
-                    "image": "anker_q30_.png"
-                },
-                {
-                    "mac": "40:35:E6:31:8B:AC",
-                    "image": "galaxy_buds_3.png"
-                },
-                {
-                    "mac": "64:1B:2F:9B:95:CE",
-                    "image": "samsung_s23.png"
-                }
-            ]
+            property var bluetoothDeviceImages: []
 
             property JsonObject background: JsonObject {
                 property bool enable: true // if someone wants to use an external wallpaper manager, note that its not fully tested but it should just disable background.qml from being loaded
@@ -361,6 +356,7 @@ Singleton {
                     property JsonObject clock: JsonObject {
                         property bool enable: true
                         property bool showOnlyWhenLocked: false
+                        property bool disableAnimationOnLock: false
                         property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
                         property real x: 1518.98
                         property real y: 168.8
@@ -547,7 +543,7 @@ Singleton {
                         property bool enable: false
                         property int expandAnimDuration: 250
                         property int fadeDelay: 0
-                        property list<string> visibleWidgets: []
+                        property var visibleWidgets: []
                         property bool overlapApps: false
                     }
                 }
@@ -609,6 +605,7 @@ Singleton {
                 property bool enableBrightnessScroll: true
 
                 property JsonObject mediaPlayer: JsonObject {
+                    property string popupStyle: "default" // "default" | "expressive" | "android"
                     property bool expressivePopup: false
                     property bool useFixedSize: true
                     property int customSize: 200
@@ -652,7 +649,7 @@ Singleton {
                     property bool showUEL: false
                     property bool showWC: true
                     property bool showWWC: false
-                    property list<var> monitoredLeagues: [
+                    property var monitoredLeagues: [
                         {
                             "sport": "soccer",
                             "league": "bra.1",
@@ -690,9 +687,11 @@ Singleton {
                     property int showBeforeHours: 12
                     property int showAfterMinutes: 180
                     property string activeGameId: ""
-                    property list<var> customOrder: []
+                    property var customOrder: []
                 }
-                property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
+                property var screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
+                property bool onlyShowOnSingleMonitor: false
+                property string singleMonitorName: ""
 
                 property JsonObject timers: JsonObject {
                     property bool showPomodoro: true
@@ -715,9 +714,9 @@ Singleton {
                     property bool showAppIcons: false
                     property bool alwaysShowNumbers: false
                     property int showNumberDelay: 300 // milliseconds
-                    property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
+                    property var numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
                     property bool useWorkspaceMap: false
-                    property list<var> workspaceMap: [0, 10]
+                    property var workspaceMap: [0, 10]
                     property int maxWindowCount: 1 // Maximum windows to show in one workspace
                     property bool useNerdFont: false
                     property int activeIndicatorOpacity: 100 // 0-100
@@ -751,7 +750,7 @@ Singleton {
                 property JsonObject layouts: JsonObject {
                     // Only storing id and layout-specific flags (visible, centered)
                     // Component display info (icon, title) comes from BarComponentRegistry
-                    property list<var> left: [
+                    property var left: [
                         {
                             centered: false,
                             id: "policies_panel_button",
@@ -778,7 +777,7 @@ Singleton {
                             visible: true
                         }
                     ]
-                    property list<var> center: [
+                    property var center: [
                         {
                             centered: false,
                             id: "music_player",
@@ -800,7 +799,7 @@ Singleton {
                             visible: true
                         }
                     ]
-                    property list<var> right: [
+                    property var right: [
                         {
                             centered: false,
                             id: "system_tray",
@@ -919,10 +918,10 @@ Singleton {
                 property bool showTrashButton: true
                 property bool showNotificationBadges: true
                 property string position: "auto"
-                property list<string> pinnedApps: ["org.kde.dolphin", "kitty",]
-                property list<string> ignoredAppRegexes: []
-                property list<string> pinnedFiles: []
-                property list<string> order: ["pin", "app:org.kde.dolphin", "app:kitty", "runningApps", "media", "weather", "trash", "overview"]
+                property var pinnedApps: ["org.kde.dolphin", "kitty",]
+                property var ignoredAppRegexes: []
+                property var pinnedFiles: []
+                property var order: ["pin", "app:org.kde.dolphin", "app:kitty", "runningApps", "media", "weather", "trash", "overview"]
             }
 
             property JsonObject hyprland: JsonObject {
@@ -963,7 +962,7 @@ Singleton {
             }
 
             property JsonObject launcher: JsonObject {
-                property list<string> pinnedApps: ["org.kde.dolphin", "kitty", "cmake-gui"]
+                property var pinnedApps: ["org.kde.dolphin", "kitty", "cmake-gui"]
             }
 
             property JsonObject light: JsonObject {
@@ -991,7 +990,7 @@ Singleton {
                     property real radius: 100
                     property real extraZoom: 1.1
                 }
-                property bool centerClock: true
+                property string centerWidget: "clock" // "clock" | "media" | "none"
                 property bool showLockedText: true
                 property JsonObject security: JsonObject {
                     property bool unlockKeyring: true
@@ -1009,8 +1008,8 @@ Singleton {
                     property int maxShown: 5
                     property int zoomPercent: 100 // 50-200, step 10
                     property string defaultPolicy: "show" // "show" | "hide" — apps without an explicit rule
-                    property list<string> alwaysShowApps: [] // App names, case-insensitive match
-                    property list<string> neverShowApps: []
+                    property var alwaysShowApps: [] // App names, case-insensitive match
+                    property var neverShowApps: []
                     property JsonObject filters: JsonObject {
                         property bool skipTransient: true
                         property bool skipLowUrgency: false
@@ -1020,12 +1019,9 @@ Singleton {
             }
 
             property JsonObject media: JsonObject {
-                // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
-
-                // Automatically sets the active player to a newly detected player if its identifier matches the value specified in the priorityPlayer property like "spotify" or "google-chrome"
-                // This comparison uses the desktopEntry property of MprisPlayer (which is the name of the app casting the media)
                 property string priorityPlayer: ""
+                property bool dynamicAlbumColors: true
             }
 
             property JsonObject networking: JsonObject {
@@ -1137,7 +1133,7 @@ Singleton {
                 property bool monochromeIcons: true
                 property bool showItemId: false
                 property bool invertPinnedItems: true // Makes the below a whitelist for the tray and blacklist for the pinned area
-                property list<var> pinnedItems: ["Fcitx"]
+                property var pinnedItems: ["Fcitx"]
                 property bool filterPassive: true
             }
 
@@ -1166,11 +1162,11 @@ Singleton {
                 property bool alwaysListApps: false
                 property int nonAppResultDelay: 30
                 property string engineBaseUrl: "https://www.google.com/search?q="
-                property list<string> excludedSites: ["quora.com", "facebook.com"]
+                property var excludedSites: ["quora.com", "facebook.com"]
                 property bool sloppy: false
                 property bool levenshtein: false
                 property bool frecency: false
-                property list<var> aliases: []
+                property var aliases: []
                 property string fileSearchDirectory: "/home"
                 property bool blurFileSearchResultPreviews: false
                 property JsonObject prefix: JsonObject {
@@ -1213,7 +1209,7 @@ Singleton {
                         property bool multiline: true
                     }
                 }
-                property bool showNowPlayingBubble: true
+                property bool showNowPlayingBubble: false
                 property string connectStyle: "connect"  // Search rendered as embedded drop in Connect Mode
                 property int baseWidth: 500
             }
@@ -1287,9 +1283,10 @@ Singleton {
 
                 property JsonObject quickToggles: JsonObject {
                     property string style: "android" // Options: classic, android
+                    property bool useThreeWaySliders: true
                     property JsonObject android: JsonObject {
                         property int columns: 5
-                        property list<var> pages: [[
+                        property var pages: [[
                                 {
                                     "size": 2,
                                     "type": "network"
@@ -1353,7 +1350,7 @@ Singleton {
             }
 
             property JsonObject soundcore: JsonObject {
-                property string macAddress: "E8:EE:CC:96:31:3A"
+                property string macAddress: ""
                 property string model: "SoundcoreA3028"
             }
 
@@ -1372,7 +1369,7 @@ Singleton {
                     property int focus: 1500
                     property int longBreak: 900
                 }
-                property list<var> worldClocks: []
+                property var worldClocks: []
                 property bool secondPrecision: false
 
                 property JsonObject alarms: JsonObject {
@@ -1392,7 +1389,7 @@ Singleton {
 
             property JsonObject wallpaperSelector: JsonObject {
                 property bool useSystemFileDialog: false
-                property list<var> directories: []
+                property var directories: []
                 property bool useCustomDefaultPath: false
                 property string customDefaultPath: FileUtils.trimFileProtocol(`${Directories.pictures}/Wallpapers`)
             }
@@ -1412,9 +1409,9 @@ Singleton {
                     property bool clipboard: false
                 }
                 property JsonObject triggerCondition: JsonObject {
-                    property list<string> networkNameKeywords: ["airport", "cafe", "college", "company", "eduroam", "free", "guest", "public", "school", "university"]
-                    property list<string> fileKeywords: ["anime", "booru", "ecchi", "hentai", "yande.re", "konachan", "breast", "nipples", "pussy", "nsfw", "spoiler", "girl"]
-                    property list<string> linkKeywords: ["hentai", "porn", "sukebei", "hitomi.la", "rule34", "gelbooru", "fanbox", "dlsite"]
+                    property var networkNameKeywords: ["airport", "cafe", "college", "company", "eduroam", "free", "guest", "public", "school", "university"]
+                    property var fileKeywords: ["anime", "booru", "ecchi", "hentai", "yande.re", "konachan", "breast", "nipples", "pussy", "nsfw", "spoiler", "girl"]
+                    property var linkKeywords: ["hentai", "porn", "sukebei", "hitomi.la", "rule34", "gelbooru", "fanbox", "dlsite"]
                 }
             }
 
@@ -1442,7 +1439,7 @@ Singleton {
                     property bool leftAlignApps: false
                 }
                 property JsonObject actionCenter: JsonObject {
-                    property list<string> toggles: ["network", "bluetooth", "easyEffects", "powerProfile", "idleInhibitor", "nightLight", "darkMode", "antiFlashbang", "cloudflareWarp", "mic", "musicRecognition", "notifications", "onScreenKeyboard", "gameMode", "screenSnip", "colorPicker", "videoEditor"]
+                    property var toggles: ["network", "bluetooth", "easyEffects", "powerProfile", "idleInhibitor", "nightLight", "darkMode", "antiFlashbang", "cloudflareWarp", "mic", "musicRecognition", "notifications", "onScreenKeyboard", "gameMode", "screenSnip", "colorPicker", "videoEditor"]
                 }
                 property JsonObject calendar: JsonObject {
                     property bool force2CharDayOfWeek: true

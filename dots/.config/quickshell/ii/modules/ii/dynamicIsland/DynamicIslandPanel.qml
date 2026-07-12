@@ -19,14 +19,20 @@ Scope {
     // Monitor for fullscreen windows
     readonly property HyprlandMonitor hMonitor: Hyprland.monitorFor(win.screen)
     readonly property int activeWsId: (hMonitor && hMonitor.activeWorkspace) ? hMonitor.activeWorkspace.id : -1
-    readonly property bool fullscreenActive: HyprlandData.windowList.some(w => {
-        var isFullscreen = w && w.fullscreen && w.fullscreen > 0;
-        var wsId = w && w.workspace ? w.workspace.id : -2;
-        return isFullscreen && wsId === activeWsId;
-    })
+    readonly property bool fullscreenActive: {
+        if (!win.screen)
+            return false;
+        const monitorData = HyprlandData.monitors.find(m => m.name === win.screen.name);
+        const specialWsName = monitorData?.specialWorkspace?.name;
+        const workspaces = Hyprland.workspaces.values.filter(w => w.monitor && w.monitor.name === win.screen.name);
+        return workspaces.some(workspace => {
+            const isWorkspaceActive = workspace.active || (specialWsName && specialWsName !== "" && (workspace.name === specialWsName || workspace.name === "special:" + specialWsName || (specialWsName === "special:special" && workspace.name === "special") || (specialWsName === "special" && workspace.name === "special:special")));
+            return isWorkspaceActive && workspace.toplevels.values.some(toplevel => toplevel.wayland && toplevel.wayland.fullscreen);
+        });
+    }
 
     // State bindings
-    readonly property bool searchActive: GlobalStates.overviewOpen && (win.screen ? win.screen.name === GlobalStates.activeSearchMonitor : false)
+    readonly property bool searchActive: GlobalStates.overviewOpen && GlobalStates.searchConnectActive && (win.screen ? win.screen.name === GlobalStates.activeSearchMonitor : false)
     readonly property bool osdActive: GlobalStates.osdVolumeOpen
     readonly property bool notificationActive: Notifications.popupList.length > 0
     readonly property bool recordingActive: (Persistent.states.screenRecord && Persistent.states.screenRecord.active) || false
@@ -806,7 +812,7 @@ Scope {
 
             Behavior on width {
                 NumberAnimation {
-                    duration: Appearance.animation.elementMove.duration
+                    duration: 500
                     easing.type: Easing.OutBack
                     easing.overshoot: 0.9
                 }
@@ -814,7 +820,7 @@ Scope {
 
             Behavior on height {
                 NumberAnimation {
-                    duration: root.mode === "search" ? Appearance.animation.elementMoveSmall.duration : Appearance.animation.elementMove.duration
+                    duration: 500
                     easing.type: Easing.OutBack
                     easing.overshoot: 0.5
                 }
@@ -835,7 +841,7 @@ Scope {
             // Disappearing uses full overshoot (goes off-screen, invisible)
             Behavior on y {
                 NumberAnimation {
-                    duration: 380
+                    duration: 330
                     easing.type: Easing.OutBack
                     easing.overshoot: root.idleHidden ? 0.9 : 0.3
                 }
@@ -890,42 +896,59 @@ Scope {
                 // Search Widget Loader
                 Loader {
                     id: searchWidgetLoader
+                    anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    // Leave room at the bottom for the persistent widgets strip
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: root.searchPersistentStripHeight
+                    width: root.mode === "search" && searchWidgetLoader.item ? searchWidgetLoader.item.implicitWidth : parent.width
                     readonly property bool shown: root.mode === "search"
                     active: Config.ready
                     visible: opacity > 0.01
                     opacity: shown ? 1.0 : 0.0
                     scale: shown ? 1.0 : 0.95
-                    Behavior on opacity {
+                    Behavior on width {
                         NumberAnimation {
-                            duration: 350
+                            duration: 200
+                            easing.type: Easing.OutBack
+                            easing.overshoot: 0.5
+                        }
+                    }
+                    Behavior on opacity {
+                        enabled: !root.searchActive
+                        NumberAnimation {
+                            duration: 280
                             easing.type: Easing.InOutQuad
                         }
                     }
                     Behavior on scale {
+                        enabled: !root.searchActive
                         NumberAnimation {
-                            duration: 450
+                            duration: 350
                             easing.type: Easing.OutBack
                             easing.overshoot: 0.5
                         }
                     }
 
-                    onVisibleChanged: {
-                        if (visible && item) {
-                            if (GlobalStates.activeSearchQuery) {
-                                item.setSearchingText(GlobalStates.activeSearchQuery);
-                                GlobalStates.activeSearchQuery = "";
-                            } else {
-                                item.cancelSearch();
-                            }
-                            Qt.callLater(() => item.focusSearchInput());
+                Connections {
+                    target: root
+                    function onModeChanged() {
+                        if (root.mode !== "search" && searchWidgetLoader.item) {
+                            searchWidgetLoader.item.cancelSearch();
                         }
                     }
+                }
+
+                onVisibleChanged: {
+                    if (visible && item) {
+                        if (GlobalStates.activeSearchQuery) {
+                            item.setSearchingText(GlobalStates.activeSearchQuery);
+                            GlobalStates.activeSearchQuery = "";
+                        } else {
+                            item.cancelSearch();
+                        }
+                        Qt.callLater(() => item.focusSearchInput());
+                    }
+                }
 
                     sourceComponent: Component {
                         SearchWidget {

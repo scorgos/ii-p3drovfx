@@ -195,7 +195,11 @@ MouseArea {
     ColumnLayout {
         id: layoutVert
         visible: root.vertical
-        anchors.centerIn: parent
+        anchors {
+            top: parent.top
+            topMargin: 4
+            horizontalCenter: parent.horizontalCenter
+        }
         spacing: 6
         transform: Translate { x: root.horizontalOffset; y: root.verticalOffset }
 

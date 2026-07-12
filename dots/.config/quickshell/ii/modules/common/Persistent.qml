@@ -71,6 +71,10 @@ Singleton {
         }
     }
 
+    Component.onDestruction: {
+        root.blockWrites = true;
+    }
+
     FileView {
         id: persistentStatesFileView
         path: root.filePath
@@ -87,12 +91,16 @@ Singleton {
                 return;
             }
             const elapsed = Date.now() - root.initTimestamp;
-            if (elapsed > root.missingFileGracePeriod) {
+            if (elapsed > root.missingFileGracePeriod && !root.ready) {
                 fileWriteTimer.restart();
                 root.ready = true;
             } else {
                 missingFileRetryTimer.restart();
             }
+        }
+
+        Component.onDestruction: {
+            persistentStatesFileView.blockWrites = true;
         }
 
         adapter: JsonAdapter {

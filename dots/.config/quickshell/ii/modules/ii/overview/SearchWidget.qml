@@ -262,7 +262,7 @@ Item {
             else if (root.isMediaDownloaderMode)
                 baseW = Config.options.search.clipboard.panelWidth ?? 860;
             else if (root.isMaterialSymbolsMode)
-                baseW = Config.options.search.clipboard.panelWidth ?? 860;
+                baseW = 380;
             else
                 baseW = Math.max(Config.options.search.baseWidth, gridLayout.implicitWidth);
 
@@ -465,9 +465,7 @@ Item {
                 }
 
                 Behavior on implicitHeight {
-                    // Disabled during active debounce to avoid layout thrashing
-                    // while the user is still typing rapidly
-                    enabled: !resultsDebounce.running
+                    enabled: !root.inNotchMode
                     NumberAnimation {
                         duration: Appearance.animation.elementMoveSmall.duration
                         easing.type: Easing.BezierSpline
@@ -481,6 +479,7 @@ Item {
                     visible: opacity > 0
                     opacity: root.showSkeletons ? 0.0 : 1.0
                     Behavior on opacity {
+                        enabled: !root.inNotchMode
                         NumberAnimation {
                             duration: Appearance.animation.elementMoveFast.duration
                             easing.type: Easing.BezierSpline
@@ -519,6 +518,7 @@ Item {
                             }
 
                             Behavior on topFadeColor {
+                                enabled: !root.inNotchMode
                                 ColorAnimation {
                                     duration: Appearance.animation.elementMoveFast.duration
                                     easing.type: Easing.BezierSpline
@@ -526,6 +526,7 @@ Item {
                                 }
                             }
                             Behavior on bottomFadeColor {
+                                enabled: !root.inNotchMode
                                 ColorAnimation {
                                     duration: Appearance.animation.elementMoveFast.duration
                                     easing.type: Easing.BezierSpline
@@ -731,6 +732,11 @@ Item {
                             const quickSlice = immediate.length > 15 ? immediate.slice(0, 15) : immediate;
                             appResults.applyResultDiff(quickSlice);
                             root.focusFirstItem();
+                            // When query is empty, skip debounce for instant collapse
+                            if (root.searchingText === "") {
+                                resultsDebounce.stop();
+                                return;
+                            }
                             // Schedule full result delivery after debounce
                             if (immediate.length > 15)
                                 resultsDebounce.restart();
@@ -863,13 +869,14 @@ Item {
                     spacing: 8
                     visible: opacity > 0
                     opacity: root.showSkeletons ? 1.0 : 0.0
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Appearance.animation.elementMoveFast.duration
-                            easing.type: Easing.BezierSpline
-                            easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
-                        }
+                Behavior on opacity {
+                    enabled: !root.inNotchMode
+                    NumberAnimation {
+                        duration: Appearance.animation.elementMoveFast.duration
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
                     }
+                }
 
                     Repeater {
                         model: 4
@@ -948,6 +955,7 @@ Item {
 
                 opacity: root.isClipboardMode ? 1.0 : 0.0
                 Behavior on opacity {
+                    enabled: !root.inNotchMode
                     NumberAnimation {
                         duration: Appearance.animation.elementMoveFast.duration
                         easing.type: Easing.BezierSpline
@@ -974,6 +982,7 @@ Item {
 
                 opacity: root.isBluetoothMode ? 1.0 : 0.0
                 Behavior on opacity {
+                    enabled: !root.inNotchMode
                     NumberAnimation {
                         duration: Appearance.animation.elementMoveFast.duration
                         easing.type: Easing.BezierSpline
@@ -1000,6 +1009,7 @@ Item {
 
                 opacity: root.isTranslatorMode ? 1.0 : 0.0
                 Behavior on opacity {
+                    enabled: !root.inNotchMode
                     NumberAnimation {
                         duration: Appearance.animation.elementMoveFast.duration
                         easing.type: Easing.BezierSpline
@@ -1037,6 +1047,7 @@ Item {
 
                 opacity: root.isMediaDownloaderMode ? 1.0 : 0.0
                 Behavior on opacity {
+                    enabled: !root.inNotchMode
                     NumberAnimation {
                         duration: Appearance.animation.elementMoveFast.duration
                         easing.type: Easing.BezierSpline
@@ -1056,12 +1067,14 @@ Item {
                 id: materialSymbolsPanelLoader
                 active: root.isMaterialSymbolsMode || opacity > 0.01
                 visible: opacity > 0.01
-                Layout.fillWidth: true
+                Layout.preferredWidth: 380
+                Layout.alignment: Qt.AlignHCenter
                 source: "MaterialSymbolsPanel.qml"
                 Layout.row: root.overviewPosition == "bottom" ? 0 : 1
 
                 opacity: root.isMaterialSymbolsMode ? 1.0 : 0.0
                 Behavior on opacity {
+                    enabled: !root.inNotchMode
                     NumberAnimation {
                         duration: Appearance.animation.elementMoveFast.duration
                         easing.type: Easing.BezierSpline

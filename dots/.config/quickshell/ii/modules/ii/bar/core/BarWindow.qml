@@ -231,10 +231,16 @@ Scope {
             Item {
                 id: hoverMaskRegion
                 readonly property real shadowExtend: Config.options.bar.dropShadow ? 24 : 0
+                readonly property real bottomMaskExtend: Config.options.bar.autoHide.enable 
+                    ? Math.max(Config.options.bar.autoHide.hoverRegionWidth, shadowExtend)
+                    : Config.options.bar.autoHide.hoverRegionWidth
+                readonly property real topMaskExtend: Config.options.bar.autoHide.enable 
+                    ? Math.max(Config.options.bar.autoHide.hoverRegionWidth, shadowExtend)
+                    : Config.options.bar.autoHide.hoverRegionWidth
                 anchors {
                     fill: barContent
-                    topMargin:    -Math.max(Config.options.bar.autoHide.hoverRegionWidth, shadowExtend) - (barContent.verticalTopOffset ?? 0)
-                    bottomMargin: -Math.max(Config.options.bar.autoHide.hoverRegionWidth, shadowExtend) - (barContent.verticalBottomOffset ?? 0)
+                    topMargin:    -topMaskExtend - (barContent.verticalTopOffset ?? 0)
+                    bottomMargin: -bottomMaskExtend - (barContent.verticalBottomOffset ?? 0)
                 }
             }
 
