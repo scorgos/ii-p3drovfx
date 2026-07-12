@@ -487,12 +487,15 @@ apply_fork_branch() {
 
     echo -e "${BLUE}• Cloning $clone_url (branch: $branch)…${NC}"
     rm -rf "$clone_dir"
-    if ! git clone --depth=1 --branch "$branch" "$clone_url" "$clone_dir"; then
+    if ! git clone --depth=1 --recurse-submodules --branch "$branch" "$clone_url" "$clone_dir"; then
         echo -e "${RED}✗ Clone failed. Check that branch '$branch' exists on $clone_url${NC}"
         echo -e "${RED}  Try: $0 --list-branches${NC}"
         rm -rf "$clone_dir"
         return 1
     fi
+    # Defensive: ensure submodules are initialized even when --recurse-submodules
+    # silently skipped some (e.g. submodule pinned to a SHA not reachable via --depth=1).
+    git -C "$clone_dir" submodule update --init --recursive --depth=1 2>/dev/null || true
     log_verbose "Cloned to $clone_dir"
 
     # Record the remote HEAD commit SHA (best-effort, for update badges)
