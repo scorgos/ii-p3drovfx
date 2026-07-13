@@ -75,6 +75,18 @@ Item {
         return false;
     }
 
+    readonly property bool isMaterial: {
+        if (modelData.id === "clock" && Config.options.bar.styles.clock === "material") {
+            return true;
+        }
+        if (modelData.id === "keyboard_layout" && Config.options.bar.styles.keyboard === "material") {
+            return true;
+        }
+        if (modelData.id === "battery" && Config.options.bar.styles.battery === "material") {
+            return true;
+        }
+        return false;
+    }
     readonly property bool isExpressive: {
         if (modelData.id === "clock" && Config.options.bar.styles.clock === "expressive")
             return true;
@@ -184,14 +196,14 @@ Item {
             horizontalCenter: rootItem.vertical ? undefined : rootItem.horizontalCenter
         }
 
-        padding: (rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker) || modelData.id === "dashboard_panel_button" || modelData.id === "policies_panel_button") ? 0 : 5
-        leftPadding: (rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
-        rightPadding: (rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
-        topPadding: (rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
-        bottomPadding: (rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
+        padding: (rootItem.isMaterial || rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker) || modelData.id === "dashboard_panel_button" || modelData.id === "policies_panel_button") ? 0 : 5
+        leftPadding: (rootItem.isMaterial || rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
+        rightPadding: (rootItem.isMaterial || rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
+        topPadding: (rootItem.isMaterial || rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
+        bottomPadding: (rootItem.isMaterial || rootItem.isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? 0 : padding
         startRadius: rootItem.startRadius
         endRadius: rootItem.endRadius
-        colBackground: (isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? "transparent" : ((itemLoader.item?.activated || rootItem.highlighted) ? rootItem.colBackgroundHighlight : rootItem.colBackground)
+        colBackground: (isMaterial || isExpressive || (modelData.id === "system_monitor" && Config.options.bar.resources.showDocker)) ? "transparent" : ((itemLoader.item?.activated || rootItem.highlighted) ? rootItem.colBackgroundHighlight : rootItem.colBackground)
 
         Loader {
             id: itemLoader
