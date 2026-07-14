@@ -95,11 +95,11 @@ ContentPage {
                 }
 
                 ConfigSwitch {
-                    buttonIcon: "blur_on"
-                    text: Translation.tr("Enable Inner Shadows")
-                    checked: Config.options.background.widgets.enableInnerShadow ?? true
+                    buttonIcon: "lens"
+                    text: Translation.tr("Enable Glass Reflection")
+                    checked: Config.options.background.widgets.circular_media.enableGlassReflection ?? true
                     onCheckedChanged: {
-                        Config.options.background.widgets.enableInnerShadow = checked;
+                        Config.options.background.widgets.circular_media.enableGlassReflection = checked;
                     }
                 }
             }

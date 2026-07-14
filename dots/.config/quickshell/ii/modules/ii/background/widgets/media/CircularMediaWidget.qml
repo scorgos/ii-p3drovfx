@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
+import QtQuick.Shapes as Shapes
 import qs
 import qs.services
 import qs.modules.common
@@ -76,11 +77,21 @@ AbstractBackgroundWidget {
     ColorQuantizer {
         id: colorQuantizer
         source: root.artSource
-        depth: 0
+        depth: 2 // Extract 4 colors so we get a better color representation
         rescaleSize: 1
     }
 
-    property color artDominantColor: ColorUtils.mix((colorQuantizer?.colors[0] ?? Appearance.colors.colPrimary), Appearance.colors.colPrimaryContainer, 0.8) || Appearance.m3colors.m3secondaryContainer
+    readonly property color rawExtractedColor: colorQuantizer?.colors[0] ?? Appearance.colors.colPrimary
+
+    // Elevate saturation and adjust lightness of the extracted color to get a highly vibrant palette
+    property color artDominantColor: {
+        if (!root.useDynamicColors)
+            return Appearance.colors.colPrimary;
+        let h = rawExtractedColor.hslHue;
+        let s = Math.max(0.45, rawExtractedColor.hslSaturation);
+        let l = Math.max(0.58, Math.min(0.65, rawExtractedColor.hslLightness));
+        return Qt.hsla(h, s, l, 1.0);
+    }
 
     property QtObject blendedColors: AdaptedMaterialScheme {
         color: root.artDominantColor
@@ -93,8 +104,9 @@ AbstractBackgroundWidget {
     readonly property color activeAccentContainer: root.useDynamicColors ? blendedColors.colPrimaryContainer : Appearance.colors.colPrimaryContainer
     readonly property color activeOnPrimary: root.useDynamicColors ? blendedColors.colOnPrimary : Appearance.colors.colOnPrimary
 
-    readonly property color activeTextColor: root.useDynamicColors ? (blendedColors.colOnSecondaryContainer ?? blendedColors.colOnPrimary) : Appearance.colors.colOnSurface
-    readonly property color activeSubtextColor: root.useDynamicColors ? blendedColors.colSecondary : Appearance.colors.colOnSurfaceVariant
+    // Text colors are blended with white (neutral tinting) to prevent extremely vibrant/hard-to-read text, matching reference watch displays
+    readonly property color activeTextColor: root.useDynamicColors ? ColorUtils.mix("#FFFFFF", root.artDominantColor, 0.90) : Appearance.colors.colOnSurface
+    readonly property color activeSubtextColor: root.useDynamicColors ? ColorUtils.mix("#FFFFFF", root.artDominantColor, 0.80) : Appearance.colors.colOnSurfaceVariant
 
     // Trigger position updates for the progress bar
     Timer {
@@ -214,59 +226,51 @@ AbstractBackgroundWidget {
                     Layout.fillHeight: true
                 }
 
-                // Row with App Icon and Song Title (Centered Row block)
-                Item {
+                // Row with App Icon and Song Title (Centered RowLayout)
+                RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredHeight: root.width * 0.08
-                    width: Math.min(root.width * 0.85, titleRow.implicitWidth)
+                    spacing: 6
 
-                    Row {
-                        id: titleRow
-                        anchors.centerIn: parent
-                        spacing: 6
+                    MaterialShape {
+                        id: sourceIconBadge
+                        Layout.preferredWidth: root.width * 0.075
+                        Layout.preferredHeight: Layout.preferredWidth
+                        shapeString: "Circle"
+                        color: "transparent"
 
-                        MaterialShape {
-                            id: sourceIconBadge
-                            width: root.width * 0.075
-                            height: width
-                            anchors.verticalCenter: parent.verticalCenter
-                            shapeString: "Circle"
-                            color: "transparent"
-
-                            Loader {
-                                id: appIconLoader
-                                anchors.fill: parent
-                                active: root.player && root.player.desktopEntry !== ""
-                                sourceComponent: IconImage {
-                                    implicitSize: parent.width
-                                    anchors.centerIn: parent
-                                    source: Quickshell.iconPath(root.player ? root.player.desktopEntry : "audio-x-generic", "audio-x-generic")
-                                }
-                            }
-
-                            Loader {
-                                anchors.fill: parent
-                                active: !appIconLoader.active
-                                sourceComponent: MaterialSymbol {
-                                    anchors.centerIn: parent
-                                    text: "music_note"
-                                    iconSize: parent.width * 0.8
-                                    color: root.activeTextColor
-                                }
+                        Loader {
+                            id: appIconLoader
+                            anchors.fill: parent
+                            active: root.player && root.player.desktopEntry !== ""
+                            sourceComponent: IconImage {
+                                implicitSize: parent.width
+                                anchors.centerIn: parent
+                                source: Quickshell.iconPath(root.player ? root.player.desktopEntry : "audio-x-generic", "audio-x-generic")
                             }
                         }
 
-                        StyledText {
-                            text: root.trackTitle
-                            color: root.activeTextColor
-                            font.pixelSize: root.width * 0.05 // reduced font size
-                            font.weight: Font.Bold
-                            font.styleName: "Rounded"
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: Math.min(root.width * 0.46, implicitWidth)
-                            elide: Text.ElideRight
-                            maximumLineCount: 1
+                        Loader {
+                            anchors.fill: parent
+                            active: !appIconLoader.active
+                            sourceComponent: MaterialSymbol {
+                                anchors.centerIn: parent
+                                text: "music_note"
+                                iconSize: parent.width * 0.8
+                                color: root.activeTextColor
+                            }
                         }
+                    }
+
+                    StyledText {
+                        text: root.trackTitle
+                        color: root.activeTextColor
+                        font.pixelSize: root.width * 0.07 // reduced font size
+                        font.weight: Font.Bold
+                        font.styleName: "Rounded"
+                        Layout.maximumWidth: root.width * 0.46
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
                     }
                 }
 
@@ -300,13 +304,13 @@ AbstractBackgroundWidget {
                         anchors.centerIn: parent
                         spacing: root.width * 0.05
 
-                        // Previous Button (Vertical capsule/pill height matching play/pause button directly)
+                        // Previous Button (Perfect Circle matching watch design guidelines)
                         RippleButton {
                             id: prevButton
                             width: root.width * 0.20
-                            height: playPauseButton.height // matches the actual pause button height
+                            height: width // perfect circle
                             anchors.verticalCenter: parent.verticalCenter
-                            buttonRadius: width / 2 // vertical capsule shape
+                            buttonRadius: width / 2
                             colBackground: root.activeAccentColor
                             colBackgroundHover: ColorUtils.mix(root.activeAccentColor, root.activeAccentColor, 0.9)
                             colRipple: ColorUtils.mix(root.activeAccentColor, root.activeAccentColor, 0.8)
@@ -314,7 +318,7 @@ AbstractBackgroundWidget {
                             contentItem: MaterialSymbol {
                                 text: "skip_previous"
                                 iconSize: parent.width * 0.6
-                                color: root.activeAccentContainer
+                                color: root.activeOnPrimary
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -337,7 +341,7 @@ AbstractBackgroundWidget {
                                 anchors.fill: parent
                                 shapeString: "Cookie9Sided"
                                 color: "transparent"
-                                borderColor: ColorUtils.transparentize(root.activeAccentColor, 0.3)
+                                borderColor: ColorUtils.mix("#000000", root.activeAccentColor, 0.70)
                                 borderWidth: 0.055
                             }
 
@@ -405,7 +409,7 @@ AbstractBackgroundWidget {
                                     text: root.playing ? "pause" : "play_arrow"
                                     fill: 1
                                     iconSize: parent.width * 0.5
-                                    color: root.activeAccentContainer
+                                    color: root.activeOnPrimary
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -417,13 +421,13 @@ AbstractBackgroundWidget {
                             }
                         }
 
-                        // Next Button (Vertical capsule/pill height matching play/pause button directly)
+                        // Next Button (Perfect Circle matching watch design guidelines)
                         RippleButton {
                             id: nextButton
                             width: root.width * 0.20
-                            height: playPauseButton.height // matches the actual pause button height
+                            height: width // perfect circle
                             anchors.verticalCenter: parent.verticalCenter
-                            buttonRadius: width / 2 // vertical capsule shape
+                            buttonRadius: width / 2
                             colBackground: root.activeAccentColor
                             colBackgroundHover: ColorUtils.mix(root.activeAccentColor, root.activeAccentColor, 0.9)
                             colRipple: ColorUtils.mix(root.activeAccentColor, root.activeAccentColor, 0.8)
@@ -431,7 +435,7 @@ AbstractBackgroundWidget {
                             contentItem: MaterialSymbol {
                                 text: "skip_next"
                                 iconSize: parent.width * 0.6
-                                color: root.activeAccentContainer
+                                color: root.activeOnPrimary
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -458,9 +462,9 @@ AbstractBackgroundWidget {
                         implicitHeight: root.width * 0.09
                         leftPadding: root.width * 0.04
                         rightPadding: root.width * 0.04
-                        colBackground: ColorUtils.transparentize(Appearance.colors.colSurfaceContainerHigh, 0.4)
-                        colBackgroundHover: ColorUtils.transparentize(Appearance.colors.colSurfaceContainerHighestHover, 0.4)
-                        colRipple: ColorUtils.transparentize(Appearance.colors.colSurfaceContainerHighestActive, 0.3)
+                        colBackground: ColorUtils.transparentize(Appearance.colors.colSurfaceContainerHigh, 0.75)
+                        colBackgroundHover: ColorUtils.transparentize(Appearance.colors.colSurfaceContainerHighestHover, 0.65)
+                        colRipple: ColorUtils.transparentize(Appearance.colors.colSurfaceContainerHighestActive, 0.55)
                         buttonRadius: Appearance.rounding.full
 
                         readonly property string activeAudioDeviceName: Audio.sink ? (Audio.sink.description || "") : ""
@@ -512,6 +516,148 @@ AbstractBackgroundWidget {
                 // Spacer bottom
                 Item {
                     Layout.fillHeight: true
+                }
+            }
+        }
+
+        // 3D Glass Dome Reflection Overlay
+        Item {
+            id: glassReflectionOverlay
+            anchors.fill: parent
+            z: 10
+            enabled: false // Transparent to mouse events
+            visible: Config.options.background.widgets.circular_media.enableGlassReflection ?? true
+
+            layer.enabled: true
+            layer.effect: OpacityMask {
+                maskSource: Item {
+                    width: glassReflectionOverlay.width
+                    height: glassReflectionOverlay.height
+
+                    Rectangle {
+                        id: outerMaskBase
+                        anchors.fill: parent
+                        radius: width / 2
+                        visible: false
+                    }
+
+                    FastBlur {
+                        anchors.fill: parent
+                        source: outerMaskBase
+                        radius: 3 // soft feather on the bezel mask boundary
+                    }
+                }
+            }
+
+            // Top-Right Crescent Reflection (14:00 / 70 degrees)
+            Item {
+                id: topReflectionContainer
+                anchors.fill: parent
+                layer.enabled: true
+                layer.effect: FastBlur {
+                    radius: 28 // increased blur/dispersion for a softer, broader premium glass glow
+                }
+
+                // Crescent Mask Shape
+                Shapes.Shape {
+                    id: topMaskShape
+                    anchors.fill: parent
+                    visible: false
+
+                    Shapes.ShapePath {
+                        strokeColor: "transparent"
+                        fillColor: "white"
+                        startX: parent.width * 0.40
+                        startY: parent.height * 0.04
+                        PathArc {
+                            x: topMaskShape.width * 0.96
+                            y: topMaskShape.height * 0.60
+                            radiusX: topMaskShape.width * 0.48
+                            radiusY: topMaskShape.height * 0.48
+                            useLargeArc: false
+                        }
+                        PathArc {
+                            x: topMaskShape.width * 0.40
+                            y: topMaskShape.height * 0.04
+                            radiusX: topMaskShape.width * 0.35
+                            radiusY: topMaskShape.height * 0.35
+                            useLargeArc: false
+                            direction: PathArc.Counterclockwise
+                        }
+                    }
+                }
+
+                LinearGradient {
+                    anchors.fill: parent
+                    start: Qt.point(width * 0.40, height * 0.04)
+                    end: Qt.point(width * 0.96, height * 0.60)
+                    cached: true
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.3; color: ColorUtils.applyAlpha("#FFFFFF", 0.42) }
+                        GradientStop { position: 0.7; color: ColorUtils.applyAlpha("#FFFFFF", 0.42) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: topMaskShape
+                    }
+                }
+            }
+
+            // Bottom-Left Crescent Reflection (250 degrees / 8:00)
+            Item {
+                id: bottomReflectionContainer
+                anchors.fill: parent
+                layer.enabled: true
+                layer.effect: FastBlur {
+                    radius: 28 // increased blur/dispersion for a softer, broader premium glass glow
+                }
+
+                // Crescent Mask Shape
+                Shapes.Shape {
+                    id: bottomMaskShape
+                    anchors.fill: parent
+                    visible: false
+
+                    Shapes.ShapePath {
+                        strokeColor: "transparent"
+                        fillColor: "white"
+                        startX: parent.width * 0.60
+                        startY: parent.height * 0.96
+                        PathArc {
+                            x: bottomMaskShape.width * 0.04
+                            y: bottomMaskShape.height * 0.40
+                            radiusX: bottomMaskShape.width * 0.48
+                            radiusY: bottomMaskShape.height * 0.48
+                            useLargeArc: false
+                        }
+                        PathArc {
+                            x: bottomMaskShape.width * 0.60
+                            y: bottomMaskShape.height * 0.96
+                            radiusX: bottomMaskShape.width * 0.35
+                            radiusY: bottomMaskShape.height * 0.35
+                            useLargeArc: false
+                            direction: PathArc.Counterclockwise
+                        }
+                    }
+                }
+
+                LinearGradient {
+                    anchors.fill: parent
+                    start: Qt.point(width * 0.60, height * 0.96)
+                    end: Qt.point(width * 0.04, height * 0.40)
+                    cached: true
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.3; color: ColorUtils.applyAlpha("#FFFFFF", 0.28) }
+                        GradientStop { position: 0.7; color: ColorUtils.applyAlpha("#FFFFFF", 0.28) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: bottomMaskShape
+                    }
                 }
             }
         }
