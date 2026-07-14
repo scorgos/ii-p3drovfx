@@ -101,7 +101,7 @@ Item {
                         property var timeParts: {
                             var parts = DateTime.time.split(/[: ]/);
                             if (Config.options.bar.clock.showSeconds) {
-                                var secs = Math.floor(DateTime.seconds).toString().padStart(2, "0");
+                                var secs = DateTime.seconds;
                                 parts.splice(2, 0, secs);
                             }
                             return parts;

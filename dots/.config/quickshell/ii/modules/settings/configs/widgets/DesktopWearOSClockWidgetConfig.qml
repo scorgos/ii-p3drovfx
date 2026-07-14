@@ -65,17 +65,6 @@ ContentPage {
             spacing: 4
             visible: Config.isWidgetActive("clock_wearos")
 
-            ConfigSwitch {
-                buttonIcon: "color_lens"
-                text: Translation.tr("Use album colors (Dynamic Theme)")
-                checked: Config.options.background.widgets.wearos_clock.useAlbumColors
-                onCheckedChanged: {
-                    Config.options.background.widgets.wearos_clock.useAlbumColors = checked;
-                }
-            }
-
-            Item { Layout.preferredHeight: 16 }
-
             // Visual Options (Shadows)
             ColumnLayout {
                 Layout.fillWidth: true

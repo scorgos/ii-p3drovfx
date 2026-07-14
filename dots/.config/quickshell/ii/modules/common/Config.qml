@@ -1563,7 +1563,7 @@ Singleton {
                     property int longBreak: 900
                 }
                 property list<var> worldClocks: []
-                property bool secondPrecision: false
+                property bool secondPrecision: true
 
                 property JsonObject alarms: JsonObject {
                     property bool useFullscreenPopup: false

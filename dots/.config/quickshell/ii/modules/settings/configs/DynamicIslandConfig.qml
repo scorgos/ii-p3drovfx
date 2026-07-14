@@ -112,6 +112,19 @@ ContentPage {
                 }
             }
 
+            ConfigSwitch {
+                buttonIcon: "compress"
+                text: Translation.tr("Extra Compact Mode")
+                visible: Config.options.bar.floatingNotch.enable
+                checked: Config.options.bar.floatingNotch.extraCompact
+                onCheckedChanged: {
+                    Config.options.bar.floatingNotch.extraCompact = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Wider and shorter island with smoother concave corners (−25% height, +60% width)")
+                }
+            }
+
             Item {
                 visible: Config.options.bar.floatingNotch.enable
                 Layout.preferredHeight: 8

@@ -13,7 +13,6 @@ import qs.modules.common.models
 import qs.modules.common.functions
 import qs.modules.common.widgets
 import qs.modules.ii.background.widgets
-import Quickshell.Services.Mpris
 
 AbstractBackgroundWidget {
     id: root
@@ -26,81 +25,11 @@ AbstractBackgroundWidget {
     implicitWidth: 240
     implicitHeight: 240
 
-    readonly property bool useAlbumColors: Config.ready ? (Config.options.background.widgets.wearos_clock.useAlbumColors ?? true) : true
-    readonly property MprisPlayer player: MprisController.activePlayer
-    readonly property string artUrl: player?.trackArtUrl ?? ""
-    property bool isLocalArt: artUrl.startsWith("file://")
-    property string artDownloadLocation: Directories.coverArt
-    property string artFileName: Qt.md5(artUrl)
-    property string artFilePath: `${artDownloadLocation}/${artFileName}`
-    property bool artDownloaded: false
-
-    readonly property string artSource: {
-        if (!artUrl)
-            return "";
-        if (isLocalArt)
-            return artUrl;
-        return artDownloaded ? Qt.resolvedUrl(artFilePath) : "";
-    }
-
-    onArtFilePathChanged: {
-        if (!artUrl || artUrl.length === 0) {
-            artDownloaded = false;
-            return;
-        }
-        if (isLocalArt) {
-            artDownloaded = true;
-            return;
-        }
-        artDownloader.targetFile = artUrl;
-        artDownloader.artFilePath = artFilePath;
-        artDownloader.running = true;
-    }
-
-    Process {
-        id: artDownloader
-        property string targetFile: root.artUrl
-        property string artFilePath: root.artFilePath
-        property string artTempPath: root.artFilePath + ".tmp"
-        command: ["bash", "-c", `[ -f ${artFilePath} ] || (curl -4 -sSL '${targetFile}' -o '${artTempPath}' && mv '${artTempPath}' '${artFilePath}')`]
-        onExited: {
-            artDownloaded = true;
-        }
-    }
-
-    ColorQuantizer {
-        id: colorQuantizer
-        source: root.artSource
-        depth: 2
-        rescaleSize: 1
-    }
-
-    readonly property color rawExtractedColor: colorQuantizer?.colors[0] ?? Appearance.colors.colPrimary
-
-    // Elevate saturation and adjust lightness of the extracted color to get a highly vibrant palette
-    property color artDominantColor: {
-        if (!root.useDynamicColors)
-            return Appearance.colors.colPrimary;
-        let h = rawExtractedColor.hslHue;
-        let s = Math.max(0.85, rawExtractedColor.hslSaturation);
-        let l = Math.max(0.58, Math.min(0.65, rawExtractedColor.hslLightness));
-        return Qt.hsla(h, s, l, 1.0);
-    }
-
-    property QtObject blendedColors: AdaptedMaterialScheme {
-        color: root.artDominantColor
-    }
-
-    readonly property bool useDynamicColors: root.useAlbumColors && root.artSource !== ""
-
-    // Vibrant button coloring using only colPrimary, colOnPrimary, and colPrimaryContainer
-    readonly property color activeAccentColor: root.useDynamicColors ? blendedColors.colPrimary : Appearance.colors.colPrimary
-    readonly property color activeAccentContainer: root.useDynamicColors ? blendedColors.colPrimaryContainer : Appearance.colors.colPrimaryContainer
-    readonly property color activeOnPrimary: root.useDynamicColors ? blendedColors.colOnPrimary : Appearance.colors.colOnPrimary
-
-    // Text colors are blended with white (neutral tinting) to prevent extremely vibrant/hard-to-read text, matching reference watch displays
-    readonly property color activeTextColor: root.useDynamicColors ? ColorUtils.mix("#FFFFFF", root.artDominantColor, 0.90) : Appearance.colors.colOnSurface
-    readonly property color activeSubtextColor: root.useDynamicColors ? ColorUtils.mix("#FFFFFF", root.artDominantColor, 0.70) : Appearance.colors.colOnSurfaceVariant
+    // Smartwatch dials are always dark, so text and ticks must always be light/white for readability
+    readonly property color activeTextColor: "#FFFFFF"
+    readonly property color activeSubtextColor: "#A0A0A0"
+    readonly property color activeAccentColor: Appearance.colors.colPrimary
+    readonly property real r_inner: (implicitWidth * 0.96) * 0.37
 
     // Clock state properties
     property var currentTime: new Date()
@@ -126,8 +55,8 @@ AbstractBackgroundWidget {
     }
 
     // Hand rotations
-    readonly property real minuteRotation: (minute * 6) + (second * 0.1)
     readonly property real hourRotation: ((hour % 12) * 30) + (minute * 0.5)
+    readonly property real minuteRotation: (minute * 6) + (second * 0.1)
 
     // Outer bezel shadow support
     StyledDropShadow {
@@ -142,81 +71,16 @@ AbstractBackgroundWidget {
         anchors.fill: parent
         radius: width / 2
         color: Appearance.m3colors.m3shadow // Opaque base to prevent transparency leaks
+        clip: true
 
-        // Inner Screen Container
+        // Inner Screen Container - margins reduced to 2% to move contents closer to the border
         Rectangle {
             id: innerScreen
             anchors.fill: parent
-            anchors.margins: parent.width * 0.08 // 8% bezel thickness
+            anchors.margins: parent.width * 0.02
             radius: width / 2
             color: Appearance.m3colors.m3shadow
-
-            // Opaque Background Artwork + Gradient Container (with circular masking)
-            Item {
-                id: artBackgroundContainer
-                anchors.fill: parent
-                z: 0
-
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: Rectangle {
-                        width: artBackgroundContainer.width
-                        height: artBackgroundContainer.height
-                        radius: artBackgroundContainer.width / 2
-                    }
-                }
-
-                // Opaque base behind album art
-                Rectangle {
-                    anchors.fill: parent
-                    color: Appearance.m3colors.m3shadow
-                }
-
-                // Album Art with a light blur (for background vibe)
-                Image {
-                    id: albumArtImage
-                    anchors.fill: parent
-                    source: root.artSource
-                    fillMode: Image.PreserveAspectCrop
-                    visible: root.artSource !== ""
-                    asynchronous: true
-
-                    layer.enabled: true
-                    layer.effect: FastBlur {
-                        radius: 4 // light blur
-                    }
-                }
-
-                // Radial Gradient: smooth/wide fade region, starts closer to the center
-                RadialGradient {
-                    id: radialGrad
-                    anchors.fill: parent
-                    horizontalRadius: width / 2
-                    verticalRadius: height / 2
-                    gradient: Gradient {
-                        GradientStop {
-                            position: 0.0
-                            color: "transparent"
-                        }
-                        GradientStop {
-                            position: 0.25
-                            color: "transparent"
-                        }
-                        GradientStop {
-                            position: 0.62
-                            color: ColorUtils.transparentize(Appearance.m3colors.m3shadow, 0.4)
-                        }
-                        GradientStop {
-                            position: 0.75
-                            color: ColorUtils.transparentize(Appearance.m3colors.m3shadow, 0.2)
-                        }
-                        GradientStop {
-                            position: 1.0
-                            color: Appearance.m3colors.m3shadow
-                        }
-                    }
-                }
-            }
+            clip: true
 
             // Dial Canvas for rendering clock ticks and numbers
             Canvas {
@@ -239,23 +103,22 @@ AbstractBackgroundWidget {
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
 
-                    var r_outer = width * 0.44;
+                    var r_outer = width * 0.49;
+                    var textR = r_outer - 10;
                     for (var i = 0; i < 30; i++) {
                         var val = i * 2;
                         var valStr = val < 10 ? "0" + val : "" + val;
                         var angle = -Math.PI / 2 + (i * Math.PI / 15);
 
-                        // Draw tick mark
-                        ctx.beginPath();
-                        ctx.strokeStyle = ColorUtils.applyAlpha(root.activeSubtextColor, 0.4);
-                        ctx.lineWidth = 1;
-                        ctx.moveTo(cx + Math.cos(angle) * (r_outer - 4), cy + Math.sin(angle) * (r_outer - 4));
-                        ctx.lineTo(cx + Math.cos(angle) * r_outer, cy + Math.sin(angle) * r_outer);
-                        ctx.stroke();
-
-                        // Draw outer numbers slightly inward
-                        var textR = r_outer - 10;
+                        // Draw outer numbers
                         ctx.fillText(valStr, cx + Math.cos(angle) * textR, cy + Math.sin(angle) * textR);
+
+                        // Draw dot between this number and the next
+                        var angle_mid = angle + (Math.PI / 30);
+                        ctx.beginPath();
+                        ctx.arc(cx + Math.cos(angle_mid) * textR, cy + Math.sin(angle_mid) * textR, 1.5, 0, 2 * Math.PI);
+                        ctx.fillStyle = ColorUtils.applyAlpha(root.activeSubtextColor, 0.4);
+                        ctx.fill();
                     }
                     ctx.restore();
 
@@ -266,7 +129,7 @@ AbstractBackgroundWidget {
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
 
-                    var r_inner = width * 0.33;
+                    var r_inner = width * 0.39;
                     var innerNumbers = [
                         { val: "05", angle: -Math.PI/2 + (Math.PI/6) },
                         { val: "10", angle: -Math.PI/2 + (Math.PI/3) },
@@ -275,23 +138,53 @@ AbstractBackgroundWidget {
                         { val: "30", angle: -Math.PI/2 + Math.PI },
                         { val: "35", angle: -Math.PI/2 + (7*Math.PI/6) },
                         { val: "40", angle: -Math.PI/2 + (4*Math.PI/3) },
+                        { val: "45", angle: -Math.PI/2 + (3*Math.PI/2) },
                         { val: "50", angle: -Math.PI/2 + (5*Math.PI/3) },
                         { val: "55", angle: -Math.PI/2 + (11*Math.PI/6) }
                     ];
 
                     innerNumbers.forEach(function(item) {
-                        ctx.fillText(item.val, cx + Math.cos(item.angle) * r_inner, cy + Math.sin(item.angle) * r_inner);
+                        var tx = cx + Math.cos(item.angle) * r_inner;
+                        var ty = cy + Math.sin(item.angle) * r_inner;
+
+                        var rot = item.angle + Math.PI/2;
+                        // Normalize rot to [-PI, PI]
+                        while (rot > Math.PI) rot -= 2 * Math.PI;
+                        while (rot < -Math.PI) rot += 2 * Math.PI;
+
+                        // Flip 180 degrees if text is upside down (facing down)
+                        if (rot > Math.PI/2 || rot < -Math.PI/2) {
+                            rot += Math.PI;
+                        }
+
+                        ctx.save();
+                        ctx.translate(tx, ty);
+                        ctx.rotate(rot);
+                        ctx.fillText(item.val, 0, 0);
+                        ctx.restore();
                     });
 
-                    // Draw inner ticks (every 5 minutes/seconds)
-                    ctx.strokeStyle = ColorUtils.applyAlpha(root.activeTextColor, 0.5);
-                    ctx.lineWidth = 1.5;
+                    // Draw inner ticks (4 lines between every 5 minutes/seconds)
+                    ctx.save();
                     for (var j = 0; j < 12; j++) {
-                        var innerAngle = -Math.PI / 2 + (j * Math.PI / 6);
-                        ctx.beginPath();
-                        ctx.moveTo(cx + Math.cos(innerAngle) * (r_inner - 4), cy + Math.sin(innerAngle) * (r_inner - 4));
-                        ctx.lineTo(cx + Math.cos(innerAngle) * (r_inner + 4), cy + Math.sin(innerAngle) * (r_inner + 4));
-                        ctx.stroke();
+                        var baseAngle = -Math.PI / 2 + (j * Math.PI / 6);
+                        for (var k = 1; k <= 4; k++) {
+                            var tickAngle = baseAngle + (k * Math.PI / 30);
+                            var isMiddle = (k === 2 || k === 3);
+                            var tickHeight = isMiddle ? 7 : 4;
+                            var tickWidth = isMiddle ? 2.2 : 1.4;
+
+                            ctx.lineWidth = tickWidth;
+                            ctx.strokeStyle = ColorUtils.applyAlpha(root.activeTextColor, isMiddle ? 0.28 : 0.16);
+
+                            var r_start = r_inner - (tickHeight / 2);
+                            var r_end = r_inner + (tickHeight / 2);
+
+                            ctx.beginPath();
+                            ctx.moveTo(cx + Math.cos(tickAngle) * r_start, cy + Math.sin(tickAngle) * r_start);
+                            ctx.lineTo(cx + Math.cos(tickAngle) * r_end, cy + Math.sin(tickAngle) * r_end);
+                            ctx.stroke();
+                        }
                     }
                     ctx.restore();
                 }
@@ -304,128 +197,203 @@ AbstractBackgroundWidget {
                 }
             }
 
-            // Complication 1: Digital Time Pill (9:00 position)
+            // Small distro logo at 12:00 (minute 0 of inner ring)
+            CustomIcon {
+                id: distroLogo
+                width: 14
+                height: 14
+                source: SystemInfo.distroIcon
+                colorize: true
+                color: root.activeTextColor
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: parent.height / 2 - root.r_inner - (height / 2)
+                z: 2
+            }
+
+            // Complication 6: Sunset Gauge Widget (top center, below distro logo, above center pivot, offset right)
             Rectangle {
-                id: digitalTimeComplication
-                width: parent.width * 0.28
-                height: parent.width * 0.12
-                radius: height / 2
-                color: ColorUtils.transparentize(Appearance.m3colors.m3shadow, 0.4)
-                border.color: ColorUtils.applyAlpha(root.activeTextColor, 0.15)
-                border.width: 1
-                anchors.left: parent.left
-                anchors.leftMargin: parent.width * 0.10
-                anchors.verticalCenter: parent.verticalCenter
+                id: sunsetComplication
+                width: parent.width * 0.18
+                height: width
+                radius: width / 2
+                color: "transparent"
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: 6
+                y: parent.height * 0.17
                 z: 2
 
-                StyledText {
-                    text: {
-                        var hStr = root.hour < 10 ? "0" + root.hour : "" + root.hour;
-                        var mStr = root.minute < 10 ? "0" + root.minute : "" + root.minute;
-                        return hStr + ":" + mStr;
+                readonly property real sunsetHour: {
+                    var sunsetStr = Weather.data.sunset || "18:00";
+                    var parts = sunsetStr.split(":");
+                    if (parts.length >= 2) {
+                        var h = parseInt(parts[0]);
+                        var m = parseInt(parts[1]);
+                        return h + m / 60;
                     }
+                    return 18.0;
+                }
+
+                // 24 Hour Gauge: alternating lines and dots, leaving gap at bottom
+                Repeater {
+                    model: 24
+                    Item {
+                        anchors.fill: parent
+                        rotation: (index - 18) * 15 // Sunset (18:00) is exactly at 0 degree (top center)
+                        visible: (index < 4 || index > 8) // Hide 4, 5, 6, 7, 8 to leave a gap at the bottom for the sun icon
+
+                        readonly property bool isHighlighted: (index >= 9 && index <= sunsetComplication.sunsetHour)
+
+                        Rectangle {
+                            width: parent.isHighlighted ? 1.6 : (index % 2 === 0 ? 1.0 : 1.2)
+                            height: parent.isHighlighted ? 4.0 : (index % 2 === 0 ? 3.0 : 1.2)
+                            radius: (index % 2 === 0) ? 0 : width / 2
+                            color: parent.isHighlighted ? Appearance.colors.colPrimary : ColorUtils.applyAlpha(root.activeTextColor, 0.20)
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.top: parent.top
+                        }
+                    }
+                }
+
+                // Time text inside
+                StyledText {
+                    text: Weather.data.sunset || "18:00"
                     color: root.activeTextColor
-                    font.pixelSize: parent.height * 0.55
+                    font.pixelSize: parent.height * 0.22
                     font.weight: Font.Bold
                     anchors.centerIn: parent
+                    anchors.verticalCenterOffset: -2
+                }
+
+                // Sun icon at the bottom gap
+                Item {
+                    width: 9
+                    height: 9
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: parent.width * 0.02
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    MaterialSymbol {
+                        text: "sunny"
+                        fill: 1
+                        iconSize: 12
+                        color: root.activeTextColor
+                        anchors.centerIn: parent
+                    }
                 }
             }
 
-            // Complication 2: Battery Circle (3:00 position)
+            // Complication 1: Digital Time Pill (aligned with 55 of internal ring, slightly below 50)
+            Rectangle {
+                id: digitalTimeComplication
+                width: parent.width * 0.20
+                height: parent.width * 0.10
+                radius: height / 2
+                color: "transparent"
+                border.color: Appearance.colors.colPrimaryContainer
+                border.width: 1
+                x: parent.width * 0.20
+                y: parent.height * 0.36
+                z: 2
+
+                // Inner filled pill with spacing (gap)
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 3.5
+                    radius: height / 2
+                    color: Appearance.colors.colPrimaryContainer
+
+                    StyledText {
+                        text: {
+                            var hStr = root.hour < 10 ? "0" + root.hour : "" + root.hour;
+                            var mStr = root.minute < 10 ? "0" + root.minute : "" + root.minute;
+                            return hStr + ":" + mStr;
+                        }
+                        color: Appearance.colors.colOnPrimaryContainer
+                        font.pixelSize: parent.height * 0.65
+                        font.weight: Font.Bold
+                        anchors.centerIn: parent
+                    }
+                }
+            }
+
+            // Backing gradient to fade out the ring/ticks behind/around the battery pill
+            RadialGradient {
+                id: batteryFadeGlow
+                anchors.centerIn: batteryComplication
+                width: batteryComplication.width * 1.25
+                height: batteryComplication.height * 1.85
+                z: 1.5
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Appearance.m3colors.m3shadow }
+                    GradientStop { position: 0.5; color: Appearance.m3colors.m3shadow }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
+
+            // Complication 2: Battery Pill (3:00 position)
             Rectangle {
                 id: batteryComplication
-                width: parent.width * 0.12
-                height: width
-                radius: width / 2
-                color: ColorUtils.transparentize(Appearance.m3colors.m3shadow, 0.4)
-                border.color: ColorUtils.applyAlpha(root.activeTextColor, 0.15)
+                width: parent.width * 0.14
+                height: parent.width * 0.08
+                radius: height / 2
+                color: Appearance.m3colors.m3shadow
+                border.color: root.activeAccentColor
                 border.width: 1
                 anchors.right: parent.right
-                anchors.rightMargin: parent.width * 0.10
+                anchors.rightMargin: parent.width * 0.01
                 anchors.verticalCenter: parent.verticalCenter
                 z: 2
 
                 StyledText {
                     text: Math.round(Battery.percentage * 100)
-                    color: root.activeTextColor
-                    font.pixelSize: parent.height * 0.46
+                    color: root.activeAccentColor
+                    font.pixelSize: parent.height * 0.50
                     font.weight: Font.Bold
                     anchors.centerIn: parent
                 }
             }
 
-            // Complication 3: Steps sub-dial (12:00 position)
-            Item {
-                id: stepsComplication
-                width: parent.width * 0.24
-                height: width
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.topMargin: parent.width * 0.16
-                z: 2
 
-                // Circular Progress Background
-                MaterialShape {
-                    anchors.fill: parent
-                    shapeString: "Circle"
-                    color: "transparent"
-                    borderColor: ColorUtils.applyAlpha(root.activeTextColor, 0.15)
-                    borderWidth: 0.08
-                }
 
-                // Dotted progress active overlay
-                MaterialShape {
-                    anchors.fill: parent
-                    shapeString: "Circle"
-                    color: "transparent"
-                    borderColor: root.activeAccentColor
-                    borderWidth: 0.08
-                }
-
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 0
-
-                    StyledText {
-                        text: "7,789" // Mock steps count since no desktop sensor exists
-                        color: root.activeTextColor
-                        font.pixelSize: stepsComplication.height * 0.22
-                        font.weight: Font.Bold
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-
-                    MaterialSymbol {
-                        text: "directions_run"
-                        iconSize: stepsComplication.height * 0.26
-                        color: root.activeAccentColor
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-                }
-            }
-
-            // Complication 4: Seconds Sub-dial (7:30 position)
+            // Complication 3: Hour Sub-dial (7:30 position) - no border circle
             Rectangle {
-                id: secondsComplication
-                width: parent.width * 0.24
+                id: hourDialComplication
+                width: parent.width * 0.22
                 height: width
                 radius: width / 2
                 color: "transparent"
-                border.color: ColorUtils.applyAlpha(root.activeTextColor, 0.1)
-                border.width: 1
                 x: parent.width * 0.24
-                y: parent.height * 0.58
+                y: parent.height * 0.52
                 z: 2
 
-                // Complication marks
+                // Complication marks: 12 main hour ticks (lines)
                 Repeater {
-                    model: 8
+                    model: 12
                     Item {
                         anchors.fill: parent
-                        rotation: index * 45
+                        rotation: index * 30
                         Rectangle {
-                            width: 1
-                            height: 3
-                            color: ColorUtils.applyAlpha(root.activeTextColor, 0.3)
+                            width: 2.0
+                            height: 5.5
+                            radius: 0
+                            color: ColorUtils.applyAlpha(root.activeTextColor, 0.55)
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.top: parent.top
+                        }
+                    }
+                }
+
+                // Complication minor marks: 12 dots (halfway between each hour)
+                Repeater {
+                    model: 12
+                    Item {
+                        anchors.fill: parent
+                        rotation: index * 30 + 15
+                        Rectangle {
+                            width: 2
+                            height: 2
+                            radius: 0.75
+                            color: ColorUtils.applyAlpha(root.activeTextColor, 0.35)
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.top: parent.top
                         }
@@ -433,7 +401,7 @@ AbstractBackgroundWidget {
                 }
 
                 StyledText {
-                    text: "10"
+                    text: root.hour % 12 === 0 ? 12 : root.hour % 12
                     color: root.activeTextColor
                     font.pixelSize: parent.height * 0.28
                     font.weight: Font.Bold
@@ -442,7 +410,7 @@ AbstractBackgroundWidget {
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
-                // Sub-dial center dot
+                // Sub-dial center dot pivot
                 Rectangle {
                     width: 4
                     height: 4
@@ -451,137 +419,147 @@ AbstractBackgroundWidget {
                     anchors.centerIn: parent
                 }
 
-                // Rotating indicator
+                // Rotating indicator: Hour rotation
                 Item {
                     anchors.fill: parent
-                    rotation: root.second * 6
+                    rotation: root.hourRotation
                     Rectangle {
-                        width: 2
-                        height: parent.height * 0.4
-                        radius: 1
-                        color: root.activeAccentColor
+                        width: parent.width * 0.08
+                        height: parent.height * 0.35
+                        radius: width / 2
+                        color: Appearance.m3colors.m3shadow
+                        border.color: root.activeTextColor
+                        border.width: 1.5
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.verticalCenter
+                        anchors.bottomMargin: parent.width * 0.045
                     }
                 }
             }
 
-            // Complication 5: Activity badge (4:30 position)
-            Rectangle {
-                id: activityBadge
-                width: parent.width * 0.18
-                height: width
-                radius: width / 2
-                color: ColorUtils.transparentize(Appearance.m3colors.m3shadow, 0.4)
-                border.color: ColorUtils.applyAlpha(root.activeTextColor, 0.15)
-                border.width: 1
-                x: parent.width * 0.58
-                y: parent.height * 0.50
+            // Backing gradient to fade out the ring/ticks behind/around the bedtime icon
+            RadialGradient {
+                id: bedtimeFadeGlow
+                anchors.centerIn: bedtimeIconContainer
+                width: bedtimeIconContainer.width * 1.8
+                height: bedtimeIconContainer.height * 1.8
+                z: 1.5
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Appearance.m3colors.m3shadow }
+                    GradientStop { position: 0.5; color: Appearance.m3colors.m3shadow }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
+
+            // Complication 4: Bedtime icon (6:00 position) - direct icon aligned with external ring
+            Item {
+                id: bedtimeIconContainer
+                width: 11
+                height: 11
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: parent.width * 0.006
+                anchors.horizontalCenter: parent.horizontalCenter
                 z: 2
 
                 MaterialSymbol {
-                    text: "directions_run"
-                    iconSize: parent.width * 0.55
+                    id: bedtimeIcon
+                    text: "bedtime"
+                    fill: 1
+                    iconSize: 11
                     color: root.activeTextColor
                     anchors.centerIn: parent
                 }
             }
 
-            // Complication 6: Date indicators (6:00 position)
-            ColumnLayout {
-                id: dateIndicatorGroup
+            // Complication 7: KDE Connect Connection Status Widget (above date complication, resized and positioned left)
+            Rectangle {
+                id: kdeConnectComplication
+                width: 38
+                height: 38
+                radius: width / 2
+                color: KdeConnectService.activeReachable ? Appearance.colors.colSecondaryContainer : ColorUtils.applyAlpha(Appearance.colors.colSecondaryContainer, 0.4)
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: parent.width * 0.14
-                spacing: 2
+                anchors.horizontalCenterOffset: 38
+                y: parent.height * 0.38
                 z: 2
 
-                StyledText {
-                    text: root.dayName
-                    color: root.activeSubtextColor
-                    font.pixelSize: innerScreen.width * 0.04
-                    font.weight: Font.Bold
-                    Layout.alignment: Qt.AlignHCenter
+                MaterialSymbol {
+                    text: KdeConnectService.activeReachable ? "mobile" : "mobile_off"
+                    fill: 1
+                    iconSize: 22
+                    color: KdeConnectService.activeReachable ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colSecondaryOnContainer
+                    anchors.centerIn: parent
+                }
+            }
+
+            // Complication 5: Date Small Widget (6:00 position, below center pivot, above inner ring)
+            Column {
+                id: smallDateComplication
+                spacing: 2
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: 30
+                y: parent.height * 0.58
+                z: 2
+
+                // Day of the week (Top Row)
+                Rectangle {
+                    width: 32
+                    height: 14
+                    radius: Appearance.rounding.full
+                    color: Appearance.colors.colPrimaryContainer
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    StyledText {
+                        text: {
+                            const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+                            return days[root.currentTime.getDay()];
+                        }
+                        color: Appearance.colors.colOnPrimaryContainer
+                        font.pixelSize: 8
+                        font.weight: Font.DemiBold
+                        anchors.centerIn: parent
+                    }
                 }
 
+                // Day of the month (Bottom Row)
                 Rectangle {
-                    width: innerScreen.width * 0.12
-                    height: innerScreen.width * 0.08
-                    radius: height / 2
-                    color: ColorUtils.transparentize(Appearance.m3colors.m3shadow, 0.4)
-                    border.color: ColorUtils.applyAlpha(root.activeTextColor, 0.15)
-                    border.width: 1
-                    Layout.alignment: Qt.AlignHCenter
+                    width: 32
+                    height: 18
+                    radius: 4
+                    color: Appearance.colors.colPrimary
+                    anchors.horizontalCenter: parent.horizontalCenter
 
                     StyledText {
                         text: root.date
-                        color: root.activeTextColor
-                        font.pixelSize: parent.height * 0.65
+                        color: Appearance.colors.colOnPrimary
+                        font.pixelSize: 13
                         font.weight: Font.Bold
                         anchors.centerIn: parent
                     }
                 }
             }
 
-            // Top decorative accent icon (12:00 top)
-            MaterialSymbol {
-                text: "shield"
-                iconSize: parent.width * 0.06
-                color: root.activeAccentColor
-                anchors.top: parent.top
-                anchors.topMargin: parent.width * 0.04
-                anchors.horizontalCenter: parent.horizontalCenter
-                z: 2
-            }
-
-            // Bottom decorative accent icon (6:00 bottom)
-            MaterialSymbol {
-                text: "home"
-                iconSize: parent.width * 0.06
-                color: root.activeTextColor
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: parent.width * 0.04
-                anchors.horizontalCenter: parent.horizontalCenter
-                z: 2
-            }
-
-            // Analog Hands (Center overlay)
+            // Analog Hands (Center overlay - Hour hand only)
             Item {
                 id: handsContainer
                 anchors.fill: parent
                 z: 4
 
-                // Hour Hand capsule
-                Item {
-                    anchors.fill: parent
-                    rotation: root.hourRotation
-
-                    Rectangle {
-                        width: parent.width * 0.042
-                        height: parent.height * 0.22
-                        radius: width / 2
-                        color: "transparent"
-                        border.color: root.activeTextColor
-                        border.width: 2
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom: parent.verticalCenter
-                    }
-                }
-
-                // Minute Hand capsule
+                // Minute Hand capsule (Hour hand removed)
                 Item {
                     anchors.fill: parent
                     rotation: root.minuteRotation
 
                     Rectangle {
-                        width: parent.width * 0.042
-                        height: parent.height * 0.33
+                        width: parent.width * 0.047
+                        height: parent.height * 0.30
                         radius: width / 2
-                        color: "transparent"
-                        border.color: root.activeTextColor
-                        border.width: 2
+                        color: ColorUtils.applyAlpha(Appearance.m3colors.m3shadow, 0.25)
+                        border.color: root.activeAccentColor
+                        border.width: 3
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.verticalCenter
+                        anchors.bottomMargin: parent.width * 0.04
                     }
                 }
 
@@ -592,7 +570,7 @@ AbstractBackgroundWidget {
                     radius: width / 2
                     color: Appearance.m3colors.m3shadow
                     border.color: root.activeSubtextColor
-                    border.width: 3
+                    border.width: 2.5
                     anchors.centerIn: parent
                 }
             }

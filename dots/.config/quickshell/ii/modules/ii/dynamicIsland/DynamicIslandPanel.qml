@@ -129,6 +129,12 @@ Scope {
     readonly property real peekGlowOpacity: root.isPeeking && !root.isHoverExpanded ? 0.12 : 0.0
     readonly property real peekScaleBoost: root.isPeeking && !root.isHoverExpanded ? 1.02 : 1.0
 
+    // Extra Compact mode multipliers
+    readonly property real _compactHeightMul: Config.options.bar.floatingNotch.extraCompact ? 0.75 : 1.0
+    readonly property real _compactWidthMul: Config.options.bar.floatingNotch.extraCompact ? 1.3 : 1.0
+    readonly property real _compactConcaveRadius: Config.options.bar.floatingNotch.extraCompact ? Math.max(12, Math.round(targetH * 0.5)) : -1
+    readonly property real _compactBottomRadius: Config.options.bar.floatingNotch.extraCompact ? 22 : -1
+
     Component.onCompleted: {
         root.prevLayout = HyprlandXkb.currentLayoutName;
         root.previousMode = root.mode;
@@ -555,7 +561,7 @@ Scope {
     }
 
     // Height of the persistent strip (contracted height + vertical padding), 0 when empty
-    readonly property real searchPersistentStripHeight: searchPersistentWidgets.length > 0 ? 52 : 0
+    readonly property real searchPersistentStripHeight: searchPersistentWidgets.length > 0 ? 52 * root._compactHeightMul : 0
 
     readonly property var activeWidgetsList: {
         console.log("[DI] activeWidgetsList recalculating - floatingNotch.enable:", Config.options.bar.floatingNotch.enable);
@@ -883,7 +889,7 @@ Scope {
         if (mode === "osd")
             return 380;
         if (mode === "home")
-            return 180;
+            return 180 * root._compactWidthMul;
 
         if (isHoverExpanded) {
             let list = activeWidgetsList;
@@ -897,9 +903,9 @@ Scope {
                 return list[0].expandedW;
             }
         } else {
-            return activeWidgetsList[0].contractedW;
+            return activeWidgetsList[0].contractedW * root._compactWidthMul;
         }
-        return 180;
+        return 180 * root._compactWidthMul;
     }
 
     // Focus grabber for Search Mode keyboard input
@@ -919,7 +925,7 @@ Scope {
         if (mode === "osd")
             return 72;
         if (mode === "home")
-            return Config.options.bar.floatingNotch.heightHome;
+            return Config.options.bar.floatingNotch.heightHome * root._compactHeightMul;
 
         if (isHoverExpanded) {
             let list = activeWidgetsList;
@@ -936,11 +942,11 @@ Scope {
             if (list.length > 0) {
                 let maxH = 0;
                 for (let i = 0; i < list.length; i++) {
-                    maxH = Math.max(maxH, list[i].contractedH);
+                    maxH = Math.max(maxH, list[i].contractedH * root._compactHeightMul);
                 }
                 return maxH;
             }
-            return 88;
+            return 88 * root._compactHeightMul;
         }
     }
 
@@ -1113,8 +1119,8 @@ Scope {
                 anchors.fill: parent
                 bodyWidth: parent.width
                 bodyHeight: parent.height
-                topRadius: ((root.isHoverExpanded && root.hasExpandedVersion) || root.mode === "search") ? 32 : 24 // Increased concave corners
-                bottomRadius: root.mode === "search" ? Appearance.rounding.windowRounding : ((root.isHoverExpanded && root.hasExpandedVersion) ? 28 : 20)
+                topRadius: root._compactConcaveRadius >= 0 ? root._compactConcaveRadius : (((root.isHoverExpanded && root.hasExpandedVersion) || root.mode === "search") ? 32 : 24)
+                bottomRadius: root._compactBottomRadius >= 0 ? root._compactBottomRadius : (root.mode === "search" ? Appearance.rounding.windowRounding : ((root.isHoverExpanded && root.hasExpandedVersion) ? 28 : 20))
                 fillColor: Config.options.bar.expressiveColors ? root.activeTheme.barBackground : Appearance.colors.colLayer0
                 disableBehaviors: true
 
@@ -1291,14 +1297,14 @@ Scope {
                             model: root.searchPersistentWidgets
                             delegate: Item {
                                 required property var modelData
-                                width: modelData.contractedW
-                                height: modelData.contractedH
+                                width: modelData.contractedW * root._compactWidthMul
+                                height: modelData.contractedH * root._compactHeightMul
 
                                 Loader {
                                     id: persistentWidgetLoader
                                     anchors.centerIn: parent
-                                    width: modelData.contractedW
-                                    height: modelData.contractedH
+                                    width: modelData.contractedW * root._compactWidthMul
+                                    height: modelData.contractedH * root._compactHeightMul
                                     active: root.searchActive
                                     source: modelData.source
 
