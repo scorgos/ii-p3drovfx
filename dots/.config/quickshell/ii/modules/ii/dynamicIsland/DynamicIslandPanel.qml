@@ -75,6 +75,33 @@ Scope {
     }
     property bool _prevChargingState: false
     property var _prevPowerProfile: PowerProfile.Balanced
+
+    readonly property bool _batteryCharging: Battery.isCharging
+    readonly property bool _batteryPluggedIn: Battery.isPluggedIn
+    readonly property bool _batteryAvailable: Battery.available
+
+    on_BatteryChargingChanged: {
+        console.log("[DI Battery] _batteryCharging changed to:", _batteryCharging, "available:", _batteryAvailable, "pluggedIn:", _batteryPluggedIn);
+        if (Config.options.bar.floatingNotch.enable && !Config.options.bar.floatingNotch.disableBattery) {
+            if (_batteryCharging || _batteryPluggedIn) {
+                root.batteryNotifActive = true;
+                batteryNotifTimer.interval = 5000;
+                batteryNotifTimer.restart();
+                console.log("[DI Battery] Widget shown temporarily via _batteryCharging/_batteryPluggedIn");
+            }
+        }
+        root._prevChargingState = _batteryCharging;
+    }
+
+    on_BatteryPluggedInChanged: {
+        console.log("[DI Battery] _batteryPluggedIn changed to:", _batteryPluggedIn);
+        if (_batteryPluggedIn && Config.options.bar.floatingNotch.enable && !Config.options.bar.floatingNotch.disableBattery) {
+            root.batteryNotifActive = true;
+            batteryNotifTimer.interval = 5000;
+            batteryNotifTimer.restart();
+            console.log("[DI Battery] Widget shown temporarily via _batteryPluggedIn");
+        }
+    }
     property bool isDragOverNotch: false
     property bool rightClickHidden: false
     // Reference to the currently loaded FloatingNotchLocalSend widget
@@ -107,9 +134,15 @@ Scope {
         root.previousMode = root.mode;
         root.previousWidgetType = root.mode;
         root.currentWidgetType = root.mode;
-        root._prevChargingState = Battery.isCharging;
+        root._prevChargingState = root._batteryCharging;
         root._prevPowerProfile = PowerProfiles.profile;
-        console.log("[DI Battery] Init - available:", Battery.available, "isCharging:", Battery.isCharging, "chargeState:", Battery.chargeState, "floatingNotch.enable:", Config.options.bar.floatingNotch.enable, "disableBattery:", Config.options.bar.floatingNotch.disableBattery);
+        console.log("[DI Battery] Init - available:", root._batteryAvailable, "charging:", root._batteryCharging, "pluggedIn:", root._batteryPluggedIn, "chargeState:", Battery.chargeState, "floatingNotch.enable:", Config.options.bar.floatingNotch.enable, "disableBattery:", Config.options.bar.floatingNotch.disableBattery);
+        if ((root._batteryCharging || root._batteryPluggedIn) && root._batteryAvailable && Config.options.bar.floatingNotch.enable && !Config.options.bar.floatingNotch.disableBattery) {
+            root.batteryNotifActive = true;
+            batteryNotifTimer.interval = 5000;
+            batteryNotifTimer.restart();
+            console.log("[DI Battery] Widget shown temporarily at init (already plugged in)");
+        }
     }
 
     // Bluetooth temporary notification status
@@ -190,12 +223,13 @@ Scope {
     Connections {
         target: Battery
         function onChargeStateChanged() {
-            console.log("[DI Battery] chargeState changed:", Battery.chargeState, "isCharging:", Battery.isCharging, "available:", Battery.available);
+            console.log("[DI Battery] chargeState changed:", Battery.chargeState, "isCharging:", Battery.isCharging, "available:", Battery.available, "isPluggedIn:", Battery.isPluggedIn, "local charging:", root._batteryCharging);
             if (Config.options.bar.floatingNotch.enable && !Config.options.bar.floatingNotch.disableBattery) {
-                if (Battery.isCharging) {
+                if (Battery.isCharging || Battery.isPluggedIn) {
                     root.batteryNotifActive = true;
-                    batteryNotifTimer.stop();
-                    console.log("[DI Battery] Widget activated (charging detected)");
+                    batteryNotifTimer.interval = 5000;
+                    batteryNotifTimer.restart();
+                    console.log("[DI Battery] Widget shown temporarily via onChargeStateChanged (state:", Battery.chargeState, ")");
                 } else if (PowerProfiles.profile !== PowerProfile.PowerSaver) {
                     batteryNotifTimer.interval = 5000;
                     batteryNotifTimer.restart();
@@ -203,8 +237,11 @@ Scope {
             }
             root._prevChargingState = Battery.isCharging;
         }
+        function onIsChargingChanged() {
+            console.log("[DI Battery] isCharging changed:", Battery.isCharging, "local:", root._batteryCharging);
+        }
         function onAvailableChanged() {
-            console.log("[DI Battery] available changed:", Battery.available);
+            console.log("[DI Battery] available changed:", Battery.available, "local:", root._batteryAvailable);
         }
         function onPercentageChanged() {
             console.log("[DI Battery] percentage changed:", Battery.percentage);
@@ -532,8 +569,8 @@ Scope {
         let showCalendar = !Config.options.bar.floatingNotch.disableCalendar;
         let showAudio = !Config.options.bar.floatingNotch.disableAudio && root.isHoverExpanded;
 
-        if ((root.batteryNotifActive || Battery.isCharging) && Battery.available && !Config.options.bar.floatingNotch.disableBattery) {
-            console.log("[DI Battery] Adding to activeWidgetsList - notifActive:", root.batteryNotifActive, "isCharging:", Battery.isCharging, "available:", Battery.available);
+        if (root.batteryNotifActive && root._batteryAvailable && !Config.options.bar.floatingNotch.disableBattery) {
+            console.log("[DI Battery] Adding to activeWidgetsList - notifActive:", root.batteryNotifActive, "available:", root._batteryAvailable);
             list.push(getWidgetDetails("battery"));
         }
         if (notificationActive && !Config.options.bar.floatingNotch.disableNotification)

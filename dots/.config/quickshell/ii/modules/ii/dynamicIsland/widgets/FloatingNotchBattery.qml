@@ -13,17 +13,20 @@ Item {
 
     readonly property int batteryPercent: Math.round(Battery.percentage * 100)
     readonly property bool isCharging: Battery.isCharging
+    readonly property bool isFull: Battery.chargeState === 4
+    readonly property bool isPluggedIn: Battery.isPluggedIn
     readonly property bool isPowerSaving: PowerProfiles.profile === PowerProfile.PowerSaver
     readonly property bool isPerformance: PowerProfiles.profile === PowerProfile.Performance
 
-    readonly property color accentColor: isCharging ? "#18CC47"
+    readonly property color accentColor: (isCharging || isFull) ? "#18CC47"
         : isPowerSaving ? "#fbbc04"
         : isPerformance ? "#42A5F5"
         : Appearance.colors.colPrimary
 
     readonly property string statusText: {
-        if (isCharging && Battery.isFull) return Translation.tr("Fully Charged");
+        if (isFull) return Translation.tr("Fully Charged");
         if (isCharging) return Translation.tr("Charging");
+        if (isPluggedIn) return Translation.tr("Plugged In");
         if (isPowerSaving) return Translation.tr("Low Power Mode");
         if (isPerformance) return Translation.tr("Performance Mode");
         return Translation.tr("On Battery");
@@ -65,7 +68,7 @@ Item {
 
         MaterialSymbol {
             id: boltIcon
-            text: root.isCharging ? "bolt"
+            text: (root.isCharging || root.isFull) ? "bolt"
                 : root.isPowerSaving ? "energy_savings_leaf"
                 : root.isPerformance ? "local_fire_department"
                 : "battery_full"
@@ -75,7 +78,7 @@ Item {
             Layout.alignment: Qt.AlignVCenter
 
             SequentialAnimation on opacity {
-                running: root.isCharging && contractedLayout.visible
+                running: (root.isCharging || root.isFull) && contractedLayout.visible
                 loops: Animation.Infinite
                 NumberAnimation { to: 0.4; duration: 1200; easing.type: Easing.InOutQuad }
                 NumberAnimation { to: 1.0; duration: 1200; easing.type: Easing.InOutQuad }
