@@ -118,7 +118,7 @@ Item {
                                             ? timeText.hours.padStart(2, "0") + ":" + timeText.minutes.padStart(2, "0")
                                             : DateTime.time;
                             let time = Config.options.bar.clock.showSeconds 
-                                        ? baseTime + ":" + Math.floor(DateTime.seconds).toString().padStart(2, "0")
+                                        ? baseTime + ":" + DateTime.seconds
                                         : baseTime;
                             return timeText.ampm !== "" ? time + " " + timeText.ampm : time;
                         }

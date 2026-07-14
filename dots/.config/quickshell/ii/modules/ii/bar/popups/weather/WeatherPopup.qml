@@ -153,6 +153,7 @@ StyledPopup {
             pillIcon: Weather.data.city ? "location_on" : ""
             title: Weather.data.temp
             subtitle: Weather.data.wDesc
+            startAnim: contentLayout.startAnim
 
             opacity: 0.0
             scale: 0.85
@@ -188,6 +189,7 @@ StyledPopup {
             
             Layout.minimumWidth: 360
             margins: root.cardMargins
+            startAnim: contentLayout.startAnim
 
             opacity: 0.0
             scale: 0.85
@@ -216,6 +218,7 @@ StyledPopup {
             rowSpacing: 8
             columnSpacing: 8
             uniformCellWidths: true
+            startAnim: contentLayout.startAnim
 
             opacity: 0.0
             scale: 0.85
@@ -248,6 +251,7 @@ StyledPopup {
             showDivider: false
             title: Translation.tr("Forecast")
             icon: "calendar_month"
+            startAnim: contentLayout.startAnim
 
             opacity: 0.0
             scale: 0.85

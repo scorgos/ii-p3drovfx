@@ -259,6 +259,7 @@ StyledPopup {
             Layout.fillWidth: true
             Layout.minimumWidth: 400
             visible: Config.options.time.alarms.showAnalogClock
+            startAnim: columnLayout.startAnim
             
             opacity: 0.0
             scale: 0.85
@@ -311,6 +312,18 @@ StyledPopup {
             Layout.fillWidth: true
             spacing: 12
             
+            property bool startAnim: columnLayout.startAnim
+            onStartAnimChanged: {
+                if (startAnim) {
+                    infoPill.startAnim = false;
+                    localSendPill.startAnim = false;
+                    Qt.callLater(function() {
+                        infoPill.startAnim = true;
+                        localSendPill.startAnim = true;
+                    });
+                }
+            }
+            
             opacity: 0.0
             scale: 0.85
             transform: Translate {
@@ -330,6 +343,7 @@ StyledPopup {
             }
 
             InfoPill {
+                id: infoPill
                 visible: !root.compact ? LocalSend.currentTransfer == null || LocalSend.droppedFiles.length > 0 : false
                 textContent: Loader {
                     anchors.centerIn: parent
@@ -345,6 +359,7 @@ StyledPopup {
             }
 
             LocalSendPill {
+                id: localSendPill
                 visible: LocalSend.available
             }
         }
@@ -391,6 +406,7 @@ StyledPopup {
             Layout.fillWidth: true
             Layout.minimumWidth: root.compact ? 320 : 360
             visible: Config.options.time.alarms.showAlarmsSection
+            startAnim: columnLayout.startAnim
             
             opacity: 0.0
             scale: 0.85
@@ -493,6 +509,7 @@ StyledPopup {
                 getUtcTimeForTz: root.getUtcTimeForTz
                 getFormattedTime: root.getFormattedTime
                 getFormattedDate: root.getFormattedDate
+                startAnim: columnLayout.startAnim
             }
         }
 
